@@ -39,6 +39,24 @@ export class MeshFactory {
 		mesh.userData.isRestrainedMesh = true;
 		return mesh;
 	}
+	cloneMesh(mesh) {
+		let newobj;
+		newobj = this.createMesh(
+			mesh.geometry.clone(), mesh.material.clone(),
+			mesh.userData.isMovable, mesh.userData.hasCollision
+		);
+		newobj.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
+		return newobj;
+	}
+	cloneRestrainedMesh(mesh){
+		let newobj;
+		newobj = this.createRestrainedMesh(
+			mesh.geometry.clone(), mesh.material.clone(),
+			mesh.userData.isMovable, mesh.userData.hasCollision, mesh.userData.restraint.clone()
+		);
+		newobj.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
+		return newobj;
+	}
 	
 	setStage(stage) {
 		this.stage = stage;

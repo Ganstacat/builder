@@ -33,7 +33,6 @@ function setRotation(obj,x,y,z){
 	obj.rotation.x = x; obj.rotation.y = y; obj.rotation.z = z;
 }
 function removeSelectionColor(obj) {
-	// if(obj.isMesh && obj.userData.color) obj.material.color = obj.userData.color.clone();
 	if(obj.isMesh) obj.material.emissive.set("black");
 	else if (obj.isGroup) {
 		applyToChildMeshes(obj, function(o){ 
@@ -43,12 +42,9 @@ function removeSelectionColor(obj) {
 	
 }
 function applySelectionColor(obj){
-	// obj.userData.color = obj.material.color.clone();
-	// obj.material.color.set("Gold");
 	if(obj.isMesh) obj.material.emissive.set(0x9c8e30);
 	else if (obj.isGroup) {
-		console.log("Recur");
-		applyToChildMeshes(obj, function(o){ 
+		applyToChildMeshes(obj, function(o){
 			applySelectionColor(o);
 		});
 	}
@@ -224,17 +220,18 @@ document.querySelector("#clone").onclick = function(){
 		removeSelectionColor(selectedObject);
 		let newObject;
 		if (selectedObject.isRestrainedMesh) {
-			newObject = currentStage.meshFactory.createRestrainedMesh(
-				selectedObject.geometry.clone(), selectedObject.material.clone(),
-				selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint.clone()
-			);
+			newObject = currentStage.meshFactory.cloneRestrainedMesh(selectedObject);
 		} else if (selectedObject.isMesh) {
-			newObject = currentStage.meshFactory.createMesh(
-				selectedObject.geometry.clone(), selectedObject.material.clone(),
-				selectedObject.userData.isMovable, selectedObject.userData.hasCollision
-			);
+			newObject = currentStage.meshFactory.cloneMesh(selectedObject);
 		} else if (selectedObject.isGroup) {
-			newObject = selectedObject.clone();
+			
+			newObject = new THREE.Group();
+			applyToChildMeshes(selectedObject, function (o){
+				console.log("cloned mesh");
+				if(o.isRestrainedMesh) newObject.add(currentStage.meshFactory.cloneRestrainedMesh(o));
+				else if(o.isMesh) newObject.add(currentStage.meshFactory.cloneMesh(o));
+			});
+			
 			currentStage.addObject(newObject, true, false);
 		}
 		else {
