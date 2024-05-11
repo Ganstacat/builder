@@ -265,6 +265,7 @@ const box = builderStage.meshFactory.createMesh(
 	new THREE.MeshStandardMaterial({ map: textureLoader.load('./assets/textures/wood1.jpg') }),
 	true, true
 );
+console.log(box);
 
 // const gridHelper = new THREE.GridHelper(4, 16);
 // stage.scene.add(gridHelper);
