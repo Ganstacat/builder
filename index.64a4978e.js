@@ -600,7 +600,6 @@ const assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
 const exporter = new (0, _gltfexporterJs.GLTFExporter)();
 const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)(builderStage);
 const gui = new _datGui.GUI();
-const texturegui = new _datGui.GUI();
 var selectedObject;
 function setScale(obj, x, y, z) {
     if (!obj) return;
@@ -644,8 +643,14 @@ gui.addColor(options, "color").onChange(function(e) {
     selectedObject.material.color.set(e);
 });
 document.addEventListener("pointerdown", function() {
+    if (selectedObject) selectedObject.material.color.copy(selectedObject.userData.color);
     selectedObject = dragEngine.dragObject ? dragEngine.dragObject : selectedObject;
-    updateSelectedObject();
+    if (selectedObject) {
+        selectedObject.userData.color = selectedObject.material.color.clone();
+        selectedObject.material.color.set("Gold");
+        console.log(selectedObject);
+        updateSelectedObject();
+    }
 });
 function updateSelectedObject() {
     if (selectedObject) {
@@ -750,7 +755,7 @@ document.querySelector("#addCube").onclick = function() {
 document.querySelector("#clone").onclick = function() {
     if (selectedObject) {
         let newObject;
-        if (selectedObject.constructor.name === "RestrainedMesh") newObject = currentStage.meshFactory.createRestrainedMesh(selectedObject.geometry, selectedObject.material, selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint);
+        if (selectedObject.constructor.name === "RestrainedMesh") newObject = currentStage.meshFactory.createRestrainedMesh(selectedObject.geometry, selectedObject.material, selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint.clone());
         else if (selectedObject.constructor.name === "Mesh") newObject = currentStage.meshFactory.createMesh(selectedObject.geometry, selectedObject.material, selectedObject.userData.isMovable, selectedObject.userData.hasCollision);
         else console.log(selectedObject.constructor.name);
         if (newObject) {
@@ -769,6 +774,12 @@ document.querySelector("#addWall").onclick = function() {
     }), true, true, floorStage.constraintBox);
     box.castShadow = true;
     box.position.y -= box.geometry.boundingBox.min.y;
+};
+document.querySelector("#delobj").onclick = function() {
+    if (selectedObject) currentStage.scene.remove(selectedObject);
+};
+document.querySelector("#clear").onclick = function() {
+    for (let obj of currentStage.movableObjects)currentStage.scene.remove(obj);
 };
 function saveArrayBuffer(buffer, filename) {
     save(new Blob([
@@ -805,9 +816,9 @@ document.body.appendChild(link);
 // console.log(err);
 // }
 // );
-const box = builderStage.meshFactory.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
+const box = builderStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
     map: textureLoader.load("./assets/textures/wood1.jpg")
-}), true, true);
+}), true, true, builderStage.constraintBox);
 console.log(box); // const gridHelper = new THREE.GridHelper(4, 16);
  // stage.scene.add(gridHelper);
  // let constraintBox = new THREE.Box3(
@@ -40149,125 +40160,23 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
         const wallMaterial = new _three.MeshStandardMaterial({
             map: walltexture
         });
-        const wallMaterial1 = [
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.BackSide
-            })
-        ];
-        const wallMaterial2 = [
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.BackSide
-            })
-        ];
-        const wallMaterial3 = [
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor,
-                side: _three.FrontSide
-            })
-        ];
-        const wallMaterial4 = [
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.BackSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.FrontSide
-            }),
-            new _three.MeshStandardMaterial({
-                color: wallColor - 0x222222,
-                side: _three.BackSide
-            })
-        ];
-        const wall1 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, true);
+        const wall1 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, false);
+        const wall2 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, false);
+        const wall3 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, false);
+        const wall4 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, false);
         wall1.rotation.y = 0.5 * Math.PI;
         wall1.rotation.z = -0.5 * Math.PI;
         wall1.position.set(-2, 0.75, 0);
-        const wall2 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, true);
         wall2.position.set(0, 0.75, -2);
         wall2.rotation.z = 0.5 * Math.PI;
-        const wall3 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, true);
         wall3.position.set(2, 0.75, 0);
         wall3.rotation.x = 0.5 * Math.PI;
         wall3.rotation.y = -0.5 * Math.PI;
-        const wall4 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, true);
         wall4.position.set(0, 0.75, 2);
         wall4.rotation.y = -1 * Math.PI;
         wall4.rotation.z = 0.5 * Math.PI;
+        wall1.castShadow = true;
+        wall1.receiveShadow = true;
         this.constraintBox = new _three.Box3(new _three.Vector3(-2, 0, -2), new _three.Vector3(2, 1.5, 2));
     // const box = this.meshFactory.createRestrainedMesh(
     // new THREE.BoxGeometry(0.5,0.5,0.5),
