@@ -807,7 +807,8 @@ document.body.appendChild(link);
 // );
 const box = builderStage.meshFactory.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
     map: textureLoader.load("./assets/textures/wood1.jpg")
-}), true, true); // const gridHelper = new THREE.GridHelper(4, 16);
+}), true, true);
+console.log(box); // const gridHelper = new THREE.GridHelper(4, 16);
  // stage.scene.add(gridHelper);
  // let constraintBox = new THREE.Box3(
  // new THREE.Vector3(-1.5, 0,-1.5),
