@@ -592,10 +592,12 @@ var _gltfexporterJs = require("three/examples/jsm/exporters/GLTFExporter.js");
 var _stageJs = require("./Stage.js");
 var _floorPlannerStageJs = require("./FloorPlannerStage.js");
 var _dragEnginePlaneJs = require("./DragEnginePlane.js");
+var _materialManagerJs = require("./MaterialManager.js");
 const builderStage = new (0, _stageJs.Stage)();
 const floorStage = new (0, _floorPlannerStageJs.FloorPlannerStage)();
 var currentStage = builderStage;
 const textureLoader = new _three.TextureLoader();
+const materialManager = new (0, _materialManagerJs.MaterialManager)(textureLoader);
 const assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
 const exporter = new (0, _gltfexporterJs.GLTFExporter)();
 const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)(builderStage);
@@ -736,6 +738,13 @@ document.addEventListener("keypress", (e)=>{
                     selectedObject.scale.z -= 0.1;
                     break;
             }
+            break;
+        case "q":
+            if (selectedObject) {
+                removeSelectionColor(selectedObject);
+                selectedObject = null;
+            }
+            break;
     }
     updateSelectedObject();
     if (selectedObject.constructor.name === "RestrainedMesh") {
@@ -780,7 +789,6 @@ document.querySelector("#clone").onclick = function() {
         else if (selectedObject.isGroup) {
             newObject = new _three.Group();
             applyToChildMeshes(selectedObject, function(o) {
-                console.log("cloned mesh");
                 if (o.isRestrainedMesh) newObject.add(currentStage.meshFactory.cloneRestrainedMesh(o));
                 else if (o.isMesh) newObject.add(currentStage.meshFactory.cloneMesh(o));
             });
@@ -815,6 +823,11 @@ document.querySelector("#delobj").onclick = function() {
 document.querySelector("#clear").onclick = function() {
     for (let obj of currentStage.movableObjects)currentStage.scene.remove(obj);
     currentStage.movableObjects = [];
+};
+const materialSelector = document.querySelector("#materials");
+materialSelector.onchange = function(e) {
+    console.log(materialSelector.value);
+    if (selectedObject && selectedObject.isMesh) materialManager.setMeshMaterial(selectedObject, materialSelector.value);
 };
 function saveArrayBuffer(buffer, filename) {
     save(new Blob([
@@ -851,9 +864,19 @@ document.body.appendChild(link);
 // console.log(err);
 // }
 // );
-const box = builderStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
-    map: textureLoader.load("./assets/textures/wood1.jpg")
-}), true, true, builderStage.constraintBox);
+// const box = builderStage.meshFactory.createRestrainedMesh(
+// new THREE.BoxGeometry(0.5,0.5,0.5),
+// new THREE.MeshStandardMaterial({ map: textureLoader.load('./assets/textures/wood1.jpg') }),
+// true, true, builderStage.constraintBox
+// );
+// const box = builderStage.meshFactory.createRestrainedMesh(
+// new THREE.BoxGeometry(0.5,0.5,0.5),
+// materialManager.materials.light_brick(),
+// true, true, builderStage.constraintBox
+// );
+const box = builderStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial(), true, true, builderStage.constraintBox);
+const mat = materialManager.materials.light_brick();
+// box.material = mat;
 console.log(box); // const gridHelper = new THREE.GridHelper(4, 16);
  // stage.scene.add(gridHelper);
  // let constraintBox = new THREE.Box3(
@@ -877,7 +900,7 @@ console.log(box); // const gridHelper = new THREE.GridHelper(4, 16);
  // box2.position.y -= box2.geometry.boundingBox.min.y;
  // box2.position.x = 1;
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","dat.gui":"k3xQk","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU"}],"ktPTu":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","dat.gui":"k3xQk","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt"}],"ktPTu":[function(require,module,exports) {
 /**
  * @license
  * Copyright 2010-2024 Three.js Authors
@@ -40412,6 +40435,54 @@ class DragEnginePlane {
     }
 }
 
-},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
+},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4SNlt":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "MaterialManager", ()=>MaterialManager);
+var _three = require("three");
+class MaterialManager {
+    constructor(textureLoader){
+        this.textureLoader = textureLoader;
+        this.textureFolderPath = "./assets/textures/";
+        this.loadedTextures = new Map();
+        let self = this;
+        this.materials = {
+            light_brick: ()=>{
+                return self.createStandardTexturedMaterial("light_brick.jpg");
+            },
+            hardwood: ()=>{
+                return self.createStandardTexturedMaterial("hardwood.png");
+            },
+            tile1: ()=>{
+                return self.createStandardTexturedMaterial("tile-01.jpg");
+            },
+            tile2: ()=>{
+                return self.createStandardTexturedMaterial("tile-02.jpg");
+            },
+            marbletiles: ()=>{
+                return self.createStandardTexturedMaterial("marbletiles.jpg");
+            }
+        };
+        console.log(this.materials["light_brick"]);
+    }
+    createStandardTexturedMaterial(filename) {
+        let texture;
+        if (this.loadedTextures.has(filename)) texture = this.loadedTextures.get(filename);
+        else texture = this.textureLoader.load(this.textureFolderPath + filename);
+        this.loadedTextures.set(filename, texture);
+        return new _three.MeshStandardMaterial({
+            map: texture
+        });
+    }
+    setMeshMaterial(mesh, materialKey) {
+        try {
+            mesh.material = this.materials[materialKey]();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+}
+
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
 
 //# sourceMappingURL=index.64a4978e.js.map

@@ -7,6 +7,7 @@ import {GLTFExporter} from 'three/examples/jsm/exporters/GLTFExporter.js';
 import  {Stage} from './Stage.js';
 import  {FloorPlannerStage} from './FloorPlannerStage.js';
 import  {DragEnginePlane} from './DragEnginePlane.js';
+import  {MaterialManager} from './MaterialManager.js';
 
 
 
@@ -16,6 +17,7 @@ const floorStage = new FloorPlannerStage();
 var currentStage = builderStage;
 
 const textureLoader = new THREE.TextureLoader();
+const materialManager = new MaterialManager(textureLoader);
 const assetLoader = new GLTFLoader();
 
 const exporter = new GLTFExporter();
@@ -168,7 +170,13 @@ document.addEventListener('keypress', (e) => {
 					selectedObject.scale.z -= 0.1;
 					break;
 			}
-		
+			break;
+		case "q":
+			if(selectedObject){
+				removeSelectionColor(selectedObject);
+				selectedObject = null;
+			}
+			break;
 	}
 	updateSelectedObject();
 	if(selectedObject.constructor.name === "RestrainedMesh" ){
@@ -227,7 +235,6 @@ document.querySelector("#clone").onclick = function(){
 			
 			newObject = new THREE.Group();
 			applyToChildMeshes(selectedObject, function (o){
-				console.log("cloned mesh");
 				if(o.isRestrainedMesh) newObject.add(currentStage.meshFactory.cloneRestrainedMesh(o));
 				else if(o.isMesh) newObject.add(currentStage.meshFactory.cloneMesh(o));
 			});
@@ -278,6 +285,13 @@ document.querySelector("#clear").onclick = function() {
 	currentStage.movableObjects = [];
 }
 
+const materialSelector = document.querySelector("#materials");
+materialSelector.onchange = function(e) {
+	console.log(materialSelector.value);
+	if (selectedObject && selectedObject.isMesh)
+		materialManager.setMeshMaterial(selectedObject, materialSelector.value);
+}
+
 function saveArrayBuffer(buffer, filename){
 	save(new Blob([buffer], {type:'application/octet-stream'}), filename);
 }
@@ -322,11 +336,24 @@ document.body.appendChild(link);
 		// console.log(err);
 	// }
 // );
+// const box = builderStage.meshFactory.createRestrainedMesh(
+	// new THREE.BoxGeometry(0.5,0.5,0.5),
+	// new THREE.MeshStandardMaterial({ map: textureLoader.load('./assets/textures/wood1.jpg') }),
+	// true, true, builderStage.constraintBox
+// );
+// const box = builderStage.meshFactory.createRestrainedMesh(
+	// new THREE.BoxGeometry(0.5,0.5,0.5),
+	// materialManager.materials.light_brick(),
+	// true, true, builderStage.constraintBox
+// );
+
 const box = builderStage.meshFactory.createRestrainedMesh(
 	new THREE.BoxGeometry(0.5,0.5,0.5),
-	new THREE.MeshStandardMaterial({ map: textureLoader.load('./assets/textures/wood1.jpg') }),
+	new THREE.MeshStandardMaterial(),
 	true, true, builderStage.constraintBox
 );
+const mat = materialManager.materials.light_brick();
+// box.material = mat;
 console.log(box);
 
 // const gridHelper = new THREE.GridHelper(4, 16);
