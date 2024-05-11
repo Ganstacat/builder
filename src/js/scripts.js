@@ -21,7 +21,6 @@ const assetLoader = new GLTFLoader();
 const exporter = new GLTFExporter();
 const dragEngine = new DragEnginePlane(builderStage);
 const gui = new dat.GUI();
-const texturegui = new dat.GUI();
 
 var selectedObject;
 function setScale(obj,x,y,z){
@@ -61,8 +60,17 @@ gui.addColor(options, 'color').onChange(function(e){
 	selectedObject.material.color.set(e);
 });
 document.addEventListener('pointerdown', function(){
+	if (selectedObject)
+		selectedObject.material.color.copy(selectedObject.userData.color);
 	selectedObject = dragEngine.dragObject ? dragEngine.dragObject : selectedObject;
-	updateSelectedObject();
+	
+	
+	if (selectedObject) {
+		selectedObject.userData.color = selectedObject.material.color.clone();
+		selectedObject.material.color.set("Gold");
+		console.log(selectedObject);
+		updateSelectedObject();
+	}
 });
 function updateSelectedObject(){
 	if(selectedObject){
@@ -182,7 +190,7 @@ document.querySelector("#clone").onclick = function(){
 		if (selectedObject.constructor.name === "RestrainedMesh") {
 			newObject = currentStage.meshFactory.createRestrainedMesh(
 				selectedObject.geometry, selectedObject.material,
-				selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint
+				selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint.clone()
 			);
 		} else if (selectedObject.constructor.name === "Mesh") {
 			newObject = currentStage.meshFactory.createMesh(
@@ -214,6 +222,14 @@ document.querySelector("#addWall").onclick = function(){
 	);
 	box.castShadow = true;
 	box.position.y -= box.geometry.boundingBox.min.y;
+}
+
+document.querySelector("#delobj").onclick = function() {
+	if(selectedObject) currentStage.scene.remove(selectedObject);
+}
+document.querySelector("#clear").onclick = function() {
+	for(let obj of currentStage.movableObjects)
+		currentStage.scene.remove(obj);
 }
 
 function saveArrayBuffer(buffer, filename){
@@ -260,10 +276,10 @@ document.body.appendChild(link);
 		// console.log(err);
 	// }
 // );
-const box = builderStage.meshFactory.createMesh(
+const box = builderStage.meshFactory.createRestrainedMesh(
 	new THREE.BoxGeometry(0.5,0.5,0.5),
 	new THREE.MeshStandardMaterial({ map: textureLoader.load('./assets/textures/wood1.jpg') }),
-	true, true
+	true, true, builderStage.constraintBox
 );
 console.log(box);
 

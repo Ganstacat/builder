@@ -22,74 +22,46 @@ export class FloorPlannerStage extends Stage {
 		const wallMaterial = new THREE.MeshStandardMaterial( {
 			map: walltexture
 		});
-		
-		
-		const wallMaterial1 = [
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.BackSide})
-		];	
-		const wallMaterial2 = [
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.BackSide})
-		];
-		const wallMaterial3 = [
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor, side: THREE.FrontSide})
-		];
-		const wallMaterial4 = [
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.BackSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.FrontSide}),
-			new THREE.MeshStandardMaterial({color: wallColor-0x222222, side: THREE.BackSide})
-		];
+
 		const wall1 = this.meshFactory.createMesh(
 			wallGeometry,
 			wallMaterial,
-			false, true
+			false, false
 		)
+		const wall2 = this.meshFactory.createMesh(
+			wallGeometry,
+			wallMaterial,
+			false, false
+		)	
+		const wall3 = this.meshFactory.createMesh(
+			wallGeometry,
+			wallMaterial,
+			false, false
+		)
+		const wall4 = this.meshFactory.createMesh(
+			wallGeometry,
+			wallMaterial,
+			false, false
+		)
+		
 		wall1.rotation.y = 0.5 * Math.PI;
 		wall1.rotation.z = -0.5 * Math.PI;
 		wall1.position.set(-2, 0.75, 0);
 		
-		const wall2 = this.meshFactory.createMesh(
-			wallGeometry,
-			wallMaterial,
-			false, true
-		)
 		wall2.position.set(0,0.75,-2);
 		wall2.rotation.z = 0.5 * Math.PI;
 		
-		const wall3 = this.meshFactory.createMesh(
-			wallGeometry,
-			wallMaterial,
-			false, true
-		)
 		wall3.position.set(2,0.75,0);
 		wall3.rotation.x = 0.5 * Math.PI;
 		wall3.rotation.y = -0.5 * Math.PI;
 		
-		const wall4 = this.meshFactory.createMesh(
-			wallGeometry,
-			wallMaterial,
-			false, true
-		)
 		wall4.position.set(0,0.75,2);
 		wall4.rotation.y = -1 * Math.PI;
 		wall4.rotation.z = 0.5 * Math.PI;
+		
+		wall1.castShadow = true;
+		wall1.receiveShadow = true;
+		
 		
 		
 		this.constraintBox = new THREE.Box3(
