@@ -613,22 +613,16 @@ function setRotation(obj, x, y, z) {
     obj.rotation.z = z;
 }
 function removeSelectionColor(obj) {
-    // if(obj.isMesh && obj.userData.color) obj.material.color = obj.userData.color.clone();
     if (obj.isMesh) obj.material.emissive.set("black");
     else if (obj.isGroup) applyToChildMeshes(obj, function(o) {
         removeSelectionColor(o);
     });
 }
 function applySelectionColor(obj) {
-    // obj.userData.color = obj.material.color.clone();
-    // obj.material.color.set("Gold");
     if (obj.isMesh) obj.material.emissive.set(0x9c8e30);
-    else if (obj.isGroup) {
-        console.log("Recur");
-        applyToChildMeshes(obj, function(o) {
-            applySelectionColor(o);
-        });
-    }
+    else if (obj.isGroup) applyToChildMeshes(obj, function(o) {
+        applySelectionColor(o);
+    });
 }
 function applyToChildMeshes(group, cb) {
     for(let i = 0; i < group.children.length; i++){
@@ -781,10 +775,15 @@ document.querySelector("#clone").onclick = function() {
     if (selectedObject) {
         removeSelectionColor(selectedObject);
         let newObject;
-        if (selectedObject.isRestrainedMesh) newObject = currentStage.meshFactory.createRestrainedMesh(selectedObject.geometry.clone(), selectedObject.material.clone(), selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint.clone());
-        else if (selectedObject.isMesh) newObject = currentStage.meshFactory.createMesh(selectedObject.geometry.clone(), selectedObject.material.clone(), selectedObject.userData.isMovable, selectedObject.userData.hasCollision);
+        if (selectedObject.isRestrainedMesh) newObject = currentStage.meshFactory.cloneRestrainedMesh(selectedObject);
+        else if (selectedObject.isMesh) newObject = currentStage.meshFactory.cloneMesh(selectedObject);
         else if (selectedObject.isGroup) {
-            newObject = selectedObject.clone();
+            newObject = new _three.Group();
+            applyToChildMeshes(selectedObject, function(o) {
+                console.log("cloned mesh");
+                if (o.isRestrainedMesh) newObject.add(currentStage.meshFactory.cloneRestrainedMesh(o));
+                else if (o.isMesh) newObject.add(currentStage.meshFactory.cloneMesh(o));
+            });
             currentStage.addObject(newObject, true, false);
         } else {
             console.log("Cannot create clone for an object: ");
@@ -40148,6 +40147,18 @@ class MeshFactory {
         }
         mesh.userData.isRestrainedMesh = true;
         return mesh;
+    }
+    cloneMesh(mesh) {
+        let newobj;
+        newobj = this.createMesh(mesh.geometry.clone(), mesh.material.clone(), mesh.userData.isMovable, mesh.userData.hasCollision);
+        newobj.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
+        return newobj;
+    }
+    cloneRestrainedMesh(mesh) {
+        let newobj;
+        newobj = this.createRestrainedMesh(mesh.geometry.clone(), mesh.material.clone(), mesh.userData.isMovable, mesh.userData.hasCollision, mesh.userData.restraint.clone());
+        newobj.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
+        return newobj;
     }
     setStage(stage) {
         this.stage = stage;
