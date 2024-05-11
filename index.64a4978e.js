@@ -612,6 +612,13 @@ function setRotation(obj, x, y, z) {
     obj.rotation.y = y;
     obj.rotation.z = z;
 }
+function removeSelectionColor(obj) {
+    if (obj.isMesh && obj.userData.color) obj.material.color = obj.userData.color.clone();
+}
+function applySelectionColor(obj) {
+    obj.userData.color = obj.material.color.clone();
+    obj.material.color.set("Gold");
+}
 const options = {
     scalex: 1,
     scaley: 1,
@@ -643,11 +650,10 @@ gui.addColor(options, "color").onChange(function(e) {
     selectedObject.material.color.set(e);
 });
 document.addEventListener("pointerdown", function() {
-    if (selectedObject) selectedObject.material.color.copy(selectedObject.userData.color);
+    if (selectedObject && selectedObject.isMesh) removeSelectionColor(selectedObject);
     selectedObject = dragEngine.dragObject ? dragEngine.dragObject : selectedObject;
-    if (selectedObject) {
-        selectedObject.userData.color = selectedObject.material.color.clone();
-        selectedObject.material.color.set("Gold");
+    if (selectedObject && selectedObject.isMesh) {
+        applySelectionColor(selectedObject);
         console.log(selectedObject);
         updateSelectedObject();
     }
@@ -738,6 +744,7 @@ document.querySelector("#builder").onclick = function() {
     currentStage = builderStage;
 };
 document.querySelector("#exportToFloor").onclick = function() {
+    for (let obj of builderStage.movableObjects)removeSelectionColor(obj);
     exporter.parse(builderStage.movableObjects, function(result) {
         saveArrayBuffer(result, "Scene.glb");
     }, function(error) {
@@ -754,10 +761,17 @@ document.querySelector("#addCube").onclick = function() {
 };
 document.querySelector("#clone").onclick = function() {
     if (selectedObject) {
+        removeSelectionColor(selectedObject);
         let newObject;
-        if (selectedObject.constructor.name === "RestrainedMesh") newObject = currentStage.meshFactory.createRestrainedMesh(selectedObject.geometry, selectedObject.material, selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint.clone());
-        else if (selectedObject.constructor.name === "Mesh") newObject = currentStage.meshFactory.createMesh(selectedObject.geometry, selectedObject.material, selectedObject.userData.isMovable, selectedObject.userData.hasCollision);
-        else console.log(selectedObject.constructor.name);
+        if (selectedObject.isRestrainedMesh) newObject = currentStage.meshFactory.createRestrainedMesh(selectedObject.geometry, selectedObject.material, selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint.clone());
+        else if (selectedObject.isMesh) newObject = currentStage.meshFactory.createMesh(selectedObject.geometry, selectedObject.material, selectedObject.userData.isMovable, selectedObject.userData.hasCollision);
+        else if (selectedObject.isGroup) {
+            newObject = selectedObject.clone();
+            currentStage.addObject(newObject, true, false);
+        } else {
+            console.log("Cannot create clone for an object: ");
+            console.log(selectedObject);
+        }
         if (newObject) {
             newObject.position.set(selectedObject.position.x, selectedObject.position.y, selectedObject.position.z);
             newObject.scale.set(selectedObject.scale.x, selectedObject.scale.y, selectedObject.scale.z);
@@ -777,9 +791,13 @@ document.querySelector("#addWall").onclick = function() {
 };
 document.querySelector("#delobj").onclick = function() {
     if (selectedObject) currentStage.scene.remove(selectedObject);
+    let m = [];
+    for (let obj of currentStage.movableObjects)if (obj !== selectedObject) m.push(obj);
+    currentStage.movableObjects = m;
 };
 document.querySelector("#clear").onclick = function() {
     for (let obj of currentStage.movableObjects)currentStage.scene.remove(obj);
+    currentStage.movableObjects = [];
 };
 function saveArrayBuffer(buffer, filename) {
     save(new Blob([
@@ -40065,6 +40083,11 @@ class Stage {
             self.renderer.setSize(window.innerWidth, window.innerHeight);
         });
     }
+    addObject(obj, isMovable, hasCollision) {
+        this.scene.add(obj);
+        if (isMovable) this.movableObjects.push(obj);
+        if (hasCollision) this.objectsWithCollision.push(obj);
+    }
 }
 
 },{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","./MeshFactory.js":"5E0Nw","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"5E0Nw":[function(require,module,exports) {
@@ -40105,6 +40128,7 @@ class MeshFactory {
             this.stage.objectsWithCollision.push(mesh);
             mesh.userData.hasCollision = true;
         }
+        mesh.userData.isRestrainedMesh = true;
         return mesh;
     }
     setStage(stage) {
