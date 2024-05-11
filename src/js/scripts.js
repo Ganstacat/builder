@@ -33,12 +33,35 @@ function setRotation(obj,x,y,z){
 	obj.rotation.x = x; obj.rotation.y = y; obj.rotation.z = z;
 }
 function removeSelectionColor(obj) {
-	if(obj.isMesh && obj.userData.color) obj.material.color = obj.userData.color.clone();
+	// if(obj.isMesh && obj.userData.color) obj.material.color = obj.userData.color.clone();
+	if(obj.isMesh) obj.material.emissive.set("black");
+	else if (obj.isGroup) {
+		applyToChildMeshes(obj, function(o){ 
+			removeSelectionColor(o);
+		});
+	}
+	
 }
 function applySelectionColor(obj){
-	obj.userData.color = obj.material.color.clone();
-	obj.material.color.set("Gold");
+	// obj.userData.color = obj.material.color.clone();
+	// obj.material.color.set("Gold");
+	if(obj.isMesh) obj.material.emissive.set(0x9c8e30);
+	else if (obj.isGroup) {
+		console.log("Recur");
+		applyToChildMeshes(obj, function(o){ 
+			applySelectionColor(o);
+		});
+	}
+	
 }
+function applyToChildMeshes(group, cb) {
+	for (let i = 0; i < group.children.length; i++) {
+		let child = group.children[i];
+		if (child.isGroup) applyToChildMeshes(child, cb);
+		else cb(child);
+	}
+}
+
 
 const options = {
 	scalex:1,
@@ -69,13 +92,13 @@ gui.addColor(options, 'color').onChange(function(e){
 });
 document.addEventListener('pointerdown', function(){
 	
-	if (selectedObject && selectedObject.isMesh)
+	if (selectedObject)
 		removeSelectionColor(selectedObject);
 	
 	selectedObject = dragEngine.dragObject ? dragEngine.dragObject : selectedObject;
 	
 	
-	if (selectedObject && selectedObject.isMesh) {
+	if (selectedObject) {
 		applySelectionColor(selectedObject);
 		console.log(selectedObject);
 		updateSelectedObject();
@@ -202,12 +225,12 @@ document.querySelector("#clone").onclick = function(){
 		let newObject;
 		if (selectedObject.isRestrainedMesh) {
 			newObject = currentStage.meshFactory.createRestrainedMesh(
-				selectedObject.geometry, selectedObject.material,
+				selectedObject.geometry.clone(), selectedObject.material.clone(),
 				selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint.clone()
 			);
 		} else if (selectedObject.isMesh) {
 			newObject = currentStage.meshFactory.createMesh(
-				selectedObject.geometry, selectedObject.material,
+				selectedObject.geometry.clone(), selectedObject.material.clone(),
 				selectedObject.userData.isMovable, selectedObject.userData.hasCollision
 			);
 		} else if (selectedObject.isGroup) {
