@@ -32,6 +32,14 @@ function setRotation(obj,x,y,z){
 	if(!obj) return;
 	obj.rotation.x = x; obj.rotation.y = y; obj.rotation.z = z;
 }
+function removeSelectionColor(obj) {
+	if(obj.isMesh && obj.userData.color) obj.material.color = obj.userData.color.clone();
+}
+function applySelectionColor(obj){
+	obj.userData.color = obj.material.color.clone();
+	obj.material.color.set("Gold");
+}
+
 const options = {
 	scalex:1,
 	scaley:1,
@@ -60,14 +68,15 @@ gui.addColor(options, 'color').onChange(function(e){
 	selectedObject.material.color.set(e);
 });
 document.addEventListener('pointerdown', function(){
-	if (selectedObject)
-		selectedObject.material.color.copy(selectedObject.userData.color);
+	
+	if (selectedObject && selectedObject.isMesh)
+		removeSelectionColor(selectedObject);
+	
 	selectedObject = dragEngine.dragObject ? dragEngine.dragObject : selectedObject;
 	
 	
-	if (selectedObject) {
-		selectedObject.userData.color = selectedObject.material.color.clone();
-		selectedObject.material.color.set("Gold");
+	if (selectedObject && selectedObject.isMesh) {
+		applySelectionColor(selectedObject);
 		console.log(selectedObject);
 		updateSelectedObject();
 	}
@@ -163,6 +172,9 @@ document.querySelector("#builder").onclick = function(){
 	currentStage = builderStage;
 }
 document.querySelector("#exportToFloor").onclick = function(){
+	for(let obj of builderStage.movableObjects)
+		removeSelectionColor(obj);
+	
 	exporter.parse(
 		builderStage.movableObjects,
 		function ( result ) {
@@ -186,20 +198,25 @@ document.querySelector("#addCube").onclick = function(){
 }
 document.querySelector("#clone").onclick = function(){
 	if (selectedObject) {
+		removeSelectionColor(selectedObject);
 		let newObject;
-		if (selectedObject.constructor.name === "RestrainedMesh") {
+		if (selectedObject.isRestrainedMesh) {
 			newObject = currentStage.meshFactory.createRestrainedMesh(
 				selectedObject.geometry, selectedObject.material,
 				selectedObject.userData.isMovable, selectedObject.userData.hasCollision, selectedObject.userData.restraint.clone()
 			);
-		} else if (selectedObject.constructor.name === "Mesh") {
+		} else if (selectedObject.isMesh) {
 			newObject = currentStage.meshFactory.createMesh(
 				selectedObject.geometry, selectedObject.material,
 				selectedObject.userData.isMovable, selectedObject.userData.hasCollision
 			);
+		} else if (selectedObject.isGroup) {
+			newObject = selectedObject.clone();
+			currentStage.addObject(newObject, true, false);
 		}
 		else {
-			console.log(selectedObject.constructor.name)
+			console.log("Cannot create clone for an object: ");
+			console.log(selectedObject);
 		}
 		if (newObject) {
 			newObject.position.set(selectedObject.position.x,selectedObject.position.y,selectedObject.position.z);
@@ -225,11 +242,20 @@ document.querySelector("#addWall").onclick = function(){
 }
 
 document.querySelector("#delobj").onclick = function() {
-	if(selectedObject) currentStage.scene.remove(selectedObject);
+	if(selectedObject) {
+		currentStage.scene.remove(selectedObject);
+	}
+	let m = [];
+	for(let obj of currentStage.movableObjects) {
+		if(obj !== selectedObject) m.push(obj);
+	}
+	currentStage.movableObjects = m;
 }
 document.querySelector("#clear").onclick = function() {
-	for(let obj of currentStage.movableObjects)
+	for(let obj of currentStage.movableObjects){
 		currentStage.scene.remove(obj);
+	}
+	currentStage.movableObjects = [];
 }
 
 function saveArrayBuffer(buffer, filename){

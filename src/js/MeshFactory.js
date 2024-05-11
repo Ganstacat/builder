@@ -35,6 +35,8 @@ export class MeshFactory {
 			this.stage.objectsWithCollision.push(mesh);
 			mesh.userData.hasCollision = true;
 		}
+		
+		mesh.userData.isRestrainedMesh = true;
 		return mesh;
 	}
 	

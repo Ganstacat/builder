@@ -93,4 +93,9 @@ export class Stage {
 			self.renderer.setSize(window.innerWidth, window.innerHeight);
 		});
 	}
+	addObject(obj, isMovable, hasCollision) {
+		this.scene.add(obj);
+		if(isMovable) this.movableObjects.push(obj);
+		if(hasCollision) this.objectsWithCollision.push(obj);
+	}
 }
