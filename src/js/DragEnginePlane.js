@@ -71,12 +71,18 @@ export class DragEnginePlane {
 		let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
 		
 		if(intersects.length >0) {
-			console.log(intersects[0].faceIndex);
 			
-			let obj = this.getRootParentGroup(intersects[0].object); // внешняя функция, хуёва
+			let obj = this.getRootParentGroup(intersects[0].object);
 			let point = intersects[0].point;
 			this.pickup(point, obj);
 		}
+	}
+	selectObject(objectlist) {
+		let intersects = this.stage.raycaster.intersectObjects(objectlist);
+		if(intersects.length > 0 && intersects[0].object.userData.isSelectable)
+			return this.getRootParentGroup(intersects[0].object);
+		else
+			return null;
 	}
 	
 	pickup(intersectionPoint, obj) {

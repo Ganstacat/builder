@@ -52,11 +52,11 @@ function applySelectionColor(obj){
 	}
 	
 }
-function applyToChildMeshes(group, cb) {
+function applyToChildMeshes(group, cb, ...args) {
 	for (let i = 0; i < group.children.length; i++) {
 		let child = group.children[i];
 		if (child.isGroup) applyToChildMeshes(child, cb);
-		else cb(child);
+		else cb(child, args);
 	}
 }
 
@@ -90,15 +90,22 @@ gui.addColor(options, 'color').onChange(function(e){
 });
 document.addEventListener('pointerdown', function(){
 	
+	
 	if (selectedObject)
 		removeSelectionColor(selectedObject);
 	
-	selectedObject = dragEngine.dragObject ? dragEngine.dragObject : selectedObject;
+	if(dragEngine.dragObject) {
+		selectedObject = dragEngine.dragObject;
+	} else {
+		// по сути два раза смотрим пересечения с объектами. Нот грейт.
+		let obj = dragEngine.selectObject(currentStage.scene.children);
+		if (obj) selectedObject = obj;
+	}
+	
 	
 	
 	if (selectedObject) {
 		applySelectionColor(selectedObject);
-		console.log(selectedObject);
 		updateSelectedObject();
 	}
 });
@@ -179,7 +186,7 @@ document.addEventListener('keypress', (e) => {
 			break;
 	}
 	updateSelectedObject();
-	if(selectedObject.constructor.name === "RestrainedMesh" ){
+	if(selectedObject && selectedObject.isRestrainedMesh){
 		selectedObject.adjustRestraintForScale();
 		dragEngine.applyRestraint(selectedObject);
 	}
@@ -289,7 +296,10 @@ const materialSelector = document.querySelector("#materials");
 materialSelector.onchange = function(e) {
 	console.log(materialSelector.value);
 	if (selectedObject && selectedObject.isMesh)
-		materialManager.setMeshMaterial(selectedObject, materialSelector.value);
+		materialManager.setMeshTexture(selectedObject, materialSelector.value);
+	else if (selectedObject){
+		applyToChildMeshes(selectedObject, (o)=>{materialManager.setMeshTexture(o, materialSelector.value);});
+	}
 }
 
 function saveArrayBuffer(buffer, filename){

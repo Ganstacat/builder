@@ -19,28 +19,28 @@ export class FloorPlannerStage extends Stage {
 		walltexture.wrapS = THREE.RepeatWrapping;
 		walltexture.wrapT = THREE.RepeatWrapping;
 		walltexture.repeat.set(2,4);
-		const wallMaterial = new THREE.MeshStandardMaterial( {
+		const wallMaterial = ()=>{return new THREE.MeshStandardMaterial( {
 			map: walltexture
-		});
+		});}
 
 		const wall1 = this.meshFactory.createMesh(
 			wallGeometry,
-			wallMaterial,
+			wallMaterial(),
 			false, false
 		)
 		const wall2 = this.meshFactory.createMesh(
 			wallGeometry,
-			wallMaterial,
+			wallMaterial(),
 			false, false
 		)	
 		const wall3 = this.meshFactory.createMesh(
 			wallGeometry,
-			wallMaterial,
+			wallMaterial(),
 			false, false
 		)
 		const wall4 = this.meshFactory.createMesh(
 			wallGeometry,
-			wallMaterial,
+			wallMaterial(),
 			false, false
 		)
 		
@@ -61,6 +61,11 @@ export class FloorPlannerStage extends Stage {
 		
 		wall1.castShadow = true;
 		wall1.receiveShadow = true;
+		
+		wall1.userData.isSelectable = true;
+		wall2.userData.isSelectable = true;
+		wall3.userData.isSelectable = true;
+		wall4.userData.isSelectable = true;
 		
 		
 		

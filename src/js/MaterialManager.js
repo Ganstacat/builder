@@ -14,7 +14,6 @@ export class MaterialManager {
 			tile2: ()=>{return self.createStandardTexturedMaterial("tile-02.jpg")},
 			marbletiles: ()=>{return self.createStandardTexturedMaterial("marbletiles.jpg")},
 		}
-		console.log(this.materials["light_brick"]);
 	}
 	createStandardTexturedMaterial(filename){
 		let texture;
@@ -30,6 +29,16 @@ export class MaterialManager {
 	setMeshMaterial(mesh, materialKey){
 		try {
 			mesh.material = this.materials[materialKey]();
+		} catch (e) {
+			console.error(e);
+		}
+	}
+	setMeshTexture(mesh, materialKey){
+		try {
+			let map = this.materials[materialKey]().map;
+			
+			mesh.material.map = this.materials[materialKey]().map;
+			mesh.material.needsUpdate = true;
 		} catch (e) {
 			console.error(e);
 		}
