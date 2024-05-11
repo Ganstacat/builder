@@ -626,11 +626,11 @@ function applySelectionColor(obj) {
         applySelectionColor(o);
     });
 }
-function applyToChildMeshes(group, cb) {
+function applyToChildMeshes(group, cb, ...args) {
     for(let i = 0; i < group.children.length; i++){
         let child = group.children[i];
         if (child.isGroup) applyToChildMeshes(child, cb);
-        else cb(child);
+        else cb(child, args);
     }
 }
 const options = {
@@ -665,10 +665,14 @@ gui.addColor(options, "color").onChange(function(e) {
 });
 document.addEventListener("pointerdown", function() {
     if (selectedObject) removeSelectionColor(selectedObject);
-    selectedObject = dragEngine.dragObject ? dragEngine.dragObject : selectedObject;
+    if (dragEngine.dragObject) selectedObject = dragEngine.dragObject;
+    else {
+        // по сути два раза смотрим пересечения с объектами. Нот грейт.
+        let obj = dragEngine.selectObject(currentStage.scene.children);
+        if (obj) selectedObject = obj;
+    }
     if (selectedObject) {
         applySelectionColor(selectedObject);
-        console.log(selectedObject);
         updateSelectedObject();
     }
 });
@@ -747,7 +751,7 @@ document.addEventListener("keypress", (e)=>{
             break;
     }
     updateSelectedObject();
-    if (selectedObject.constructor.name === "RestrainedMesh") {
+    if (selectedObject && selectedObject.isRestrainedMesh) {
         selectedObject.adjustRestraintForScale();
         dragEngine.applyRestraint(selectedObject);
     }
@@ -827,7 +831,10 @@ document.querySelector("#clear").onclick = function() {
 const materialSelector = document.querySelector("#materials");
 materialSelector.onchange = function(e) {
     console.log(materialSelector.value);
-    if (selectedObject && selectedObject.isMesh) materialManager.setMeshMaterial(selectedObject, materialSelector.value);
+    if (selectedObject && selectedObject.isMesh) materialManager.setMeshTexture(selectedObject, materialSelector.value);
+    else if (selectedObject) applyToChildMeshes(selectedObject, (o)=>{
+        materialManager.setMeshTexture(o, materialSelector.value);
+    });
 };
 function saveArrayBuffer(buffer, filename) {
     save(new Blob([
@@ -40233,13 +40240,15 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
         walltexture.wrapS = _three.RepeatWrapping;
         walltexture.wrapT = _three.RepeatWrapping;
         walltexture.repeat.set(2, 4);
-        const wallMaterial = new _three.MeshStandardMaterial({
-            map: walltexture
-        });
-        const wall1 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, false);
-        const wall2 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, false);
-        const wall3 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, false);
-        const wall4 = this.meshFactory.createMesh(wallGeometry, wallMaterial, false, false);
+        const wallMaterial = ()=>{
+            return new _three.MeshStandardMaterial({
+                map: walltexture
+            });
+        };
+        const wall1 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
+        const wall2 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
+        const wall3 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
+        const wall4 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
         wall1.rotation.y = 0.5 * Math.PI;
         wall1.rotation.z = -0.5 * Math.PI;
         wall1.position.set(-2, 0.75, 0);
@@ -40253,6 +40262,10 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
         wall4.rotation.z = 0.5 * Math.PI;
         wall1.castShadow = true;
         wall1.receiveShadow = true;
+        wall1.userData.isSelectable = true;
+        wall2.userData.isSelectable = true;
+        wall3.userData.isSelectable = true;
+        wall4.userData.isSelectable = true;
         this.constraintBox = new _three.Box3(new _three.Vector3(-2, 0, -2), new _three.Vector3(2, 1.5, 2));
     // const box = this.meshFactory.createRestrainedMesh(
     // new THREE.BoxGeometry(0.5,0.5,0.5),
@@ -40332,11 +40345,15 @@ class DragEnginePlane {
     tryPickup() {
         let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
         if (intersects.length > 0) {
-            console.log(intersects[0].faceIndex);
-            let obj = this.getRootParentGroup(intersects[0].object); // внешняя функция, хуёва
+            let obj = this.getRootParentGroup(intersects[0].object);
             let point = intersects[0].point;
             this.pickup(point, obj);
         }
+    }
+    selectObject(objectlist) {
+        let intersects = this.stage.raycaster.intersectObjects(objectlist);
+        if (intersects.length > 0 && intersects[0].object.userData.isSelectable) return this.getRootParentGroup(intersects[0].object);
+        else return null;
     }
     pickup(intersectionPoint, obj) {
         this.stage.controls.enabled = false;
@@ -40463,7 +40480,6 @@ class MaterialManager {
                 return self.createStandardTexturedMaterial("marbletiles.jpg");
             }
         };
-        console.log(this.materials["light_brick"]);
     }
     createStandardTexturedMaterial(filename) {
         let texture;
@@ -40477,6 +40493,15 @@ class MaterialManager {
     setMeshMaterial(mesh, materialKey) {
         try {
             mesh.material = this.materials[materialKey]();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    setMeshTexture(mesh, materialKey) {
+        try {
+            let map = this.materials[materialKey]().map;
+            mesh.material.map = this.materials[materialKey]().map;
+            mesh.material.needsUpdate = true;
         } catch (e) {
             console.error(e);
         }
