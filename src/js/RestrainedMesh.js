@@ -2,12 +2,14 @@ import * as THREE from 'three';
 
 export class RestrainedMesh extends THREE.Mesh {
 	setScale(x,y,z) {
+		
 		this.scale.set(x, y, z);
 		this.adjustRestraintForScale();
 	}
 	
 	adjustRestraintForScale() {
 		if(!this.baserestraint) return;
+		console.log(this.baserestraint);
 		
 		let dragbbox = new THREE.Box3().setFromObject(this);
 		let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;

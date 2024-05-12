@@ -593,273 +593,90 @@ var _stageJs = require("./Stage.js");
 var _floorPlannerStageJs = require("./FloorPlannerStage.js");
 var _dragEnginePlaneJs = require("./DragEnginePlane.js");
 var _materialManagerJs = require("./MaterialManager.js");
-const builderStage = new (0, _stageJs.Stage)();
-const floorStage = new (0, _floorPlannerStageJs.FloorPlannerStage)();
-var currentStage = builderStage;
-const textureLoader = new _three.TextureLoader();
-const materialManager = new (0, _materialManagerJs.MaterialManager)(textureLoader);
+var _mainControllerJs = require("./MainController.js");
+var _exportManagerJs = require("./ExportManager.js");
+var _addListenersJs = require("./addListeners.js");
+var _addKeyboardControlsJs = require("./addKeyboardControls.js");
+const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)();
 const assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
 const exporter = new (0, _gltfexporterJs.GLTFExporter)();
-const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)(builderStage);
-const gui = new _datGui.GUI();
-var selectedObject;
-function setScale(obj, x, y, z) {
-    if (!obj) return;
-    if (obj.constructor.name === "RestrainedMesh") obj.setScale(x, y, z);
-    else obj.scale.set(x, y, z);
-}
-function setRotation(obj, x, y, z) {
-    if (!obj) return;
-    obj.rotation.x = x;
-    obj.rotation.y = y;
-    obj.rotation.z = z;
-}
-function removeSelectionColor(obj) {
-    if (obj.isMesh) obj.material.emissive.set("black");
-    else if (obj.isGroup) applyToChildMeshes(obj, function(o) {
-        removeSelectionColor(o);
-    });
-}
-function applySelectionColor(obj) {
-    if (obj.isMesh) obj.material.emissive.set(0x9c8e30);
-    else if (obj.isGroup) applyToChildMeshes(obj, function(o) {
-        applySelectionColor(o);
-    });
-}
-function applyToChildMeshes(group, cb, ...args) {
-    for(let i = 0; i < group.children.length; i++){
-        let child = group.children[i];
-        if (child.isGroup) applyToChildMeshes(child, cb);
-        else cb(child, args);
-    }
-}
-const options = {
-    scalex: 1,
-    scaley: 1,
-    scalez: 1,
-    rotationx: 0,
-    rotationy: 0,
-    rotationz: 0,
-    color: 0xFFFFFF
-};
-gui.add(options, "scalex", 0.1, 10).listen().onChange((e)=>{
-    setScale(selectedObject, options.scalex, options.scaley, options.scalez);
-});
-gui.add(options, "scaley", 0.1, 10).listen().onChange((e)=>{
-    setScale(selectedObject, options.scalex, options.scaley, options.scalez);
-});
-gui.add(options, "scalez", 0.1, 10).listen().onChange((e)=>{
-    setScale(selectedObject, options.scalex, options.scaley, options.scalez);
-});
-gui.add(options, "rotationx", 0, Math.PI, Math.PI / 4).listen().onChange((e)=>{
-    setRotation(selectedObject, options.rotationx, options.rotationy, options.rotationz);
-});
-gui.add(options, "rotationy", 0, Math.PI, Math.PI / 4).listen().onChange((e)=>{
-    setRotation(selectedObject, options.rotationx, options.rotationy, options.rotationz);
-});
-gui.add(options, "rotationz", 0, Math.PI, Math.PI / 4).listen().onChange((e)=>{
-    setRotation(selectedObject, options.rotationx, options.rotationy, options.rotationz);
-});
-gui.addColor(options, "color").onChange(function(e) {
-    selectedObject.material.color.set(e);
-});
-document.addEventListener("pointerdown", function() {
-    if (selectedObject) removeSelectionColor(selectedObject);
-    if (dragEngine.dragObject) selectedObject = dragEngine.dragObject;
-    else {
-        // по сути два раза смотрим пересечения с объектами. Нот грейт.
-        let obj = dragEngine.selectObject(currentStage.scene.children);
-        if (obj) selectedObject = obj;
-    }
-    if (selectedObject) {
-        applySelectionColor(selectedObject);
-        updateSelectedObject();
-    }
-});
-function updateSelectedObject() {
-    if (selectedObject) {
-        options.scalex = selectedObject.scale.x;
-        options.scaley = selectedObject.scale.y;
-        options.scalez = selectedObject.scale.z;
-        options.rotationx = selectedObject.rotation.x;
-        options.rotationy = selectedObject.rotation.y;
-        options.rotationz = selectedObject.rotation.z;
-    }
-    gui.updateDisplay();
-}
-let keyboardScaleAxis = "y";
-document.addEventListener("keypress", (e)=>{
-    switch(e.key){
-        case "4":
-            selectedObject.position.x -= 0.1;
-            break;
-        case "6":
-            selectedObject.position.x += 0.1;
-            break;
-        case "2":
-            selectedObject.position.z -= 0.1;
-            break;
-        case "8":
-            selectedObject.position.z += 0.1;
-            break;
-        case "3":
-            selectedObject.position.y -= 0.1;
-            break;
-        case "9":
-            selectedObject.position.y += 0.1;
-            break;
-        case "7":
-            keyboardScaleAxis = "y";
-            break;
-        case "1":
-            keyboardScaleAxis = "x";
-            break;
-        case "5":
-            keyboardScaleAxis = "z";
-            break;
-        case "+":
-            switch(keyboardScaleAxis){
-                case "x":
-                    selectedObject.scale.x += 0.1;
-                    break;
-                case "y":
-                    selectedObject.scale.y += 0.1;
-                    break;
-                case "z":
-                    selectedObject.scale.z += 0.1;
-                    break;
-            }
-            break;
-        case "-":
-            switch(keyboardScaleAxis){
-                case "x":
-                    selectedObject.scale.x -= 0.1;
-                    break;
-                case "y":
-                    selectedObject.scale.y -= 0.1;
-                    break;
-                case "z":
-                    selectedObject.scale.z -= 0.1;
-                    break;
-            }
-            break;
-        case "q":
-            if (selectedObject) {
-                removeSelectionColor(selectedObject);
-                selectedObject = null;
-            }
-            break;
-    }
-    updateSelectedObject();
-    if (selectedObject && selectedObject.isRestrainedMesh) {
-        selectedObject.adjustRestraintForScale();
-        dragEngine.applyRestraint(selectedObject);
-    }
-});
-document.querySelector("#floorPlanner").onclick = function() {
-    builderStage.hideScene();
-    floorStage.showScene();
-    dragEngine.setStage(floorStage);
-    currentStage = floorStage;
-};
-document.querySelector("#builder").onclick = function() {
-    floorStage.hideScene();
-    builderStage.showScene();
-    dragEngine.setStage(builderStage);
-    currentStage = builderStage;
-};
-document.querySelector("#exportToFloor").onclick = function() {
-    for (let obj of builderStage.movableObjects)removeSelectionColor(obj);
-    exporter.parse(builderStage.movableObjects, function(result) {
-        saveArrayBuffer(result, "Scene.glb");
-    }, function(error) {
-        console.log("An error occured when exporting! : " + error);
-    }, {
-        binary: true
-    });
-};
-document.querySelector("#addCube").onclick = function() {
-    let box = builderStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
-        side: _three.DoubleSide
-    }), true, true, builderStage.constraintBox);
-    box.position.y -= box.geometry.boundingBox.min.y;
-};
-document.querySelector("#clone").onclick = function() {
-    if (selectedObject) {
-        removeSelectionColor(selectedObject);
-        let newObject;
-        if (selectedObject.isRestrainedMesh) newObject = currentStage.meshFactory.cloneRestrainedMesh(selectedObject);
-        else if (selectedObject.isMesh) newObject = currentStage.meshFactory.cloneMesh(selectedObject);
-        else if (selectedObject.isGroup) {
-            newObject = new _three.Group();
-            applyToChildMeshes(selectedObject, function(o) {
-                if (o.isRestrainedMesh) newObject.add(currentStage.meshFactory.cloneRestrainedMesh(o));
-                else if (o.isMesh) newObject.add(currentStage.meshFactory.cloneMesh(o));
-            });
-            currentStage.addObject(newObject, true, false);
-        } else {
-            console.log("Cannot create clone for an object: ");
-            console.log(selectedObject);
-        }
-        if (newObject) {
-            newObject.position.set(selectedObject.position.x, selectedObject.position.y, selectedObject.position.z);
-            newObject.scale.set(selectedObject.scale.x, selectedObject.scale.y, selectedObject.scale.z);
-            newObject.rotation.set(selectedObject.rotation.x, selectedObject.rotation.y, selectedObject.rotation.z);
-        }
-    }
-};
-document.querySelector("#addWall").onclick = function() {
-    let cbox = floorStage.constraintBox;
-    let len = cbox.max.x - cbox.min.x;
-    let hei = cbox.max.y - cbox.min.y;
-    let box = floorStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(len, hei, 0.1), new _three.MeshStandardMaterial({
-        side: _three.DoubleSide
-    }), true, true, floorStage.constraintBox);
-    box.castShadow = true;
-    box.position.y -= box.geometry.boundingBox.min.y;
-};
-document.querySelector("#delobj").onclick = function() {
-    if (selectedObject) currentStage.scene.remove(selectedObject);
-    let m = [];
-    for (let obj of currentStage.movableObjects)if (obj !== selectedObject) m.push(obj);
-    currentStage.movableObjects = m;
-};
-document.querySelector("#clear").onclick = function() {
-    for (let obj of currentStage.movableObjects)currentStage.scene.remove(obj);
-    currentStage.movableObjects = [];
-};
+const exportManager = new (0, _exportManagerJs.ExportManager)(exporter, assetLoader);
+const mainController = new (0, _mainControllerJs.MainController)(dragEngine, exportManager);
+const builderStage = new (0, _stageJs.Stage)();
+const floorStage = new (0, _floorPlannerStageJs.FloorPlannerStage)();
+mainController.registerStage("builder", builderStage);
+mainController.registerStage("floorPlanner", floorStage);
+mainController.setCurrentStage("builder");
+const textureLoader = new _three.TextureLoader();
+const materialManager = new (0, _materialManagerJs.MaterialManager)(textureLoader);
+(0, _addListenersJs.addListeners)(mainController);
+(0, _addKeyboardControlsJs.addKeyboardControls)(mainController);
+// document.querySelector("#exportToFloor").onclick = function(){
+// exporter.parse(
+// builderStage.movableObjects,
+// function ( result ) {
+// saveArrayBuffer(result,'Scene.glb');
+// },
+// function (error) {
+// console.log("An error occured when exporting! : " + error);
+// },
+// {
+// binary:true
+// }
+// );
+// }
+// function saveArrayBuffer(buffer, filename){
+// save(new Blob([buffer], {type:'application/octet-stream'}), filename);
+// }
+// function save(blob, filename) {
+// link.href = URL.createObjectURL(blob);
+// assetLoader.load(link.href, function(gltf){
+// const model = gltf.scene;
+// console.log(model);
+// for(let child of model.children){
+// child.castShadow = true;
+// }
+// floorStage.scene.add(model);
+// floorStage.movableObjects.push(model);
+// model.position.set(0,0,0);
+// }, undefined, function(error){
+// console.log(error);
+// }); 
+// link.download = filename;
+// // link.click();
+// }
+// const link = document.createElement('a');
+// document.body.appendChild(link);
 const materialSelector = document.querySelector("#materials");
 materialSelector.onchange = function(e) {
     console.log(materialSelector.value);
-    if (selectedObject && selectedObject.isMesh) materialManager.setMeshTexture(selectedObject, materialSelector.value);
-    else if (selectedObject) applyToChildMeshes(selectedObject, (o)=>{
+    if (currentStage.selectedObject && currentStage.selectedObject.isMesh) materialManager.setMeshTexture(currentStage.selectedObject, materialSelector.value);
+    else if (currentStage.selectedObject) applyToChildMeshes(currentStage.selectedObject, (o)=>{
         materialManager.setMeshTexture(o, materialSelector.value);
     });
 };
-function saveArrayBuffer(buffer, filename) {
-    save(new Blob([
-        buffer
-    ], {
-        type: "application/octet-stream"
-    }), filename);
-}
-function save(blob, filename) {
-    link.href = URL.createObjectURL(blob);
-    assetLoader.load(link.href, function(gltf) {
-        const model = gltf.scene;
-        console.log(model);
-        for (let child of model.children)child.castShadow = true;
-        floorStage.scene.add(model);
-        floorStage.movableObjects.push(model);
-        model.position.set(0, 0, 0);
-    }, undefined, function(error) {
-        console.log(error);
-    });
-    link.download = filename;
-// link.click();
-}
-const link = document.createElement("a");
-document.body.appendChild(link);
+// function saveArrayBuffer(buffer, filename){
+// save(new Blob([buffer], {type:'application/octet-stream'}), filename);
+// }
+// function save(blob, filename) {
+// link.href = URL.createObjectURL(blob);
+// assetLoader.load(link.href, function(gltf){
+// const model = gltf.scene;
+// console.log(model);
+// for(let child of model.children){
+// child.castShadow = true;
+// }
+// floorStage.scene.add(model);
+// floorStage.movableObjects.push(model);
+// model.position.set(0,0,0);
+// }, undefined, function(error){
+// console.log(error);
+// }); 
+// link.download = filename;
+// // link.click();
+// }
+// const link = document.createElement('a');
+// document.body.appendChild(link);
 // var wood;
 // textureLoader.load(
 // './assets/textures/seamless-01.jpg',
@@ -882,7 +699,7 @@ document.body.appendChild(link);
 // true, true, builderStage.constraintBox
 // );
 const box = builderStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial(), true, true, builderStage.constraintBox);
-const mat = materialManager.materials.light_brick();
+// const mat = materialManager.materials.light_brick();
 // box.material = mat;
 console.log(box); // const gridHelper = new THREE.GridHelper(4, 16);
  // stage.scene.add(gridHelper);
@@ -907,7 +724,7 @@ console.log(box); // const gridHelper = new THREE.GridHelper(4, 16);
  // box2.position.y -= box2.geometry.boundingBox.min.y;
  // box2.position.x = 1;
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","dat.gui":"k3xQk","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt"}],"ktPTu":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","dat.gui":"k3xQk","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ","./ExportManager.js":"8hs9t"}],"ktPTu":[function(require,module,exports) {
 /**
  * @license
  * Copyright 2010-2024 Three.js Authors
@@ -40048,6 +39865,8 @@ parcelHelpers.export(exports, "Stage", ()=>Stage);
 var _three = require("three");
 var _orbitControlsJs = require("three/examples/jsm/controls/OrbitControls.js");
 var _meshFactoryJs = require("./MeshFactory.js");
+var _datGui = require("dat.gui");
+var _guiManagerJs = require("./GuiManager.js");
 class Stage {
     constructor(){
         this.renderer = this.setupRenderer();
@@ -40061,7 +39880,9 @@ class Stage {
         });
         this.movableObjects = [];
         this.objectsWithCollision = [];
+        this.guiManager = new (0, _guiManagerJs.GuiManager)(this);
         this.meshFactory = new (0, _meshFactoryJs.MeshFactory)(this);
+        this.selectedObject = null;
         this.addStartingObjects();
         this.addEventListeners();
     }
@@ -40104,9 +39925,11 @@ class Stage {
     }
     hideScene() {
         this.renderer.domElement.remove();
+        this.guiManager.hide();
     }
     showScene() {
         document.body.appendChild(this.renderer.domElement);
+        this.guiManager.show();
     }
     addStartingObjects() {
         // для переопределения
@@ -40134,10 +39957,75 @@ class Stage {
         this.scene.add(obj);
         if (isMovable) this.movableObjects.push(obj);
         if (hasCollision) this.objectsWithCollision.push(obj);
+        obj.position.set(0, 0, 0);
+        this.placeObjectOnPlane(obj);
+    }
+    placeObjectOnPlane(obj) {
+        const box3 = new _three.Box3().setFromObject(obj);
+        let halfHeight = (box3.max.y - box3.min.y) / 2;
+        obj.position.y = halfHeight;
+    }
+    setScale(obj, x, y, z) {
+        console.log(obj);
+        if (!obj) return;
+        if (obj.userData.isRestrainedMesh) obj.setScale(x, y, z);
+        else obj.scale.set(x, y, z);
+    }
+    setRotation(obj, x, y, z) {
+        if (!obj) return;
+        obj.rotation.x = x;
+        obj.rotation.y = y;
+        obj.rotation.z = z;
+    }
+    setMeshColor(obj, val) {
+        if (!obj) return;
+        this.applyToMeshes(obj, (o, args)=>{
+            console.log("Setting color:");
+            console.log(o);
+            console.log(args);
+            o.material.color.set(args[0]);
+            console.log(o);
+        }, [
+            val
+        ]);
+    }
+    setSelectedObject(obj) {
+        if (this.selectedObject) this.removeSelectionColor(this.selectedObject);
+        this.selectedObject = obj;
+        this.applySelectionColor(this.selectedObject);
+        this.guiManager.updateGui();
+    }
+    unsetSelectedObject() {
+        if (this.selectedObject) this.removeSelectionColor(this.selectedObject);
+        this.selectedObject = null;
+    }
+    removeSelectionColor(obj) {
+        this.applyToMeshes(obj, (o)=>{
+            o.material.emissive.set(0x000000);
+        });
+    }
+    applySelectionColor(obj) {
+        this.applyToMeshes(obj, (o)=>{
+            o.material.emissive.set(0x9c8e30);
+        });
+    }
+    applyToMeshes(obj, cb, args) {
+        if (obj.isMesh) cb(obj, args);
+        else for (let o of obj.children)this.applyToMeshes(o, cb, args);
+    }
+    removeObject(obj) {
+        this.scene.remove(obj);
+        this.movableObjects = this.movableObjects.filter((o)=>{
+            return o !== obj;
+        });
+    }
+    clearScene() {
+        for (let obj of this.movableObjects)this.scene.remove(obj);
+        this.movableObjects = [];
     }
 }
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","./MeshFactory.js":"5E0Nw","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"5E0Nw":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","./MeshFactory.js":"5E0Nw","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","dat.gui":"k3xQk","./GuiManager.js":"eEqGm"}],"5E0Nw":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "MeshFactory", ()=>MeshFactory);
@@ -40186,9 +40074,25 @@ class MeshFactory {
     }
     cloneRestrainedMesh(mesh) {
         let newobj;
-        newobj = this.createRestrainedMesh(mesh.geometry.clone(), mesh.material.clone(), mesh.userData.isMovable, mesh.userData.hasCollision, mesh.userData.restraint.clone());
+        newobj = this.createRestrainedMesh(mesh.geometry.clone(), mesh.material.clone(), mesh.userData.isMovable, mesh.userData.hasCollision, mesh.baserestraint.clone());
         newobj.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
         return newobj;
+    }
+    cloneGroup(grp) {
+        let newobj = new _three.Group();
+        let stage = this.stage;
+        stage.applyToMeshes(stage.selectedObject, function(o) {
+            if (o.userData.isRestrainedMesh) newobj.add(stage.meshFactory.cloneRestrainedMesh(o));
+            else if (o.isMesh) newobj.add(stage.meshFactory.cloneMesh(o));
+        });
+        stage.addObject(newobj, true, true);
+        return newobj;
+    }
+    cloneObject(obj) {
+        if (obj.userData.isRestrainedMesh) return this.cloneRestrainedMesh(obj);
+        else if (obj.isMesh) return this.cloneMesh(obj);
+        else if (obj.isGroup) return this.cloneGroup(obj);
+        else throw "cannot clone object: " + obj;
     }
     setStage(stage) {
         this.stage = stage;
@@ -40207,6 +40111,7 @@ class RestrainedMesh extends _three.Mesh {
     }
     adjustRestraintForScale() {
         if (!this.baserestraint) return;
+        console.log(this.baserestraint);
         let dragbbox = new _three.Box3().setFromObject(this);
         let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
         let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
@@ -40219,7 +40124,79 @@ class RestrainedMesh extends _three.Mesh {
     }
 }
 
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"ivRbE":[function(require,module,exports) {
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eEqGm":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "GuiManager", ()=>GuiManager);
+var _datGui = require("dat.gui");
+var _stageJs = require("./Stage.js");
+class GuiManager {
+    constructor(stage){
+        this.stage = stage;
+        this.gui = new _datGui.GUI();
+        this.listeners = [];
+        this.setupOptions();
+    }
+    updateGui() {
+        for (let l of this.listeners)l();
+        this.gui.updateDisplay();
+    }
+    setupOptions() {
+        let options = {
+            scalex: 1,
+            scaley: 1,
+            scalez: 1,
+            rotationx: 0,
+            rotationy: 0,
+            rotationz: 0,
+            color: 0xFFFFFF
+        };
+        this.options = options;
+        let self = this;
+        this.gui.add(options, "scalex", 0.1, 10).listen().onChange((e)=>{
+            self.stage.setScale(self.stage.selectedObject, options.scalex, options.scaley, options.scalez);
+        });
+        this.gui.add(options, "scaley", 0.1, 10).listen().onChange((e)=>{
+            self.stage.setScale(self.stage.selectedObject, options.scalex, options.scaley, options.scalez);
+        });
+        this.gui.add(options, "scalez", 0.1, 10).listen().onChange((e)=>{
+            self.stage.setScale(self.stage.selectedObject, options.scalex, options.scaley, options.scalez);
+        });
+        this.gui.add(options, "rotationx", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+            self.stage.setRotation(self.stage.selectedObject, options.rotationx, options.rotationy, options.rotationz);
+        });
+        this.gui.add(options, "rotationy", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+            self.stage.setRotation(self.stage.selectedObject, options.rotationx, options.rotationy, options.rotationz);
+        });
+        this.gui.add(options, "rotationz", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+            self.stage.setRotation(self.stage.selectedObject, options.rotationx, options.rotationy, options.rotationz);
+        });
+        this.gui.addColor(options, "color").onChange((e)=>{
+            self.stage.setMeshColor(self.stage.selectedObject, e);
+        });
+        this.listeners.push(()=>{
+            if (!self.stage.selectedObject) return;
+            self.options.scalex = self.stage.selectedObject.scale.x;
+            self.options.scaley = self.stage.selectedObject.scale.y;
+            self.options.scalez = self.stage.selectedObject.scale.z;
+            self.options.rotationx = self.stage.selectedObject.rotation.x;
+            self.options.rotationy = self.stage.selectedObject.rotation.y;
+            self.options.rotationz = self.stage.selectedObject.rotation.z;
+            if (self.stage.selectedObject.isMesh) self.options.color = self.stage.selectedObject.material.color.getHex();
+            else self.stage.applyToMeshes(self.stage.selectedObject, (o)=>{
+                self.options.color = o.material.color.getHex();
+            });
+        });
+    }
+    hide() {
+        this.gui.hide();
+    }
+    show() {
+        this.gui.show();
+    }
+}
+
+},{"dat.gui":"k3xQk","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"ivRbE":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "FloorPlannerStage", ()=>FloorPlannerStage);
@@ -40230,7 +40207,7 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
         const plane = this.meshFactory.createMesh(new _three.PlaneGeometry(4, 4), new _three.MeshStandardMaterial({
             color: 0x999999,
             side: _three.DoubleSide
-        }), false, true);
+        }), false, false);
         plane.rotation.x = -0.5 * Math.PI;
         plane.receiveShadow = true;
         const wallColor = 0xf8c471;
@@ -40285,8 +40262,7 @@ parcelHelpers.export(exports, "DragEnginePlane", ()=>DragEnginePlane);
 var _three = require("three");
 var _stageJs = require("./Stage.js");
 class DragEnginePlane {
-    constructor(stage){
-        this.stage = stage;
+    constructor(){
         this.mousePosition = new _three.Vector2();
         this.planeIntersect = new _three.Vector3();
         this.dragObject;
@@ -40296,45 +40272,31 @@ class DragEnginePlane {
         this.pNormalVertical = new _three.Vector3(0, 0, 1);
         this.pNormal = this.pNormalHorizontal;
         this.planeDrag = new _three.Plane(new _three.Vector3(0, 0, 0));
-        this.addEventListeners();
         this.lockX = false;
         this.lockY = false;
         this.lockZ = false;
         this.restriction = true;
         this.collision = true;
     }
-    addEventListeners() {
+    addEventListenersToStage() {
         let self = this;
-        document.addEventListener("pointermove", function(e) {
+        this.stage.renderer.domElement.addEventListener("pointermove", function(e) {
             self.calculateRayToPointer(e.clientX, e.clientY);
             if (self.dragObject) self.drag();
         });
-        document.addEventListener("pointerdown", function() {
+        this.stage.renderer.domElement.addEventListener("pointerdown", function() {
             self.tryPickup();
         });
-        document.addEventListener("pointerup", function() {
-            self.drop();
-        });
-        document.addEventListener("keypress", (e)=>{
-            console.log(e.key);
-            self.resetLocks();
-            self.pNormal = self.pNormalHorizontal;
-            switch(e.key){
-                case "x":
-                    self.lockX = true;
-                    break;
-                case "y":
-                    self.lockY = true;
-                    self.pNormal = self.pNormalVertical;
-                    break;
-                case "z":
-                    self.lockZ = true;
-                    break;
-                case "c":
-                    self.collision = !self.collision;
-                    break;
+        this.stage.renderer.domElement.addEventListener("pointerdown", function() {
+            if (self.dragObject) self.stage.setSelectedObject(self.dragObject);
+            else {
+                // по сути два раза смотрим пересечения с объектами. Нот грейт.
+                let obj = self.selectObject(self.stage.scene.children);
+                if (obj) self.stage.setSelectedObject(obj);
             }
-            if (self.dragObject) self.tryPickup();
+        });
+        this.stage.renderer.domElement.addEventListener("pointerup", function() {
+            self.drop();
         });
     }
     resetLocks() {
@@ -40508,6 +40470,303 @@ class MaterialManager {
     }
 }
 
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cHEjt":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "MainController", ()=>MainController);
+var _dragEnginePlaneJs = require("./DragEnginePlane.js");
+class MainController {
+    constructor(dragEngine, exportManager){
+        this.stages = new Map();
+        this.currentStage;
+        this.dragEngine = dragEngine;
+        this.exportManager = exportManager;
+    }
+    registerStage(key, stage) {
+        this.stages.set(key, stage);
+        this.dragEngine.setStage(stage);
+        this.dragEngine.addEventListenersToStage();
+    }
+    getStage(key) {
+        let stage = this.stages.get(key);
+        if (!stage) throw key + " stage is not defined";
+        return stage;
+    }
+    hideCurrentStage() {
+        if (this.currentStage) this.currentStage.hideScene();
+    }
+    hideAllStages() {
+        for (let st of this.stages.values())st.hideScene();
+    }
+    showCurrentStage() {
+        if (this.currentStage) this.currentStage.showScene();
+    }
+    setCurrentStage(key) {
+        this.hideAllStages();
+        this.currentStage = this.getStage(key);
+        this.dragEngine.setStage(this.currentStage);
+        this.showCurrentStage();
+    }
+    addListeners() {
+        let self = this;
+    }
+}
+
+},{"./DragEnginePlane.js":"kmFdU","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eDO5i":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "addListeners", ()=>addListeners);
+var _three = require("three");
+function addListeners(controller) {
+    let floorPlanner = "floorPlanner";
+    let builder = "builder";
+    document.querySelector("#floorPlanner").onclick = function() {
+        controller.setCurrentStage(floorPlanner);
+    };
+    document.querySelector("#builder").onclick = function() {
+        controller.setCurrentStage(builder);
+    };
+    document.querySelector("#exportToFloor").onclick = function() {
+        controller.exportManager.exportToStage(controller.getStage(builder).movableObjects, controller.getStage(floorPlanner));
+    };
+    document.querySelector("#addCube").onclick = function() {
+        let box = controller.currentStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
+            side: _three.DoubleSide
+        }), true, true, controller.currentStage.constraintBox);
+        box.position.y -= box.geometry.boundingBox.min.y;
+    };
+    document.querySelector("#addWall").onclick = function() {
+        let cbox = controller.currentStage.constraintBox;
+        let len = cbox.max.x - cbox.min.x;
+        let hei = cbox.max.y - cbox.min.y;
+        let box = controller.currentStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(len, hei, 0.1), new _three.MeshStandardMaterial({
+            side: _three.DoubleSide
+        }), true, true, controller.currentStage.constraintBox);
+        box.castShadow = true;
+        box.position.y -= box.geometry.boundingBox.min.y;
+    };
+    document.querySelector("#delobj").onclick = function() {
+        controller.currentStage.removeObject(controller.currentStage.selectedObject);
+    };
+    document.querySelector("#clear").onclick = function() {
+        controller.currentStage.clearScene();
+    };
+    document.querySelector("#clone").onclick = function() {
+        if (!controller.currentStage.selectedObject) return;
+        controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
+        console.log("Startclone");
+        console.log(controller.currentStage.selectedObject.userData.restraint);
+        let newObject = controller.currentStage.meshFactory.cloneObject(controller.currentStage.selectedObject);
+        if (newObject) {
+            controller.currentStage.addObject(newObject, newObject.isMovable, newObject.hasCollision);
+            newObject.position.set(controller.currentStage.selectedObject.position.x, controller.currentStage.selectedObject.position.y, controller.currentStage.selectedObject.position.z);
+            newObject.scale.set(controller.currentStage.selectedObject.scale.x, controller.currentStage.selectedObject.scale.y, controller.currentStage.selectedObject.scale.z);
+            newObject.rotation.set(controller.currentStage.selectedObject.rotation.x, controller.currentStage.selectedObject.rotation.y, controller.currentStage.selectedObject.rotation.z);
+        }
+    };
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","three":"ktPTu"}],"c6KBJ":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "addKeyboardControls", ()=>addKeyboardControls);
+function addKeyboardControls(controller) {
+    let keyboardScaleAxis = "x";
+    document.addEventListener("keypress", (e)=>{
+        controller.dragEngine.resetLocks();
+        controller.dragEngine.pNormlal = controller.dragEngine.pNormalHorizontal;
+        /*
+			xyz lock moving axis, any other key - remove lock
+			46x, 28z, 39y 
+			157 axis to scale
+			+- scale
+			q unselect
+		*/ switch(e.key){
+            case "x":
+                controller.dragEngine.lockX = true;
+                break;
+            case "y":
+                controller.dragEngine.lockY = true;
+                controller.dragEngine.pNormal = controller.dragEngine.pNormalVertical;
+                break;
+            case "z":
+                controller.dragEngine.lockZ = true;
+                break;
+            case "c":
+                controller.dragEngine.collision = !controller.dragEngine.collision;
+                break;
+            case "4":
+                controller.currentStage.selectedObject.position.x -= 0.1;
+                break;
+            case "6":
+                controller.currentStage.selectedObject.position.x += 0.1;
+                break;
+            case "2":
+                controller.currentStage.selectedObject.position.z -= 0.1;
+                break;
+            case "8":
+                controller.currentStage.selectedObject.position.z += 0.1;
+                break;
+            case "3":
+                controller.currentStage.selectedObject.position.y -= 0.1;
+                break;
+            case "9":
+                controller.currentStage.selectedObject.position.y += 0.1;
+                break;
+            case "7":
+                keyboardScaleAxis = "y";
+                break;
+            case "1":
+                keyboardScaleAxis = "x";
+                break;
+            case "5":
+                keyboardScaleAxis = "z";
+                break;
+            case "+":
+                switch(keyboardScaleAxis){
+                    case "x":
+                        controller.currentStage.selectedObject.scale.x += 0.1;
+                        break;
+                    case "y":
+                        controller.currentStage.selectedObject.scale.y += 0.1;
+                        break;
+                    case "z":
+                        controller.currentStage.selectedObject.scale.z += 0.1;
+                        break;
+                }
+                break;
+            case "-":
+                switch(keyboardScaleAxis){
+                    case "x":
+                        controller.currentStage.selectedObject.scale.x -= 0.1;
+                        break;
+                    case "y":
+                        controller.currentStage.selectedObject.scale.y -= 0.1;
+                        break;
+                    case "z":
+                        controller.currentStage.selectedObject.scale.z -= 0.1;
+                        break;
+                }
+                break;
+            case "q":
+                controller.currentStage.unsetSelectedObject();
+                break;
+        }
+        if (controller.dragEngine.dragObject) controller.dragEngine.tryPickup();
+        controller.currentStage.guiManager.updateGui();
+        if (controller.currentStage.selectedObject && controller.currentStage.selectedObject.userData.isRestrainedMesh) {
+            controller.currentStage.selectedObject.adjustRestraintForScale();
+            controller.dragEngine.applyRestraint(controller.currentStage.selectedObject);
+        }
+    });
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8hs9t":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "ExportManager", ()=>ExportManager);
+var _three = require("three");
+var _gltfloaderJs = require("three/examples/jsm/loaders/GLTFLoader.js");
+var _gltfexporterJs = require("three/examples/jsm/exporters/GLTFExporter.js");
+class ExportManager {
+    constructor(exporter, assetLoader){
+        this.exporter = exporter;
+        this.assetLoader = assetLoader;
+        this.link = document.createElement("a");
+        document.body.appendChild(this.link);
+    }
+    saveArrayBuffer(buffer, filename) {
+        this.save(new Blob([
+            buffer
+        ], {
+            type: "application/octet-stream"
+        }), filename);
+    }
+    save(blob, filename) {
+        this.link.href = URL.createObjectURL(blob);
+        // assetLoader.load(link.href, function(gltf){
+        // const model = gltf.scene;
+        // console.log(model);
+        // for(let child of model.children){
+        // child.castShadow = true;
+        // }
+        // floorStage.scene.add(model);
+        // floorStage.movableObjects.push(model);
+        // model.position.set(0,0,0);
+        // }, undefined, function(error){
+        // console.log(error);
+        // }); 
+        this.link.download = filename;
+    }
+    download() {
+        this.link.click();
+    }
+    exportToStage(objects, stage) {
+        function saveArrayBuffer(buffer, filename) {
+            save(new Blob([
+                buffer
+            ], {
+                type: "application/octet-stream"
+            }), filename);
+        }
+        function save(blob, filename) {
+            const link = document.createElement("a");
+            document.body.appendChild(link);
+            link.href = URL.createObjectURL(blob);
+            let assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
+            assetLoader.load(link.href, function(gltf) {
+                const model = gltf.scene;
+                console.log(model);
+                for (let child of model.children)child.castShadow = true;
+                stage.scene.add(model);
+                stage.movableObjects.push(model);
+                model.position.set(0, 0, 0);
+            }, undefined, function(error) {
+                console.log(error);
+            });
+            link.download = filename;
+        // link.click();
+        }
+        this.exporter.parse(objects, function(result) {
+            saveArrayBuffer(result, "Scene.glb");
+        }, function(error) {
+            console.log("An error occured when exporting! : " + error);
+        }, {
+            binary: true
+        });
+    // let self = this;
+    // let filename = 'scene.glb';
+    // this.exporter.parse(
+    // stage.movableObjects,
+    // function (res) {
+    // self.saveArrayBuffer(res, 'scene.glb');
+    // },
+    // function (error) {
+    // throw error
+    // },
+    // {
+    // binary: true
+    // }
+    // );
+    // this.assetLoader.load(this.link.href, function(gltf){
+    // const model = gltf.scene;
+    // for(let child of model.children){
+    // child.castShadow = true;
+    // }
+    // stage.addObject(model, true, false);
+    // model.position.set(0,0,0);
+    // }, undefined, function(error){
+    // console.log(error);
+    // }); 
+    // this.link.download = filename;
+    // this.link.click();
+    // let group = new THREE.Group();
+    // for(let o of objects)
+    // group.add(stage.meshFactory.cloneObject(o));
+    // stage.addObject(group, true, false);
+    }
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
 
 //# sourceMappingURL=index.64a4978e.js.map

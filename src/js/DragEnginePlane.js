@@ -2,9 +2,7 @@ import * as THREE from 'three';
 import  {Stage} from './Stage.js';
 
 export class DragEnginePlane {
-	constructor(stage) {
-		this.stage = stage;
-		
+	constructor() {
 		this.mousePosition = new THREE.Vector2();
 		this.planeIntersect = new THREE.Vector3();
 		this.dragObject;
@@ -15,8 +13,6 @@ export class DragEnginePlane {
 		this.pNormal = this.pNormalHorizontal;
 		this.planeDrag = new THREE.Plane(new THREE.Vector3(0,0,0));
 		
-		this.addEventListeners();
-		
 		this.lockX = false;
 		this.lockY = false;
 		this.lockZ = false;
@@ -24,44 +20,34 @@ export class DragEnginePlane {
 		this.restriction = true;
 		this.collision = true;
 	}
-	addEventListeners() {
+	addEventListenersToStage() {
 		let self = this;
 		
-		document.addEventListener('pointermove', function(e) {
+		this.stage.renderer.domElement.addEventListener('pointermove', function(e) {
 			self.calculateRayToPointer(e.clientX, e.clientY);
 			if (self.dragObject) self.drag();
 		});
-		document.addEventListener('pointerdown', function(){
+
+		
+		this.stage.renderer.domElement.addEventListener('pointerdown', function(){
 			self.tryPickup();
 		});
-		document.addEventListener("pointerup", function(){
+		this.stage.renderer.domElement.addEventListener('pointerdown', function(){
+
+			if(self.dragObject) {
+				self.stage.setSelectedObject(self.dragObject);
+			} else {
+				// по сути два раза смотрим пересечения с объектами. Нот грейт.
+				let obj = self.selectObject(self.stage.scene.children);
+				if (obj) self.stage.setSelectedObject(obj);
+			}
+			
+		});
+		this.stage.renderer.domElement.addEventListener("pointerup", function(){
 			self.drop();
 		});
-		
-		document.addEventListener('keypress', (e) => {
-			console.log(e.key);	
-			
-			self.resetLocks();
-			self.pNormal = self.pNormalHorizontal;
-			
-			switch (e.key) {
-				case "x": // x
-					self.lockX = true;
-					break;
-				case "y": // y
-					self.lockY = true;
-					self.pNormal = self.pNormalVertical;
-					break;
-				case "z": // z
-					self.lockZ = true;
-					break;
-				case "c": // c
-					self.collision = !self.collision;
-					break;
-			}
-			if (self.dragObject) self.tryPickup();
+	
 
-		});
 	}
 	resetLocks() {
 		this.lockX = false; this.lockY = false; this.lockZ = false;

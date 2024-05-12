@@ -52,10 +52,26 @@ export class MeshFactory {
 		let newobj;
 		newobj = this.createRestrainedMesh(
 			mesh.geometry.clone(), mesh.material.clone(),
-			mesh.userData.isMovable, mesh.userData.hasCollision, mesh.userData.restraint.clone()
+			mesh.userData.isMovable, mesh.userData.hasCollision, mesh.baserestraint.clone()
 		);
 		newobj.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
 		return newobj;
+	}
+	cloneGroup(grp){
+		let newobj = new THREE.Group();
+		let stage = this.stage;
+		stage.applyToMeshes(stage.selectedObject, function (o){
+			if(o.userData.isRestrainedMesh) newobj.add(stage.meshFactory.cloneRestrainedMesh(o));
+			else if(o.isMesh) newobj.add(stage.meshFactory.cloneMesh(o));
+		});
+		stage.addObject(newobj, true, true);
+		return newobj;
+	}
+	cloneObject(obj) {
+		if(obj.userData.isRestrainedMesh) return this.cloneRestrainedMesh(obj);
+		else if (obj.isMesh) return this.cloneMesh(obj);
+		else if (obj.isGroup) return this.cloneGroup(obj);
+		else throw "cannot clone object: "+ obj;
 	}
 	
 	setStage(stage) {

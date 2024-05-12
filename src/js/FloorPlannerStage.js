@@ -6,7 +6,7 @@ export class FloorPlannerStage extends Stage {
 		const plane = this.meshFactory.createMesh(
 			new THREE.PlaneGeometry(4,4),
 			new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide}),
-			false, true
+			false, false
 		);
 		plane.rotation.x = -0.5 * Math.PI;
 		plane.receiveShadow = true;
