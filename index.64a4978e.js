@@ -37762,48 +37762,48 @@ class GuiManager {
     }
     setupOptions() {
         let options = {
-            scalex: 1,
-            scaley: 1,
-            scalez: 1,
-            rotationx: 0,
-            rotationy: 0,
-            rotationz: 0,
-            color: 0xFFFFFF
+            "\u0434\u043B\u0438\u043D\u0430": 1,
+            "\u0432\u044B\u0441\u043E\u0442\u0430": 1,
+            "\u0448\u0438\u0440\u0438\u043D\u0430": 1,
+            "\u043F\u043E\u0432\u043E\u0440\u043E\u0442X": 0,
+            "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y": 0,
+            "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z": 0,
+            \u0446\u0432\u0435\u0442: 0xFFFFFF
         };
         this.options = options;
         let self = this;
-        this.gui.add(options, "scalex", 0.1, 10).listen().onChange((e)=>{
-            self.stage.setScale(self.stage.selectedObject, options.scalex, options.scaley, options.scalez);
+        this.gui.add(options, "\u0434\u043B\u0438\u043D\u0430", 0.1, 10).listen().onChange((e)=>{
+            self.stage.setScale(self.stage.selectedObject, options["\u0434\u043B\u0438\u043D\u0430"], options["\u0432\u044B\u0441\u043E\u0442\u0430"], options["\u0448\u0438\u0440\u0438\u043D\u0430"]);
         });
-        this.gui.add(options, "scaley", 0.1, 10).listen().onChange((e)=>{
-            self.stage.setScale(self.stage.selectedObject, options.scalex, options.scaley, options.scalez);
+        this.gui.add(options, "\u0448\u0438\u0440\u0438\u043D\u0430", 0.1, 10).listen().onChange((e)=>{
+            self.stage.setScale(self.stage.selectedObject, options["\u0434\u043B\u0438\u043D\u0430"], options["\u0432\u044B\u0441\u043E\u0442\u0430"], options["\u0448\u0438\u0440\u0438\u043D\u0430"]);
         });
-        this.gui.add(options, "scalez", 0.1, 10).listen().onChange((e)=>{
-            self.stage.setScale(self.stage.selectedObject, options.scalex, options.scaley, options.scalez);
+        this.gui.add(options, "\u0432\u044B\u0441\u043E\u0442\u0430", 0.1, 10).listen().onChange((e)=>{
+            self.stage.setScale(self.stage.selectedObject, options["\u0434\u043B\u0438\u043D\u0430"], options["\u0432\u044B\u0441\u043E\u0442\u0430"], options["\u0448\u0438\u0440\u0438\u043D\u0430"]);
         });
-        this.gui.add(options, "rotationx", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
-            self.stage.setRotation(self.stage.selectedObject, options.rotationx, options.rotationy, options.rotationz);
+        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442X", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+            self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
         });
-        this.gui.add(options, "rotationy", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
-            self.stage.setRotation(self.stage.selectedObject, options.rotationx, options.rotationy, options.rotationz);
+        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+            self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
         });
-        this.gui.add(options, "rotationz", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
-            self.stage.setRotation(self.stage.selectedObject, options.rotationx, options.rotationy, options.rotationz);
+        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+            self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
         });
-        this.gui.addColor(options, "color").onChange((e)=>{
+        this.gui.addColor(options, "\u0446\u0432\u0435\u0442").onChange((e)=>{
             self.stage.setMeshColor(self.stage.selectedObject, e);
         });
         this.listeners.push(()=>{
             if (!self.stage.selectedObject) return;
-            self.options.scalex = self.stage.selectedObject.scale.x;
-            self.options.scaley = self.stage.selectedObject.scale.y;
-            self.options.scalez = self.stage.selectedObject.scale.z;
-            self.options.rotationx = self.stage.selectedObject.rotation.x;
-            self.options.rotationy = self.stage.selectedObject.rotation.y;
-            self.options.rotationz = self.stage.selectedObject.rotation.z;
-            if (self.stage.selectedObject.isMesh) self.options.color = self.stage.selectedObject.material.color.getHex();
+            self.options["\u0434\u043B\u0438\u043D\u0430"] = self.stage.selectedObject.scale.x;
+            self.options["\u0432\u044B\u0441\u043E\u0442\u0430"] = self.stage.selectedObject.scale.y;
+            self.options["\u0448\u0438\u0440\u0438\u043D\u0430"] = self.stage.selectedObject.scale.z;
+            self.options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"] = self.stage.selectedObject.rotation.x;
+            self.options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"] = self.stage.selectedObject.rotation.y;
+            self.options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"] = self.stage.selectedObject.rotation.z;
+            if (self.stage.selectedObject.isMesh) self.options["\u0446\u0432\u0435\u0442"] = self.stage.selectedObject.material.color.getHex();
             else self.stage.applyToMeshes(self.stage.selectedObject, (o)=>{
-                self.options.color = o.material.color.getHex();
+                self.options["\u0446\u0432\u0435\u0442"] = o.material.color.getHex();
             });
         });
     }
