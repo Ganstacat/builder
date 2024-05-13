@@ -36727,10 +36727,10 @@ class Stage {
         this.scene.add(obj);
         if (isMovable) this.movableObjects.push(obj);
         if (hasCollision) this.objectsWithCollision.push(obj);
-        // obj.position.set(0,0,0);
-        // const box = new THREE.BoxHelper( obj, 0xffff00 );
-        // this.scene.add( box );
-        this.placeObjectOnPlane(obj);
+    // obj.position.set(0,0,0);
+    // const box = new THREE.BoxHelper( obj, 0xffff00 );
+    // this.scene.add( box );
+    // this.placeObjectOnPlane(obj);
     }
     placeObjectOnPlane(obj) {
         const box3 = new _three.Box3().setFromObject(obj);
@@ -40484,9 +40484,9 @@ class ExportManager {
             let assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
             assetLoader.load(link.href, function(gltf) {
                 const model = gltf.scene;
-                console.log(model);
                 for (let child of model.children)child.castShadow = true;
-                let newObject = stage.meshFactory.cloneObject(model);
+                stage.addObject(model, true, false);
+            // let newObject = stage.meshFactory.cloneObject(model);
             // stage.scene.add(model);
             // stage.movableObjects.push(model);
             }, undefined, function(error) {
@@ -40579,7 +40579,7 @@ function addKeyboardControls(controller) {
     let keyboardScaleAxis = "x";
     document.addEventListener("keypress", (e)=>{
         controller.dragEngine.resetLocks();
-        controller.dragEngine.pNormlal = controller.dragEngine.pNormalHorizontal;
+        controller.dragEngine.pNormal = controller.dragEngine.pNormalHorizontal;
         /*
 			xyz lock moving axis, any other key - remove lock
 			46x, 28z, 39y 

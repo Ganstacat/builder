@@ -2,7 +2,7 @@ export function addKeyboardControls(controller){
 	let keyboardScaleAxis = 'x';
 	document.addEventListener('keypress', (e) => {
 		controller.dragEngine.resetLocks();
-		controller.dragEngine.pNormlal = controller.dragEngine.pNormalHorizontal;
+		controller.dragEngine.pNormal = controller.dragEngine.pNormalHorizontal;
 		/*
 			xyz lock moving axis, any other key - remove lock
 			46x, 28z, 39y 

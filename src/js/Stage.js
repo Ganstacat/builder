@@ -122,7 +122,7 @@ export class Stage {
 		// obj.position.set(0,0,0);
 		// const box = new THREE.BoxHelper( obj, 0xffff00 );
 		// this.scene.add( box );
-		this.placeObjectOnPlane(obj);
+		// this.placeObjectOnPlane(obj);
 	}
 
 	placeObjectOnPlane(obj) {

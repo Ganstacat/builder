@@ -54,11 +54,11 @@ export class ExportManager {
 			let assetLoader = new GLTFLoader();
 			assetLoader.load(link.href, function(gltf){
 				const model = gltf.scene;
-				console.log(model);
 				for(let child of model.children){
 					child.castShadow = true;
 				}
-				let newObject = stage.meshFactory.cloneObject(model);
+				stage.addObject(model,true,false);
+				// let newObject = stage.meshFactory.cloneObject(model);
 				// stage.scene.add(model);
 				// stage.movableObjects.push(model);
 				
