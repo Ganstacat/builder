@@ -168,6 +168,7 @@ export class Stage {
 	}
 	
 	removeSelectionColor(obj) {
+		if (!obj) return;
 		this.applyToMeshes(obj,
 			(o)=>{o.material.emissive.set(0x000000)}
 		);

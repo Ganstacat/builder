@@ -16,6 +16,7 @@ export function addListeners(controller) {
 		);
 	}
 	document.querySelector("#downloadScene").onclick = function(){
+		console.log("ad");
 		controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
 		let exportable = controller.currentStage.scene.children.filter((o) => {
 			if(o.userData.isMovable || o.userData.isSelectable || o.isGroup) return o;
