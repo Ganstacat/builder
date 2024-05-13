@@ -585,329 +585,34 @@ function hmrAccept(bundle /*: ParcelRequire */ , id /*: string */ ) {
 
 },{}],"goJYj":[function(require,module,exports) {
 var _three = require("three");
-var _orbitControlsJs = require("three/examples/jsm/controls/OrbitControls.js");
-var _datGui = require("dat.gui");
 var _gltfloaderJs = require("three/examples/jsm/loaders/GLTFLoader.js");
 var _gltfexporterJs = require("three/examples/jsm/exporters/GLTFExporter.js");
 var _stageJs = require("./Stage.js");
 var _floorPlannerStageJs = require("./FloorPlannerStage.js");
 var _dragEnginePlaneJs = require("./DragEnginePlane.js");
 var _materialManagerJs = require("./MaterialManager.js");
-const builderStage = new (0, _stageJs.Stage)();
-const floorStage = new (0, _floorPlannerStageJs.FloorPlannerStage)();
-var currentStage = builderStage;
+var _mainControllerJs = require("./MainController.js");
+var _exportManagerJs = require("./ExportManager.js");
+var _addListenersJs = require("./addListeners.js");
+var _addKeyboardControlsJs = require("./addKeyboardControls.js");
+const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)();
 const textureLoader = new _three.TextureLoader();
 const materialManager = new (0, _materialManagerJs.MaterialManager)(textureLoader);
 const assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
 const exporter = new (0, _gltfexporterJs.GLTFExporter)();
-const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)(builderStage);
-const gui = new _datGui.GUI();
-var selectedObject;
-function setScale(obj, x, y, z) {
-    if (!obj) return;
-    if (obj.constructor.name === "RestrainedMesh") obj.setScale(x, y, z);
-    else obj.scale.set(x, y, z);
-}
-function setRotation(obj, x, y, z) {
-    if (!obj) return;
-    obj.rotation.x = x;
-    obj.rotation.y = y;
-    obj.rotation.z = z;
-}
-function removeSelectionColor(obj) {
-    if (obj.isMesh) obj.material.emissive.set("black");
-    else if (obj.isGroup) applyToChildMeshes(obj, function(o) {
-        removeSelectionColor(o);
-    });
-}
-function applySelectionColor(obj) {
-    if (obj.isMesh) obj.material.emissive.set(0x9c8e30);
-    else if (obj.isGroup) applyToChildMeshes(obj, function(o) {
-        applySelectionColor(o);
-    });
-}
-function applyToChildMeshes(group, cb, ...args) {
-    for(let i = 0; i < group.children.length; i++){
-        let child = group.children[i];
-        if (child.isGroup) applyToChildMeshes(child, cb);
-        else cb(child, args);
-    }
-}
-const options = {
-    scalex: 1,
-    scaley: 1,
-    scalez: 1,
-    rotationx: 0,
-    rotationy: 0,
-    rotationz: 0,
-    color: 0xFFFFFF
-};
-gui.add(options, "scalex", 0.1, 10).listen().onChange((e)=>{
-    setScale(selectedObject, options.scalex, options.scaley, options.scalez);
-});
-gui.add(options, "scaley", 0.1, 10).listen().onChange((e)=>{
-    setScale(selectedObject, options.scalex, options.scaley, options.scalez);
-});
-gui.add(options, "scalez", 0.1, 10).listen().onChange((e)=>{
-    setScale(selectedObject, options.scalex, options.scaley, options.scalez);
-});
-gui.add(options, "rotationx", 0, Math.PI, Math.PI / 4).listen().onChange((e)=>{
-    setRotation(selectedObject, options.rotationx, options.rotationy, options.rotationz);
-});
-gui.add(options, "rotationy", 0, Math.PI, Math.PI / 4).listen().onChange((e)=>{
-    setRotation(selectedObject, options.rotationx, options.rotationy, options.rotationz);
-});
-gui.add(options, "rotationz", 0, Math.PI, Math.PI / 4).listen().onChange((e)=>{
-    setRotation(selectedObject, options.rotationx, options.rotationy, options.rotationz);
-});
-gui.addColor(options, "color").onChange(function(e) {
-    selectedObject.material.color.set(e);
-});
-document.addEventListener("pointerdown", function() {
-    if (selectedObject) removeSelectionColor(selectedObject);
-    if (dragEngine.dragObject) selectedObject = dragEngine.dragObject;
-    else {
-        // по сути два раза смотрим пересечения с объектами. Нот грейт.
-        let obj = dragEngine.selectObject(currentStage.scene.children);
-        if (obj) selectedObject = obj;
-    }
-    if (selectedObject) {
-        applySelectionColor(selectedObject);
-        updateSelectedObject();
-    }
-});
-function updateSelectedObject() {
-    if (selectedObject) {
-        options.scalex = selectedObject.scale.x;
-        options.scaley = selectedObject.scale.y;
-        options.scalez = selectedObject.scale.z;
-        options.rotationx = selectedObject.rotation.x;
-        options.rotationy = selectedObject.rotation.y;
-        options.rotationz = selectedObject.rotation.z;
-    }
-    gui.updateDisplay();
-}
-let keyboardScaleAxis = "y";
-document.addEventListener("keypress", (e)=>{
-    switch(e.key){
-        case "4":
-            selectedObject.position.x -= 0.1;
-            break;
-        case "6":
-            selectedObject.position.x += 0.1;
-            break;
-        case "2":
-            selectedObject.position.z -= 0.1;
-            break;
-        case "8":
-            selectedObject.position.z += 0.1;
-            break;
-        case "3":
-            selectedObject.position.y -= 0.1;
-            break;
-        case "9":
-            selectedObject.position.y += 0.1;
-            break;
-        case "7":
-            keyboardScaleAxis = "y";
-            break;
-        case "1":
-            keyboardScaleAxis = "x";
-            break;
-        case "5":
-            keyboardScaleAxis = "z";
-            break;
-        case "+":
-            switch(keyboardScaleAxis){
-                case "x":
-                    selectedObject.scale.x += 0.1;
-                    break;
-                case "y":
-                    selectedObject.scale.y += 0.1;
-                    break;
-                case "z":
-                    selectedObject.scale.z += 0.1;
-                    break;
-            }
-            break;
-        case "-":
-            switch(keyboardScaleAxis){
-                case "x":
-                    selectedObject.scale.x -= 0.1;
-                    break;
-                case "y":
-                    selectedObject.scale.y -= 0.1;
-                    break;
-                case "z":
-                    selectedObject.scale.z -= 0.1;
-                    break;
-            }
-            break;
-        case "q":
-            if (selectedObject) {
-                removeSelectionColor(selectedObject);
-                selectedObject = null;
-            }
-            break;
-    }
-    updateSelectedObject();
-    if (selectedObject && selectedObject.isRestrainedMesh) {
-        selectedObject.adjustRestraintForScale();
-        dragEngine.applyRestraint(selectedObject);
-    }
-});
-document.querySelector("#floorPlanner").onclick = function() {
-    builderStage.hideScene();
-    floorStage.showScene();
-    dragEngine.setStage(floorStage);
-    currentStage = floorStage;
-};
-document.querySelector("#builder").onclick = function() {
-    floorStage.hideScene();
-    builderStage.showScene();
-    dragEngine.setStage(builderStage);
-    currentStage = builderStage;
-};
-document.querySelector("#exportToFloor").onclick = function() {
-    for (let obj of builderStage.movableObjects)removeSelectionColor(obj);
-    exporter.parse(builderStage.movableObjects, function(result) {
-        saveArrayBuffer(result, "Scene.glb");
-    }, function(error) {
-        console.log("An error occured when exporting! : " + error);
-    }, {
-        binary: true
-    });
-};
-document.querySelector("#addCube").onclick = function() {
-    let box = builderStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
-        side: _three.DoubleSide
-    }), true, true, builderStage.constraintBox);
-    box.position.y -= box.geometry.boundingBox.min.y;
-};
-document.querySelector("#clone").onclick = function() {
-    if (selectedObject) {
-        removeSelectionColor(selectedObject);
-        let newObject;
-        if (selectedObject.isRestrainedMesh) newObject = currentStage.meshFactory.cloneRestrainedMesh(selectedObject);
-        else if (selectedObject.isMesh) newObject = currentStage.meshFactory.cloneMesh(selectedObject);
-        else if (selectedObject.isGroup) {
-            newObject = new _three.Group();
-            applyToChildMeshes(selectedObject, function(o) {
-                if (o.isRestrainedMesh) newObject.add(currentStage.meshFactory.cloneRestrainedMesh(o));
-                else if (o.isMesh) newObject.add(currentStage.meshFactory.cloneMesh(o));
-            });
-            currentStage.addObject(newObject, true, false);
-        } else {
-            console.log("Cannot create clone for an object: ");
-            console.log(selectedObject);
-        }
-        if (newObject) {
-            newObject.position.set(selectedObject.position.x, selectedObject.position.y, selectedObject.position.z);
-            newObject.scale.set(selectedObject.scale.x, selectedObject.scale.y, selectedObject.scale.z);
-            newObject.rotation.set(selectedObject.rotation.x, selectedObject.rotation.y, selectedObject.rotation.z);
-        }
-    }
-};
-document.querySelector("#addWall").onclick = function() {
-    let cbox = floorStage.constraintBox;
-    let len = cbox.max.x - cbox.min.x;
-    let hei = cbox.max.y - cbox.min.y;
-    let box = floorStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(len, hei, 0.1), new _three.MeshStandardMaterial({
-        side: _three.DoubleSide
-    }), true, true, floorStage.constraintBox);
-    box.castShadow = true;
-    box.position.y -= box.geometry.boundingBox.min.y;
-};
-document.querySelector("#delobj").onclick = function() {
-    if (selectedObject) currentStage.scene.remove(selectedObject);
-    let m = [];
-    for (let obj of currentStage.movableObjects)if (obj !== selectedObject) m.push(obj);
-    currentStage.movableObjects = m;
-};
-document.querySelector("#clear").onclick = function() {
-    for (let obj of currentStage.movableObjects)currentStage.scene.remove(obj);
-    currentStage.movableObjects = [];
-};
-const materialSelector = document.querySelector("#materials");
-materialSelector.onchange = function(e) {
-    console.log(materialSelector.value);
-    if (selectedObject && selectedObject.isMesh) materialManager.setMeshTexture(selectedObject, materialSelector.value);
-    else if (selectedObject) applyToChildMeshes(selectedObject, (o)=>{
-        materialManager.setMeshTexture(o, materialSelector.value);
-    });
-};
-function saveArrayBuffer(buffer, filename) {
-    save(new Blob([
-        buffer
-    ], {
-        type: "application/octet-stream"
-    }), filename);
-}
-function save(blob, filename) {
-    link.href = URL.createObjectURL(blob);
-    assetLoader.load(link.href, function(gltf) {
-        const model = gltf.scene;
-        console.log(model);
-        for (let child of model.children)child.castShadow = true;
-        floorStage.scene.add(model);
-        floorStage.movableObjects.push(model);
-        model.position.set(0, 0, 0);
-    }, undefined, function(error) {
-        console.log(error);
-    });
-    link.download = filename;
-// link.click();
-}
-const link = document.createElement("a");
-document.body.appendChild(link);
-// var wood;
-// textureLoader.load(
-// './assets/textures/seamless-01.jpg',
-// function ( texture ) {
-// wood = new THREE.MeshBasicMaterial( { map: texture} );
-// }, 
-// undefined,
-// function (err){
-// console.log(err);
-// }
-// );
-// const box = builderStage.meshFactory.createRestrainedMesh(
-// new THREE.BoxGeometry(0.5,0.5,0.5),
-// new THREE.MeshStandardMaterial({ map: textureLoader.load('./assets/textures/wood1.jpg') }),
-// true, true, builderStage.constraintBox
-// );
-// const box = builderStage.meshFactory.createRestrainedMesh(
-// new THREE.BoxGeometry(0.5,0.5,0.5),
-// materialManager.materials.light_brick(),
-// true, true, builderStage.constraintBox
-// );
+const exportManager = new (0, _exportManagerJs.ExportManager)(exporter, assetLoader);
+const mainController = new (0, _mainControllerJs.MainController)(dragEngine, exportManager, materialManager);
+const builderStage = new (0, _stageJs.Stage)();
+const floorStage = new (0, _floorPlannerStageJs.FloorPlannerStage)();
+mainController.registerStage("builder", builderStage);
+mainController.registerStage("floorPlanner", floorStage);
+mainController.setCurrentStage("builder");
+(0, _addListenersJs.addListeners)(mainController);
+(0, _addKeyboardControlsJs.addKeyboardControls)(mainController);
 const box = builderStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial(), true, true, builderStage.constraintBox);
-const mat = materialManager.materials.light_brick();
-// box.material = mat;
-console.log(box); // const gridHelper = new THREE.GridHelper(4, 16);
- // stage.scene.add(gridHelper);
- // let constraintBox = new THREE.Box3(
- // new THREE.Vector3(-1.5, 0,-1.5),
- // new THREE.Vector3( 1.5, 0.5, 1.5)
- // );
- // const helperbox = new THREE.Box3Helper(constraintBox, "orange");
- // stage.scene.add(helperbox);
- // const box = stage.meshFactory.createRestrainedMesh(
- // new THREE.BoxGeometry(0.5,0.5,0.5),
- // new THREE.MeshStandardMaterial(),
- // true, true, constraintBox
- // );
- // box.position.y -= box.geometry.boundingBox.min.y;
- // console.log(box);
- // const box2 = meshFactory.createRestrainedMesh(
- // new THREE.BoxGeometry(0.5,0.5,0.5),
- // new THREE.MeshStandardMaterial({side: THREE.DoubleSide}),
- // true, true, constraintBox
- // );
- // box2.position.y -= box2.geometry.boundingBox.min.y;
- // box2.position.x = 1;
+console.log(box);
 
-},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","three/examples/jsm/controls/OrbitControls.js":"7mqRv","dat.gui":"k3xQk"}],"ktPTu":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./ExportManager.js":"8hs9t","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ"}],"ktPTu":[function(require,module,exports) {
 /**
  * @license
  * Copyright 2010-2024 Three.js Authors
@@ -36919,9 +36624,11 @@ parcelHelpers.export(exports, "Stage", ()=>Stage);
 var _three = require("three");
 var _orbitControlsJs = require("three/examples/jsm/controls/OrbitControls.js");
 var _meshFactoryJs = require("./MeshFactory.js");
+var _guiManagerJs = require("./GuiManager.js");
 class Stage {
     constructor(){
-        this.renderer = this.setupRenderer();
+        this.setCanvas();
+        this.renderer = this.setupRenderer(this.canvas);
         this.scene = this.setupScene();
         this.camera = this.setupCamera();
         this.controls = this.setupOrbitControls(this.camera, this.renderer);
@@ -36932,16 +36639,29 @@ class Stage {
         });
         this.movableObjects = [];
         this.objectsWithCollision = [];
+        this.guiManager = new (0, _guiManagerJs.GuiManager)(this);
         this.meshFactory = new (0, _meshFactoryJs.MeshFactory)(this);
+        this.selectedObject = null;
         this.addStartingObjects();
         this.addEventListeners();
     }
+    setCanvas() {
+    // Для переопределения
+    // this.canvas = document.querySelector('#builder');
+    }
     setupRenderer() {
-        const renderer = new _three.WebGLRenderer({
-            antialias: true
+        let renderer;
+        if (this.canvas) renderer = new _three.WebGLRenderer({
+            antialias: true,
+            canvas: this.canvas
         });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        else {
+            renderer = new _three.WebGLRenderer({
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+        }
         renderer.setClearColor(0x333333);
         renderer.shadowMap.enabled = true;
         return renderer;
@@ -36975,9 +36695,11 @@ class Stage {
     }
     hideScene() {
         this.renderer.domElement.remove();
+        this.guiManager.hide();
     }
     showScene() {
         document.body.appendChild(this.renderer.domElement);
+        this.guiManager.show();
     }
     addStartingObjects() {
         // для переопределения
@@ -37005,10 +36727,77 @@ class Stage {
         this.scene.add(obj);
         if (isMovable) this.movableObjects.push(obj);
         if (hasCollision) this.objectsWithCollision.push(obj);
+    // obj.position.set(0,0,0);
+    // const box = new THREE.BoxHelper( obj, 0xffff00 );
+    // this.scene.add( box );
+    // this.placeObjectOnPlane(obj);
+    }
+    placeObjectOnPlane(obj) {
+        const box3 = new _three.Box3().setFromObject(obj);
+        let halfHeight = (box3.max.y - box3.min.y) / 2;
+        obj.position.y = halfHeight;
+    }
+    setScale(obj, x, y, z) {
+        console.log(obj);
+        if (!obj) return;
+        if (obj.userData.isRestrainedMesh) obj.setScale(x, y, z);
+        else obj.scale.set(x, y, z);
+    }
+    setRotation(obj, x, y, z) {
+        if (!obj) return;
+        obj.rotation.x = x;
+        obj.rotation.y = y;
+        obj.rotation.z = z;
+    }
+    setMeshColor(obj, val) {
+        if (!obj) return;
+        this.applyToMeshes(obj, (o, args)=>{
+            console.log("Setting color:");
+            console.log(o);
+            console.log(args);
+            o.material.color.set(args[0]);
+            console.log(o);
+        }, [
+            val
+        ]);
+    }
+    setSelectedObject(obj) {
+        if (this.selectedObject) this.removeSelectionColor(this.selectedObject);
+        this.selectedObject = obj;
+        this.applySelectionColor(this.selectedObject);
+        this.guiManager.updateGui();
+    }
+    unsetSelectedObject() {
+        if (this.selectedObject) this.removeSelectionColor(this.selectedObject);
+        this.selectedObject = null;
+    }
+    removeSelectionColor(obj) {
+        this.applyToMeshes(obj, (o)=>{
+            o.material.emissive.set(0x000000);
+        });
+    }
+    applySelectionColor(obj) {
+        this.applyToMeshes(obj, (o)=>{
+            o.material.emissive.set(0x9c8e30);
+        });
+    }
+    applyToMeshes(obj, cb, args) {
+        if (obj.isMesh) cb(obj, args);
+        else for (let o of obj.children)this.applyToMeshes(o, cb, args);
+    }
+    removeObject(obj) {
+        this.scene.remove(obj);
+        this.movableObjects = this.movableObjects.filter((o)=>{
+            return o !== obj;
+        });
+    }
+    clearScene() {
+        for (let obj of this.movableObjects)this.scene.remove(obj);
+        this.movableObjects = [];
     }
 }
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","./MeshFactory.js":"5E0Nw","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7mqRv":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","./MeshFactory.js":"5E0Nw","./GuiManager.js":"eEqGm","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7mqRv":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "OrbitControls", ()=>OrbitControls);
@@ -37895,9 +37684,30 @@ class MeshFactory {
     }
     cloneRestrainedMesh(mesh) {
         let newobj;
-        newobj = this.createRestrainedMesh(mesh.geometry.clone(), mesh.material.clone(), mesh.userData.isMovable, mesh.userData.hasCollision, mesh.userData.restraint.clone());
+        console.log("rest");
+        console.log(mesh.userData.baserestraint);
+        let baseRestraint = new _three.Box3(mesh.userData.baserestraint.min, mesh.userData.baserestraint.max);
+        newobj = this.createRestrainedMesh(mesh.geometry.clone(), mesh.material.clone(), mesh.userData.isMovable, mesh.userData.hasCollision, baseRestraint);
         newobj.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
         return newobj;
+    }
+    cloneGroup(grp) {
+        console.log("group!");
+        console.log(grp);
+        let newobj = new _three.Group();
+        let stage = this.stage;
+        stage.applyToMeshes(grp, function(o) {
+            if (o.userData.isRestrainedMesh) newobj.add(stage.meshFactory.cloneRestrainedMesh(o));
+            else if (o.isMesh) newobj.add(stage.meshFactory.cloneMesh(o));
+        });
+        stage.addObject(newobj, true, true);
+        return newobj;
+    }
+    cloneObject(obj) {
+        if (obj.userData.isRestrainedMesh) return this.cloneRestrainedMesh(obj);
+        else if (obj.isMesh) return this.cloneMesh(obj);
+        else if (obj.isGroup) return this.cloneGroup(obj);
+        else throw "cannot clone object: " + obj;
     }
     setStage(stage) {
         this.stage = stage;
@@ -37915,309 +37725,96 @@ class RestrainedMesh extends _three.Mesh {
         this.adjustRestraintForScale();
     }
     adjustRestraintForScale() {
-        if (!this.baserestraint) return;
+        if (!this.userData.baserestraint) return;
+        console.log(this.userData.baserestraint);
         let dragbbox = new _three.Box3().setFromObject(this);
         let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
         let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
         let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
-        this.userData.restraint = new _three.Box3(new _three.Vector3(this.baserestraint.min.x + halfLength, this.baserestraint.min.y + halfHeight, this.baserestraint.min.z + halfWidth), new _three.Vector3(this.baserestraint.max.x - halfLength, this.baserestraint.max.y - halfHeight, this.baserestraint.max.z - halfWidth));
+        this.userData.restraint = new _three.Box3(new _three.Vector3(this.userData.baserestraint.min.x + halfLength, this.userData.baserestraint.min.y + halfHeight, this.userData.baserestraint.min.z + halfWidth), new _three.Vector3(this.userData.baserestraint.max.x - halfLength, this.userData.baserestraint.max.y - halfHeight, this.userData.baserestraint.max.z - halfWidth));
     }
     setRestraint(restraint) {
-        this.baserestraint = restraint;
+        this.userData.baserestraint = restraint;
         this.adjustRestraintForScale();
     }
 }
 
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"ivRbE":[function(require,module,exports) {
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eEqGm":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "FloorPlannerStage", ()=>FloorPlannerStage);
-var _three = require("three");
+parcelHelpers.export(exports, "GuiManager", ()=>GuiManager);
+var _datGui = require("dat.gui");
 var _stageJs = require("./Stage.js");
-class FloorPlannerStage extends (0, _stageJs.Stage) {
-    addStartingObjects() {
-        const plane = this.meshFactory.createMesh(new _three.PlaneGeometry(4, 4), new _three.MeshStandardMaterial({
-            color: 0x999999,
-            side: _three.DoubleSide
-        }), false, true);
-        plane.rotation.x = -0.5 * Math.PI;
-        plane.receiveShadow = true;
-        const wallColor = 0xf8c471;
-        const textureLoader = new _three.TextureLoader();
-        const wallGeometry = new _three.PlaneGeometry(1.5, 4);
-        const walltexture = textureLoader.load("./assets/textures/wallpaper2.jpg");
-        walltexture.wrapS = _three.RepeatWrapping;
-        walltexture.wrapT = _three.RepeatWrapping;
-        walltexture.repeat.set(2, 4);
-        const wallMaterial = ()=>{
-            return new _three.MeshStandardMaterial({
-                map: walltexture
-            });
-        };
-        const wall1 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
-        const wall2 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
-        const wall3 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
-        const wall4 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
-        wall1.rotation.y = 0.5 * Math.PI;
-        wall1.rotation.z = -0.5 * Math.PI;
-        wall1.position.set(-2, 0.75, 0);
-        wall2.position.set(0, 0.75, -2);
-        wall2.rotation.z = 0.5 * Math.PI;
-        wall3.position.set(2, 0.75, 0);
-        wall3.rotation.x = 0.5 * Math.PI;
-        wall3.rotation.y = -0.5 * Math.PI;
-        wall4.position.set(0, 0.75, 2);
-        wall4.rotation.y = -1 * Math.PI;
-        wall4.rotation.z = 0.5 * Math.PI;
-        wall1.castShadow = true;
-        wall1.receiveShadow = true;
-        wall1.userData.isSelectable = true;
-        wall2.userData.isSelectable = true;
-        wall3.userData.isSelectable = true;
-        wall4.userData.isSelectable = true;
-        this.constraintBox = new _three.Box3(new _three.Vector3(-2, 0, -2), new _three.Vector3(2, 1.5, 2));
-    // const box = this.meshFactory.createRestrainedMesh(
-    // new THREE.BoxGeometry(0.5,0.5,0.5),
-    // new THREE.MeshStandardMaterial(),
-    // true, true, this.constraintBox
-    // );
-    // box.castShadow = true;
-    // const helperbox = new THREE.Box3Helper(constraintBox, "orange");
-    // this.scene.add(helperbox);
-    }
-}
-
-},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kmFdU":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "DragEnginePlane", ()=>DragEnginePlane);
-var _three = require("three");
-var _stageJs = require("./Stage.js");
-class DragEnginePlane {
+class GuiManager {
     constructor(stage){
         this.stage = stage;
-        this.mousePosition = new _three.Vector2();
-        this.planeIntersect = new _three.Vector3();
-        this.dragObject;
-        this.pIntersect = new _three.Vector3();
-        this.shift = new _three.Vector3();
-        this.pNormalHorizontal = new _three.Vector3(0, 1, 0);
-        this.pNormalVertical = new _three.Vector3(0, 0, 1);
-        this.pNormal = this.pNormalHorizontal;
-        this.planeDrag = new _three.Plane(new _three.Vector3(0, 0, 0));
-        this.addEventListeners();
-        this.lockX = false;
-        this.lockY = false;
-        this.lockZ = false;
-        this.restriction = true;
-        this.collision = true;
-    }
-    addEventListeners() {
-        let self = this;
-        document.addEventListener("pointermove", function(e) {
-            self.calculateRayToPointer(e.clientX, e.clientY);
-            if (self.dragObject) self.drag();
+        this.gui = new _datGui.GUI({
+            autoplace: false
         });
-        document.addEventListener("pointerdown", function() {
-            self.tryPickup();
-        });
-        document.addEventListener("pointerup", function() {
-            self.drop();
-        });
-        document.addEventListener("keypress", (e)=>{
-            console.log(e.key);
-            self.resetLocks();
-            self.pNormal = self.pNormalHorizontal;
-            switch(e.key){
-                case "x":
-                    self.lockX = true;
-                    break;
-                case "y":
-                    self.lockY = true;
-                    self.pNormal = self.pNormalVertical;
-                    break;
-                case "z":
-                    self.lockZ = true;
-                    break;
-                case "c":
-                    self.collision = !self.collision;
-                    break;
-            }
-            if (self.dragObject) self.tryPickup();
-        });
+        // this.gui.domElement = document.querySelector('#controls');
+        this.listeners = [];
+        this.setupOptions();
     }
-    resetLocks() {
-        this.lockX = false;
-        this.lockY = false;
-        this.lockZ = false;
+    updateGui() {
+        for (let l of this.listeners)l();
+        this.gui.updateDisplay();
     }
-    tryPickup() {
-        let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
-        if (intersects.length > 0) {
-            let obj = this.getRootParentGroup(intersects[0].object);
-            let point = intersects[0].point;
-            this.pickup(point, obj);
-        }
-    }
-    selectObject(objectlist) {
-        let intersects = this.stage.raycaster.intersectObjects(objectlist);
-        if (intersects.length > 0 && intersects[0].object.userData.isSelectable) return this.getRootParentGroup(intersects[0].object);
-        else return null;
-    }
-    pickup(intersectionPoint, obj) {
-        this.stage.controls.enabled = false;
-        this.dragObject = obj;
-        this.pIntersect.copy(intersectionPoint);
-        this.planeDrag.setFromNormalAndCoplanarPoint(this.pNormal, this.pIntersect);
-        this.shift.subVectors(obj.position, intersectionPoint);
-    }
-    drop() {
-        this.dragObject = null;
-        this.stage.controls.enabled = true;
-    }
-    drag() {
-        this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
-        this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
-        let x = this.dragObject.position.x;
-        let y = this.dragObject.position.y;
-        let z = this.dragObject.position.z;
-        this.dragObject.position.addVectors(this.planeIntersect, this.shift);
-        // this.dragObject.position.x = x;
-        // this.dragObject.position.y = y;
-        // this.dragObject.position.z = z;
-        this.applyAxisLock(x, y, z);
-        this.applyRestraint(this.dragObject);
-        this.applyCollision(this.dragObject);
-    }
-    applyAxisLock(x, y, z) {
-        if (this.lockX) {
-            this.dragObject.position.y = y;
-            this.dragObject.position.z = z;
-        } else if (this.lockY) {
-            this.dragObject.position.x = x;
-            this.dragObject.position.z = z;
-        } else if (this.lockZ) {
-            this.dragObject.position.y = y;
-            this.dragObject.position.x = x;
-        }
-    }
-    applyRestraint(obj) {
-        if (!this.collision) return;
-        let restraint = obj.userData.restraint;
-        if (restraint) obj.position.clamp(restraint.min, restraint.max);
-    }
-    applyCollision(obj) {
-        if (!this.collision) return;
-        for (let colobj of this.stage.objectsWithCollision){
-            if (obj === colobj) continue;
-            if (this.hasIntersection(obj, colobj)) {
-                let prevpos = obj.position.clone();
-                let colbbox = colobj.isBox3 ? colobj : new _three.Box3().setFromObject(colobj);
-                obj.position.clamp(colbbox.min, colbbox.max);
-                /*	
-					после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
-					на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
-					"код" ниже выталкивает таскаемый объект за пределы коллизионного объекта
-				
-					Схема: линии это границы таскаемого объекта, единицы - границы коллизионного.
-					После клемпа			После портянки ниже
-						11111111					11111111
-					|---1---|  1			|-------1	   1
-					|	1   |  1     =>		|		1	   1
-					|___11111111			|_______11111111
-				*/ let dragbbox = new _three.Box3().setFromObject(this.dragObject);
-                let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
-                let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
-                let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
-                let dragpos = obj.position;
-                if (prevpos.x < dragpos.x) dragpos.x -= halfLength;
-                else if (prevpos.x > dragpos.x) dragpos.x += halfLength;
-                if (prevpos.z < dragpos.z) dragpos.z -= halfWidth;
-                else if (prevpos.z > dragpos.z) dragpos.z += halfWidth;
-                if (prevpos.y < dragpos.y) dragpos.y -= halfHeight;
-                else if (prevpos.y > dragpos.y) dragpos.y += halfHeight;
-            }
-        }
-    }
-    calculateRayToPointer(pointerX, pointerY) {
-        this.mousePosition.x = pointerX / window.innerWidth * 2 - 1;
-        this.mousePosition.y = -(pointerY / window.innerHeight) * 2 + 1;
-        this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
-    }
-    hasIntersection(obj1, obj2) {
-        let colbox1 = new _three.Box3();
-        let colbox2 = new _three.Box3();
-        colbox1 = obj1.isBox3 ? obj1 : colbox1.setFromObject(obj1);
-        colbox2 = obj2.isBox3 ? obj2 : colbox2.setFromObject(obj2);
-        return colbox1.intersectsBox(colbox2);
-    }
-    getRootParentGroup(obj) {
-        let objParent = obj;
-        while(objParent.parent && !objParent.parent.isScene)objParent = objParent.parent;
-        return objParent;
-    }
-    setStage(stage) {
-        this.stage = stage;
-    }
-}
-
-},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4SNlt":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "MaterialManager", ()=>MaterialManager);
-var _three = require("three");
-class MaterialManager {
-    constructor(textureLoader){
-        this.textureLoader = textureLoader;
-        this.textureFolderPath = "./assets/textures/";
-        this.loadedTextures = new Map();
-        let self = this;
-        this.materials = {
-            light_brick: ()=>{
-                return self.createStandardTexturedMaterial("light_brick.jpg");
-            },
-            hardwood: ()=>{
-                return self.createStandardTexturedMaterial("hardwood.png");
-            },
-            tile1: ()=>{
-                return self.createStandardTexturedMaterial("tile-01.jpg");
-            },
-            tile2: ()=>{
-                return self.createStandardTexturedMaterial("tile-02.jpg");
-            },
-            marbletiles: ()=>{
-                return self.createStandardTexturedMaterial("marbletiles.jpg");
-            }
+    setupOptions() {
+        let options = {
+            scalex: 1,
+            scaley: 1,
+            scalez: 1,
+            rotationx: 0,
+            rotationy: 0,
+            rotationz: 0,
+            color: 0xFFFFFF
         };
-    }
-    createStandardTexturedMaterial(filename) {
-        let texture;
-        if (this.loadedTextures.has(filename)) texture = this.loadedTextures.get(filename);
-        else texture = this.textureLoader.load(this.textureFolderPath + filename);
-        this.loadedTextures.set(filename, texture);
-        return new _three.MeshStandardMaterial({
-            map: texture
+        this.options = options;
+        let self = this;
+        this.gui.add(options, "scalex", 0.1, 10).listen().onChange((e)=>{
+            self.stage.setScale(self.stage.selectedObject, options.scalex, options.scaley, options.scalez);
+        });
+        this.gui.add(options, "scaley", 0.1, 10).listen().onChange((e)=>{
+            self.stage.setScale(self.stage.selectedObject, options.scalex, options.scaley, options.scalez);
+        });
+        this.gui.add(options, "scalez", 0.1, 10).listen().onChange((e)=>{
+            self.stage.setScale(self.stage.selectedObject, options.scalex, options.scaley, options.scalez);
+        });
+        this.gui.add(options, "rotationx", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+            self.stage.setRotation(self.stage.selectedObject, options.rotationx, options.rotationy, options.rotationz);
+        });
+        this.gui.add(options, "rotationy", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+            self.stage.setRotation(self.stage.selectedObject, options.rotationx, options.rotationy, options.rotationz);
+        });
+        this.gui.add(options, "rotationz", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+            self.stage.setRotation(self.stage.selectedObject, options.rotationx, options.rotationy, options.rotationz);
+        });
+        this.gui.addColor(options, "color").onChange((e)=>{
+            self.stage.setMeshColor(self.stage.selectedObject, e);
+        });
+        this.listeners.push(()=>{
+            if (!self.stage.selectedObject) return;
+            self.options.scalex = self.stage.selectedObject.scale.x;
+            self.options.scaley = self.stage.selectedObject.scale.y;
+            self.options.scalez = self.stage.selectedObject.scale.z;
+            self.options.rotationx = self.stage.selectedObject.rotation.x;
+            self.options.rotationy = self.stage.selectedObject.rotation.y;
+            self.options.rotationz = self.stage.selectedObject.rotation.z;
+            if (self.stage.selectedObject.isMesh) self.options.color = self.stage.selectedObject.material.color.getHex();
+            else self.stage.applyToMeshes(self.stage.selectedObject, (o)=>{
+                self.options.color = o.material.color.getHex();
+            });
         });
     }
-    setMeshMaterial(mesh, materialKey) {
-        try {
-            mesh.material = this.materials[materialKey]();
-        } catch (e) {
-            console.error(e);
-        }
+    hide() {
+        this.gui.hide();
     }
-    setMeshTexture(mesh, materialKey) {
-        try {
-            let map = this.materials[materialKey]().map;
-            mesh.material.map = this.materials[materialKey]().map;
-            mesh.material.needsUpdate = true;
-        } catch (e) {
-            console.error(e);
-        }
+    show() {
+        this.gui.show();
     }
 }
 
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"k3xQk":[function(require,module,exports) {
+},{"dat.gui":"k3xQk","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"k3xQk":[function(require,module,exports) {
 /**
  * dat-gui JavaScript Controller Library
  * https://github.com/dataarts/dat.gui
@@ -40507,6 +40104,567 @@ var index = {
     GUI: GUI$1
 };
 exports.default = index;
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"ivRbE":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "FloorPlannerStage", ()=>FloorPlannerStage);
+var _three = require("three");
+var _stageJs = require("./Stage.js");
+class FloorPlannerStage extends (0, _stageJs.Stage) {
+    setCanvas() {
+    // this.canvas = document.querySelector('#floorPlanner');
+    }
+    addStartingObjects() {
+        const plane = this.meshFactory.createMesh(new _three.PlaneGeometry(4, 4), new _three.MeshStandardMaterial({
+            color: 0x999999,
+            side: _three.DoubleSide
+        }), false, false);
+        plane.rotation.x = -0.5 * Math.PI;
+        plane.receiveShadow = true;
+        const wallColor = 0xf8c471;
+        const textureLoader = new _three.TextureLoader();
+        const wallGeometry = new _three.PlaneGeometry(1.5, 4);
+        const walltexture = textureLoader.load("./assets/textures/wallpaper2.jpg");
+        walltexture.wrapS = _three.RepeatWrapping;
+        walltexture.wrapT = _three.RepeatWrapping;
+        walltexture.repeat.set(2, 4);
+        const wallMaterial = ()=>{
+            return new _three.MeshStandardMaterial({
+                map: walltexture
+            });
+        };
+        const wall1 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
+        const wall2 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
+        const wall3 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
+        const wall4 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
+        wall1.rotation.y = 0.5 * Math.PI;
+        wall1.rotation.z = -0.5 * Math.PI;
+        wall1.position.set(-2, 0.75, 0);
+        wall2.position.set(0, 0.75, -2);
+        wall2.rotation.z = 0.5 * Math.PI;
+        wall3.position.set(2, 0.75, 0);
+        wall3.rotation.x = 0.5 * Math.PI;
+        wall3.rotation.y = -0.5 * Math.PI;
+        wall4.position.set(0, 0.75, 2);
+        wall4.rotation.y = -1 * Math.PI;
+        wall4.rotation.z = 0.5 * Math.PI;
+        wall1.castShadow = true;
+        wall1.receiveShadow = true;
+        wall1.userData.isSelectable = true;
+        wall2.userData.isSelectable = true;
+        wall3.userData.isSelectable = true;
+        wall4.userData.isSelectable = true;
+        plane.userData.isSelectable = true;
+        this.constraintBox = new _three.Box3(new _three.Vector3(-2, 0, -2), new _three.Vector3(2, 1.5, 2));
+    // const box = this.meshFactory.createRestrainedMesh(
+    // new THREE.BoxGeometry(0.5,0.5,0.5),
+    // new THREE.MeshStandardMaterial(),
+    // true, true, this.constraintBox
+    // );
+    // box.castShadow = true;
+    // const helperbox = new THREE.Box3Helper(constraintBox, "orange");
+    // this.scene.add(helperbox);
+    }
+}
+
+},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kmFdU":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "DragEnginePlane", ()=>DragEnginePlane);
+var _three = require("three");
+var _stageJs = require("./Stage.js");
+class DragEnginePlane {
+    constructor(){
+        this.mousePosition = new _three.Vector2();
+        this.planeIntersect = new _three.Vector3();
+        this.dragObject;
+        this.pIntersect = new _three.Vector3();
+        this.shift = new _three.Vector3();
+        this.pNormalHorizontal = new _three.Vector3(0, 1, 0);
+        this.pNormalVertical = new _three.Vector3(0, 0, 1);
+        this.pNormal = this.pNormalHorizontal;
+        this.planeDrag = new _three.Plane(new _three.Vector3(0, 0, 0));
+        this.lockX = false;
+        this.lockY = false;
+        this.lockZ = false;
+        this.restriction = true;
+        this.collision = true;
+    }
+    addEventListenersToStage() {
+        let self = this;
+        this.stage.renderer.domElement.addEventListener("pointermove", function(e) {
+            self.calculateRayToPointer(e.offsetX, e.offsetY);
+            if (self.dragObject) self.drag();
+        });
+        this.stage.renderer.domElement.addEventListener("pointerdown", function() {
+            self.tryPickup();
+        });
+        this.stage.renderer.domElement.addEventListener("pointerdown", function() {
+            // self.stage.scene.add(new THREE.ArrowHelper(self.stage.raycaster.ray.direction, self.stage.raycaster.ray.origin, 100, 0xff0000) );
+            if (self.dragObject) self.stage.setSelectedObject(self.dragObject);
+            else {
+                // по сути два раза смотрим пересечения с объектами. Нот грейт.
+                let obj = self.selectObject(self.stage.scene.children);
+                if (obj) self.stage.setSelectedObject(obj);
+            }
+        });
+        this.stage.renderer.domElement.addEventListener("pointerup", function() {
+            self.drop();
+        });
+    }
+    resetLocks() {
+        this.lockX = false;
+        this.lockY = false;
+        this.lockZ = false;
+    }
+    tryPickup() {
+        let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
+        if (intersects.length > 0) {
+            let obj = this.getRootParentGroup(intersects[0].object);
+            let point = intersects[0].point;
+            this.pickup(point, obj);
+        }
+    }
+    selectObject(objectlist) {
+        let intersects = this.stage.raycaster.intersectObjects(objectlist);
+        if (intersects.length > 0 && intersects[0].object.userData.isSelectable) return this.getRootParentGroup(intersects[0].object);
+        else return null;
+    }
+    pickup(intersectionPoint, obj) {
+        this.stage.controls.enabled = false;
+        this.dragObject = obj;
+        this.pIntersect.copy(intersectionPoint);
+        this.planeDrag.setFromNormalAndCoplanarPoint(this.pNormal, this.pIntersect);
+        this.shift.subVectors(obj.position, intersectionPoint);
+    }
+    drop() {
+        this.dragObject = null;
+        this.stage.controls.enabled = true;
+    }
+    drag() {
+        this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+        this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
+        let x = this.dragObject.position.x;
+        let y = this.dragObject.position.y;
+        let z = this.dragObject.position.z;
+        this.dragObject.position.addVectors(this.planeIntersect, this.shift);
+        // this.dragObject.position.x = x;
+        // this.dragObject.position.y = y;
+        // this.dragObject.position.z = z;
+        this.applyAxisLock(x, y, z);
+        this.applyRestraint(this.dragObject);
+        this.applyCollision(this.dragObject);
+        console.log(this.dragObject);
+    }
+    applyAxisLock(x, y, z) {
+        if (this.lockX) {
+            this.dragObject.position.y = y;
+            this.dragObject.position.z = z;
+        } else if (this.lockY) {
+            this.dragObject.position.x = x;
+            this.dragObject.position.z = z;
+        } else if (this.lockZ) {
+            this.dragObject.position.y = y;
+            this.dragObject.position.x = x;
+        }
+    }
+    applyRestraint(obj) {
+        if (!this.collision) return;
+        let restraint = obj.userData.restraint;
+        if (restraint) obj.position.clamp(restraint.min, restraint.max);
+    }
+    applyCollision(obj) {
+        if (!this.collision) return;
+        for (let colobj of this.stage.objectsWithCollision){
+            if (obj === colobj) continue;
+            if (this.hasIntersection(obj, colobj)) {
+                let prevpos = obj.position.clone();
+                let colbbox = colobj.isBox3 ? colobj : new _three.Box3().setFromObject(colobj);
+                obj.position.clamp(colbbox.min, colbbox.max);
+                /*	
+					после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
+					на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
+					"код" ниже выталкивает таскаемый объект за пределы коллизионного объекта
+				
+					Схема: линии это границы таскаемого объекта, единицы - границы коллизионного.
+					После клемпа			После портянки ниже
+						11111111					11111111
+					|---1---|  1			|-------1	   1
+					|	1   |  1     =>		|		1	   1
+					|___11111111			|_______11111111
+				*/ let dragbbox = new _three.Box3().setFromObject(this.dragObject);
+                let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
+                let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
+                let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
+                let dragpos = obj.position;
+                if (prevpos.x < dragpos.x) dragpos.x -= halfLength;
+                else if (prevpos.x > dragpos.x) dragpos.x += halfLength;
+                if (prevpos.z < dragpos.z) dragpos.z -= halfWidth;
+                else if (prevpos.z > dragpos.z) dragpos.z += halfWidth;
+                if (prevpos.y < dragpos.y) dragpos.y -= halfHeight;
+                else if (prevpos.y > dragpos.y) dragpos.y += halfHeight;
+            }
+        }
+    }
+    calculateRayToPointer(pointerX, pointerY) {
+        let canvas = this.stage.renderer.domElement;
+        this.mousePosition.x = pointerX / canvas.clientWidth * 2 - 1;
+        this.mousePosition.y = -(pointerY / canvas.clientHeight) * 2 + 1;
+        this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+    // this.mousePosition.x = (pointerX / window.innerWidth) * 2 - 1;
+    // this.mousePosition.y = - (pointerY / window.innerHeight) * 2 + 1;
+    // this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+    }
+    hasIntersection(obj1, obj2) {
+        let colbox1 = new _three.Box3();
+        let colbox2 = new _three.Box3();
+        colbox1 = obj1.isBox3 ? obj1 : colbox1.setFromObject(obj1);
+        colbox2 = obj2.isBox3 ? obj2 : colbox2.setFromObject(obj2);
+        return colbox1.intersectsBox(colbox2);
+    }
+    getRootParentGroup(obj) {
+        let objParent = obj;
+        while(objParent.parent && !objParent.parent.isScene)objParent = objParent.parent;
+        return objParent;
+    }
+    setStage(stage) {
+        this.stage = stage;
+    }
+}
+
+},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4SNlt":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "MaterialManager", ()=>MaterialManager);
+var _three = require("three");
+class MaterialManager {
+    constructor(textureLoader){
+        this.textureLoader = textureLoader;
+        this.textureFolderPath = "./assets/textures/";
+        this.loadedTextures = new Map();
+        let self = this;
+        this.materials = {
+            light_brick: ()=>{
+                return self.createStandardTexturedMaterial("light_brick.jpg");
+            },
+            hardwood: ()=>{
+                return self.createStandardTexturedMaterial("hardwood.png");
+            },
+            tile1: ()=>{
+                return self.createStandardTexturedMaterial("tile-01.jpg");
+            },
+            tile2: ()=>{
+                return self.createStandardTexturedMaterial("tile-02.jpg");
+            },
+            marbletiles: ()=>{
+                return self.createStandardTexturedMaterial("marbletiles.jpg");
+            }
+        };
+    }
+    createStandardTexturedMaterial(filename) {
+        let texture;
+        if (this.loadedTextures.has(filename)) texture = this.loadedTextures.get(filename);
+        else texture = this.textureLoader.load(this.textureFolderPath + filename);
+        this.loadedTextures.set(filename, texture);
+        return new _three.MeshStandardMaterial({
+            map: texture
+        });
+    }
+    setMeshMaterial(mesh, materialKey) {
+        try {
+            mesh.material = this.materials[materialKey]();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    setMeshTexture(mesh, materialKey) {
+        try {
+            let map = this.materials[materialKey]().map;
+            mesh.material.map = this.materials[materialKey]().map;
+            mesh.material.needsUpdate = true;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+}
+
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cHEjt":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "MainController", ()=>MainController);
+var _dragEnginePlaneJs = require("./DragEnginePlane.js");
+class MainController {
+    constructor(dragEngine, exportManager, materialManager){
+        this.stages = new Map();
+        this.currentStage;
+        this.dragEngine = dragEngine;
+        this.exportManager = exportManager;
+        this.materialManager = materialManager;
+    }
+    registerStage(key, stage) {
+        this.stages.set(key, stage);
+        this.dragEngine.setStage(stage);
+        this.dragEngine.addEventListenersToStage();
+    }
+    getStage(key) {
+        let stage = this.stages.get(key);
+        if (!stage) throw key + " stage is not defined";
+        return stage;
+    }
+    hideCurrentStage() {
+        if (this.currentStage) this.currentStage.hideScene();
+    }
+    hideAllStages() {
+        for (let st of this.stages.values())st.hideScene();
+    }
+    showCurrentStage() {
+        if (this.currentStage) this.currentStage.showScene();
+    }
+    setCurrentStage(key) {
+        this.hideAllStages();
+        this.currentStage = this.getStage(key);
+        this.dragEngine.setStage(this.currentStage);
+        this.showCurrentStage();
+    }
+    addListeners() {
+        let self = this;
+    }
+}
+
+},{"./DragEnginePlane.js":"kmFdU","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8hs9t":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "ExportManager", ()=>ExportManager);
+var _three = require("three");
+var _gltfloaderJs = require("three/examples/jsm/loaders/GLTFLoader.js");
+var _gltfexporterJs = require("three/examples/jsm/exporters/GLTFExporter.js");
+class ExportManager {
+    constructor(exporter, assetLoader){
+        this.exporter = exporter;
+        this.assetLoader = assetLoader;
+        this.link = document.createElement("a");
+        document.body.appendChild(this.link);
+    }
+    downloadScene(objects) {
+        function saveArrayBuffer(buffer, filename) {
+            save(new Blob([
+                buffer
+            ], {
+                type: "application/octet-stream"
+            }), filename);
+        }
+        function save(blob, filename) {
+            const link = document.createElement("a");
+            document.body.appendChild(link);
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+        }
+        this.exporter.parse(objects, function(result) {
+            saveArrayBuffer(result, Math.floor(Math.random() * 9999) + ".glb");
+        }, function(error) {
+            console.log("An error occured when exporting! : " + error);
+        }, {
+            binary: true
+        });
+    }
+    exportToStage(objects, stage) {
+        function saveArrayBuffer(buffer, filename) {
+            save(new Blob([
+                buffer
+            ], {
+                type: "application/octet-stream"
+            }), filename);
+        }
+        function save(blob, filename) {
+            const link = document.createElement("a");
+            document.body.appendChild(link);
+            link.href = URL.createObjectURL(blob);
+            let assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
+            assetLoader.load(link.href, function(gltf) {
+                const model = gltf.scene;
+                for (let child of model.children)child.castShadow = true;
+                stage.addObject(model, true, false);
+            // let newObject = stage.meshFactory.cloneObject(model);
+            // stage.scene.add(model);
+            // stage.movableObjects.push(model);
+            }, undefined, function(error) {
+                console.log(error);
+            });
+            link.download = filename;
+        }
+        this.exporter.parse(objects, function(result) {
+            saveArrayBuffer(result, "Scene.glb");
+        }, function(error) {
+            console.log("An error occured when exporting! : " + error);
+        }, {
+            binary: true
+        });
+    }
+}
+
+},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eDO5i":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "addListeners", ()=>addListeners);
+var _three = require("three");
+function addListeners(controller) {
+    let floorPlanner = "floorPlanner";
+    let builder = "builder";
+    document.querySelector("#floorPlanner").onclick = function() {
+        controller.setCurrentStage(floorPlanner);
+    };
+    document.querySelector("#builder").onclick = function() {
+        controller.setCurrentStage(builder);
+    };
+    document.querySelector("#exportToFloor").onclick = function() {
+        controller.exportManager.exportToStage(controller.getStage(builder).movableObjects, controller.getStage(floorPlanner));
+    };
+    document.querySelector("#downloadScene").onclick = function() {
+        controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
+        let exportable = controller.currentStage.scene.children.filter((o)=>{
+            if (o.userData.isMovable || o.userData.isSelectable || o.isGroup) return o;
+        });
+        controller.exportManager.downloadScene(exportable);
+    };
+    document.querySelector("#addCube").onclick = function() {
+        let box = controller.currentStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
+            side: _three.DoubleSide
+        }), true, true, controller.currentStage.constraintBox);
+        box.position.y -= box.geometry.boundingBox.min.y;
+    };
+    document.querySelector("#addWall").onclick = function() {
+        let cbox = controller.currentStage.constraintBox;
+        let len = cbox.max.x - cbox.min.x;
+        let hei = cbox.max.y - cbox.min.y;
+        let box = controller.currentStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(len, hei, 0.1), new _three.MeshStandardMaterial({
+            side: _three.DoubleSide
+        }), true, true, controller.currentStage.constraintBox);
+        box.castShadow = true;
+        box.position.y -= box.geometry.boundingBox.min.y;
+    };
+    document.querySelector("#delobj").onclick = function() {
+        controller.currentStage.removeObject(controller.currentStage.selectedObject);
+    };
+    document.querySelector("#clear").onclick = function() {
+        controller.currentStage.clearScene();
+    };
+    document.querySelector("#clone").onclick = function() {
+        if (!controller.currentStage.selectedObject) return;
+        controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
+        console.log(controller.currentStage.selectedObject.userData.restraint);
+        let newObject = controller.currentStage.meshFactory.cloneObject(controller.currentStage.selectedObject);
+        if (newObject) {
+            controller.currentStage.addObject(newObject, newObject.isMovable, newObject.hasCollision);
+            newObject.position.set(controller.currentStage.selectedObject.position.x, controller.currentStage.selectedObject.position.y, controller.currentStage.selectedObject.position.z);
+            newObject.scale.set(controller.currentStage.selectedObject.scale.x, controller.currentStage.selectedObject.scale.y, controller.currentStage.selectedObject.scale.z);
+            newObject.rotation.set(controller.currentStage.selectedObject.rotation.x, controller.currentStage.selectedObject.rotation.y, controller.currentStage.selectedObject.rotation.z);
+        }
+    };
+    const materialSelector = document.querySelector("#materials");
+    materialSelector.onchange = function(e) {
+        if (controller.currentStage.selectedObject && controller.currentStage.selectedObject.isMesh) controller.materialManager.setMeshTexture(controller.currentStage.selectedObject, materialSelector.value);
+        else if (controller.currentStage.selectedObject) controller.currentStage.applyToMeshes(controller.currentStage.selectedObject, (o)=>{
+            controller.materialManager.setMeshTexture(o, materialSelector.value);
+        });
+    };
+}
+
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"c6KBJ":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "addKeyboardControls", ()=>addKeyboardControls);
+function addKeyboardControls(controller) {
+    let keyboardScaleAxis = "x";
+    document.addEventListener("keypress", (e)=>{
+        controller.dragEngine.resetLocks();
+        controller.dragEngine.pNormal = controller.dragEngine.pNormalHorizontal;
+        /*
+			xyz lock moving axis, any other key - remove lock
+			46x, 28z, 39y 
+			157 axis to scale
+			+- scale
+			q unselect
+		*/ switch(e.key){
+            case "x":
+                controller.dragEngine.lockX = true;
+                break;
+            case "y":
+                controller.dragEngine.lockY = true;
+                controller.dragEngine.pNormal = controller.dragEngine.pNormalVertical;
+                break;
+            case "z":
+                controller.dragEngine.lockZ = true;
+                break;
+            case "c":
+                controller.dragEngine.collision = !controller.dragEngine.collision;
+                break;
+            case "4":
+                controller.currentStage.selectedObject.position.x -= 0.1;
+                break;
+            case "6":
+                controller.currentStage.selectedObject.position.x += 0.1;
+                break;
+            case "2":
+                controller.currentStage.selectedObject.position.z -= 0.1;
+                break;
+            case "8":
+                controller.currentStage.selectedObject.position.z += 0.1;
+                break;
+            case "3":
+                controller.currentStage.selectedObject.position.y -= 0.1;
+                break;
+            case "9":
+                controller.currentStage.selectedObject.position.y += 0.1;
+                break;
+            case "7":
+                keyboardScaleAxis = "y";
+                break;
+            case "1":
+                keyboardScaleAxis = "x";
+                break;
+            case "5":
+                keyboardScaleAxis = "z";
+                break;
+            case "+":
+                switch(keyboardScaleAxis){
+                    case "x":
+                        controller.currentStage.selectedObject.scale.x += 0.1;
+                        break;
+                    case "y":
+                        controller.currentStage.selectedObject.scale.y += 0.1;
+                        break;
+                    case "z":
+                        controller.currentStage.selectedObject.scale.z += 0.1;
+                        break;
+                }
+                break;
+            case "-":
+                switch(keyboardScaleAxis){
+                    case "x":
+                        controller.currentStage.selectedObject.scale.x -= 0.1;
+                        break;
+                    case "y":
+                        controller.currentStage.selectedObject.scale.y -= 0.1;
+                        break;
+                    case "z":
+                        controller.currentStage.selectedObject.scale.z -= 0.1;
+                        break;
+                }
+                break;
+            case "q":
+                controller.currentStage.unsetSelectedObject();
+                break;
+        }
+        if (controller.dragEngine.dragObject) controller.dragEngine.tryPickup();
+        controller.currentStage.guiManager.updateGui();
+        if (controller.currentStage.selectedObject && controller.currentStage.selectedObject.userData.isRestrainedMesh) {
+            controller.currentStage.selectedObject.adjustRestraintForScale();
+            controller.dragEngine.applyRestraint(controller.currentStage.selectedObject);
+        }
+    });
+}
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
 

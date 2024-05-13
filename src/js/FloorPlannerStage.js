@@ -2,11 +2,14 @@ import * as THREE from 'three';
 import  {Stage} from './Stage.js';
 
 export class FloorPlannerStage extends Stage {	
+	setCanvas() {
+		// this.canvas = document.querySelector('#floorPlanner');
+	}
 	addStartingObjects() {
 		const plane = this.meshFactory.createMesh(
 			new THREE.PlaneGeometry(4,4),
 			new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide}),
-			false, true
+			false, false
 		);
 		plane.rotation.x = -0.5 * Math.PI;
 		plane.receiveShadow = true;
@@ -66,6 +69,7 @@ export class FloorPlannerStage extends Stage {
 		wall2.userData.isSelectable = true;
 		wall3.userData.isSelectable = true;
 		wall4.userData.isSelectable = true;
+		plane.userData.isSelectable = true;
 		
 		
 		
