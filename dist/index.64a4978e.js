@@ -724,7 +724,7 @@ console.log(box); // const gridHelper = new THREE.GridHelper(4, 16);
  // box2.position.y -= box2.geometry.boundingBox.min.y;
  // box2.position.x = 1;
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","dat.gui":"k3xQk","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ","./ExportManager.js":"8hs9t"}],"ktPTu":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","dat.gui":"k3xQk","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./ExportManager.js":"8hs9t","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ"}],"ktPTu":[function(require,module,exports) {
 /**
  * @license
  * Copyright 2010-2024 Three.js Authors
@@ -40512,156 +40512,7 @@ class MainController {
     }
 }
 
-},{"./DragEnginePlane.js":"kmFdU","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eDO5i":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "addListeners", ()=>addListeners);
-var _three = require("three");
-function addListeners(controller) {
-    let floorPlanner = "floorPlanner";
-    let builder = "builder";
-    document.querySelector("#floorPlanner").onclick = function() {
-        controller.setCurrentStage(floorPlanner);
-    };
-    document.querySelector("#builder").onclick = function() {
-        controller.setCurrentStage(builder);
-    };
-    document.querySelector("#exportToFloor").onclick = function() {
-        controller.exportManager.exportToStage(controller.getStage(builder).movableObjects, controller.getStage(floorPlanner));
-    };
-    document.querySelector("#addCube").onclick = function() {
-        let box = controller.currentStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
-            side: _three.DoubleSide
-        }), true, true, controller.currentStage.constraintBox);
-        box.position.y -= box.geometry.boundingBox.min.y;
-    };
-    document.querySelector("#addWall").onclick = function() {
-        let cbox = controller.currentStage.constraintBox;
-        let len = cbox.max.x - cbox.min.x;
-        let hei = cbox.max.y - cbox.min.y;
-        let box = controller.currentStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(len, hei, 0.1), new _three.MeshStandardMaterial({
-            side: _three.DoubleSide
-        }), true, true, controller.currentStage.constraintBox);
-        box.castShadow = true;
-        box.position.y -= box.geometry.boundingBox.min.y;
-    };
-    document.querySelector("#delobj").onclick = function() {
-        controller.currentStage.removeObject(controller.currentStage.selectedObject);
-    };
-    document.querySelector("#clear").onclick = function() {
-        controller.currentStage.clearScene();
-    };
-    document.querySelector("#clone").onclick = function() {
-        if (!controller.currentStage.selectedObject) return;
-        controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
-        console.log("Startclone");
-        console.log(controller.currentStage.selectedObject.userData.restraint);
-        let newObject = controller.currentStage.meshFactory.cloneObject(controller.currentStage.selectedObject);
-        if (newObject) {
-            controller.currentStage.addObject(newObject, newObject.isMovable, newObject.hasCollision);
-            newObject.position.set(controller.currentStage.selectedObject.position.x, controller.currentStage.selectedObject.position.y, controller.currentStage.selectedObject.position.z);
-            newObject.scale.set(controller.currentStage.selectedObject.scale.x, controller.currentStage.selectedObject.scale.y, controller.currentStage.selectedObject.scale.z);
-            newObject.rotation.set(controller.currentStage.selectedObject.rotation.x, controller.currentStage.selectedObject.rotation.y, controller.currentStage.selectedObject.rotation.z);
-        }
-    };
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","three":"ktPTu"}],"c6KBJ":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "addKeyboardControls", ()=>addKeyboardControls);
-function addKeyboardControls(controller) {
-    let keyboardScaleAxis = "x";
-    document.addEventListener("keypress", (e)=>{
-        controller.dragEngine.resetLocks();
-        controller.dragEngine.pNormlal = controller.dragEngine.pNormalHorizontal;
-        /*
-			xyz lock moving axis, any other key - remove lock
-			46x, 28z, 39y 
-			157 axis to scale
-			+- scale
-			q unselect
-		*/ switch(e.key){
-            case "x":
-                controller.dragEngine.lockX = true;
-                break;
-            case "y":
-                controller.dragEngine.lockY = true;
-                controller.dragEngine.pNormal = controller.dragEngine.pNormalVertical;
-                break;
-            case "z":
-                controller.dragEngine.lockZ = true;
-                break;
-            case "c":
-                controller.dragEngine.collision = !controller.dragEngine.collision;
-                break;
-            case "4":
-                controller.currentStage.selectedObject.position.x -= 0.1;
-                break;
-            case "6":
-                controller.currentStage.selectedObject.position.x += 0.1;
-                break;
-            case "2":
-                controller.currentStage.selectedObject.position.z -= 0.1;
-                break;
-            case "8":
-                controller.currentStage.selectedObject.position.z += 0.1;
-                break;
-            case "3":
-                controller.currentStage.selectedObject.position.y -= 0.1;
-                break;
-            case "9":
-                controller.currentStage.selectedObject.position.y += 0.1;
-                break;
-            case "7":
-                keyboardScaleAxis = "y";
-                break;
-            case "1":
-                keyboardScaleAxis = "x";
-                break;
-            case "5":
-                keyboardScaleAxis = "z";
-                break;
-            case "+":
-                switch(keyboardScaleAxis){
-                    case "x":
-                        controller.currentStage.selectedObject.scale.x += 0.1;
-                        break;
-                    case "y":
-                        controller.currentStage.selectedObject.scale.y += 0.1;
-                        break;
-                    case "z":
-                        controller.currentStage.selectedObject.scale.z += 0.1;
-                        break;
-                }
-                break;
-            case "-":
-                switch(keyboardScaleAxis){
-                    case "x":
-                        controller.currentStage.selectedObject.scale.x -= 0.1;
-                        break;
-                    case "y":
-                        controller.currentStage.selectedObject.scale.y -= 0.1;
-                        break;
-                    case "z":
-                        controller.currentStage.selectedObject.scale.z -= 0.1;
-                        break;
-                }
-                break;
-            case "q":
-                controller.currentStage.unsetSelectedObject();
-                break;
-        }
-        if (controller.dragEngine.dragObject) controller.dragEngine.tryPickup();
-        controller.currentStage.guiManager.updateGui();
-        if (controller.currentStage.selectedObject && controller.currentStage.selectedObject.userData.isRestrainedMesh) {
-            controller.currentStage.selectedObject.adjustRestraintForScale();
-            controller.dragEngine.applyRestraint(controller.currentStage.selectedObject);
-        }
-    });
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8hs9t":[function(require,module,exports) {
+},{"./DragEnginePlane.js":"kmFdU","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8hs9t":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "ExportManager", ()=>ExportManager);
@@ -40767,6 +40618,155 @@ class ExportManager {
     }
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
+},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eDO5i":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "addListeners", ()=>addListeners);
+var _three = require("three");
+function addListeners(controller) {
+    let floorPlanner = "floorPlanner";
+    let builder = "builder";
+    document.querySelector("#floorPlanner").onclick = function() {
+        controller.setCurrentStage(floorPlanner);
+    };
+    document.querySelector("#builder").onclick = function() {
+        controller.setCurrentStage(builder);
+    };
+    document.querySelector("#exportToFloor").onclick = function() {
+        controller.exportManager.exportToStage(controller.getStage(builder).movableObjects, controller.getStage(floorPlanner));
+    };
+    document.querySelector("#addCube").onclick = function() {
+        let box = controller.currentStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
+            side: _three.DoubleSide
+        }), true, true, controller.currentStage.constraintBox);
+        box.position.y -= box.geometry.boundingBox.min.y;
+    };
+    document.querySelector("#addWall").onclick = function() {
+        let cbox = controller.currentStage.constraintBox;
+        let len = cbox.max.x - cbox.min.x;
+        let hei = cbox.max.y - cbox.min.y;
+        let box = controller.currentStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(len, hei, 0.1), new _three.MeshStandardMaterial({
+            side: _three.DoubleSide
+        }), true, true, controller.currentStage.constraintBox);
+        box.castShadow = true;
+        box.position.y -= box.geometry.boundingBox.min.y;
+    };
+    document.querySelector("#delobj").onclick = function() {
+        controller.currentStage.removeObject(controller.currentStage.selectedObject);
+    };
+    document.querySelector("#clear").onclick = function() {
+        controller.currentStage.clearScene();
+    };
+    document.querySelector("#clone").onclick = function() {
+        if (!controller.currentStage.selectedObject) return;
+        controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
+        console.log("Startclone");
+        console.log(controller.currentStage.selectedObject.userData.restraint);
+        let newObject = controller.currentStage.meshFactory.cloneObject(controller.currentStage.selectedObject);
+        if (newObject) {
+            controller.currentStage.addObject(newObject, newObject.isMovable, newObject.hasCollision);
+            newObject.position.set(controller.currentStage.selectedObject.position.x, controller.currentStage.selectedObject.position.y, controller.currentStage.selectedObject.position.z);
+            newObject.scale.set(controller.currentStage.selectedObject.scale.x, controller.currentStage.selectedObject.scale.y, controller.currentStage.selectedObject.scale.z);
+            newObject.rotation.set(controller.currentStage.selectedObject.rotation.x, controller.currentStage.selectedObject.rotation.y, controller.currentStage.selectedObject.rotation.z);
+        }
+    };
+}
+
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"c6KBJ":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "addKeyboardControls", ()=>addKeyboardControls);
+function addKeyboardControls(controller) {
+    let keyboardScaleAxis = "x";
+    document.addEventListener("keypress", (e)=>{
+        controller.dragEngine.resetLocks();
+        controller.dragEngine.pNormlal = controller.dragEngine.pNormalHorizontal;
+        /*
+			xyz lock moving axis, any other key - remove lock
+			46x, 28z, 39y 
+			157 axis to scale
+			+- scale
+			q unselect
+		*/ switch(e.key){
+            case "x":
+                controller.dragEngine.lockX = true;
+                break;
+            case "y":
+                controller.dragEngine.lockY = true;
+                controller.dragEngine.pNormal = controller.dragEngine.pNormalVertical;
+                break;
+            case "z":
+                controller.dragEngine.lockZ = true;
+                break;
+            case "c":
+                controller.dragEngine.collision = !controller.dragEngine.collision;
+                break;
+            case "4":
+                controller.currentStage.selectedObject.position.x -= 0.1;
+                break;
+            case "6":
+                controller.currentStage.selectedObject.position.x += 0.1;
+                break;
+            case "2":
+                controller.currentStage.selectedObject.position.z -= 0.1;
+                break;
+            case "8":
+                controller.currentStage.selectedObject.position.z += 0.1;
+                break;
+            case "3":
+                controller.currentStage.selectedObject.position.y -= 0.1;
+                break;
+            case "9":
+                controller.currentStage.selectedObject.position.y += 0.1;
+                break;
+            case "7":
+                keyboardScaleAxis = "y";
+                break;
+            case "1":
+                keyboardScaleAxis = "x";
+                break;
+            case "5":
+                keyboardScaleAxis = "z";
+                break;
+            case "+":
+                switch(keyboardScaleAxis){
+                    case "x":
+                        controller.currentStage.selectedObject.scale.x += 0.1;
+                        break;
+                    case "y":
+                        controller.currentStage.selectedObject.scale.y += 0.1;
+                        break;
+                    case "z":
+                        controller.currentStage.selectedObject.scale.z += 0.1;
+                        break;
+                }
+                break;
+            case "-":
+                switch(keyboardScaleAxis){
+                    case "x":
+                        controller.currentStage.selectedObject.scale.x -= 0.1;
+                        break;
+                    case "y":
+                        controller.currentStage.selectedObject.scale.y -= 0.1;
+                        break;
+                    case "z":
+                        controller.currentStage.selectedObject.scale.z -= 0.1;
+                        break;
+                }
+                break;
+            case "q":
+                controller.currentStage.unsetSelectedObject();
+                break;
+        }
+        if (controller.dragEngine.dragObject) controller.dragEngine.tryPickup();
+        controller.currentStage.guiManager.updateGui();
+        if (controller.currentStage.selectedObject && controller.currentStage.selectedObject.userData.isRestrainedMesh) {
+            controller.currentStage.selectedObject.adjustRestraintForScale();
+            controller.dragEngine.applyRestraint(controller.currentStage.selectedObject);
+        }
+    });
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
 
 //# sourceMappingURL=index.64a4978e.js.map
