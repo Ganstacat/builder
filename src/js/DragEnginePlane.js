@@ -33,7 +33,7 @@ export class DragEnginePlane {
 			self.tryPickup();
 		});
 		this.stage.renderer.domElement.addEventListener('pointerdown', function(){
-
+			self.stage.scene.add(new THREE.ArrowHelper(self.stage.raycaster.ray.direction, self.stage.raycaster.ray.origin, 100, 0xff0000) );
 			if(self.dragObject) {
 				self.stage.setSelectedObject(self.dragObject);
 			} else {
@@ -174,6 +174,7 @@ export class DragEnginePlane {
 		this.mousePosition.x = (pointerX / window.innerWidth) * 2 - 1;
 		this.mousePosition.y = - (pointerY / window.innerHeight) * 2 + 1;
 		this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+		
 	}
 	
 	hasIntersection(obj1, obj2) {

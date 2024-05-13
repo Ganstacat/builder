@@ -40288,6 +40288,7 @@ class DragEnginePlane {
             self.tryPickup();
         });
         this.stage.renderer.domElement.addEventListener("pointerdown", function() {
+            self.stage.scene.add(new _three.ArrowHelper(self.stage.raycaster.ray.direction, self.stage.raycaster.ray.origin, 100, 0xff0000));
             if (self.dragObject) self.stage.setSelectedObject(self.dragObject);
             else {
                 // по сути два раза смотрим пересечения с объектами. Нот грейт.
