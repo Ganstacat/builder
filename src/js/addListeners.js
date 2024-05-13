@@ -15,6 +15,15 @@ export function addListeners(controller) {
 			controller.getStage(floorPlanner)
 		);
 	}
+	document.querySelector("#downloadScene").onclick = function(){
+		controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
+		let exportable = controller.currentStage.scene.children.filter((o) => {
+			if(o.userData.isMovable || o.userData.isSelectable || o.isGroup) return o;
+		})
+		controller.exportManager.downloadScene(
+			exportable
+		);
+	}
 	document.querySelector("#addCube").onclick = function(){
 		let box = controller.currentStage.meshFactory.createRestrainedMesh(
 			new THREE.BoxGeometry(0.5,0.5,0.5),
@@ -49,7 +58,6 @@ export function addListeners(controller) {
 		
 		controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
 
-		console.log("Startclone");
 		console.log(controller.currentStage.selectedObject.userData.restraint);
 		let newObject = controller.currentStage.meshFactory.cloneObject(controller.currentStage.selectedObject);
 		
@@ -73,5 +81,12 @@ export function addListeners(controller) {
 		}
 		
 	}
-	
+	const materialSelector = document.querySelector("#materials");
+	materialSelector.onchange = function (e) {
+		if (controller.currentStage.selectedObject && controller.currentStage.selectedObject.isMesh)
+			controller.materialManager.setMeshTexture(controller.currentStage.selectedObject, materialSelector.value);
+		else if (controller.currentStage.selectedObject) {
+			controller.currentStage.applyToMeshes(controller.currentStage.selectedObject, (o) => { controller.materialManager.setMeshTexture(o, materialSelector.value); });
+		}
+	}
 }

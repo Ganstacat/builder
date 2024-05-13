@@ -2,11 +2,12 @@ import {DragEnginePlane} from './DragEnginePlane.js'
 
 export class MainController {
 	
-	constructor(dragEngine, exportManager) {
+	constructor(dragEngine, exportManager, materialManager) {
 		this.stages = new Map();
 		this.currentStage;
 		this.dragEngine = dragEngine;
 		this.exportManager = exportManager;
+		this.materialManager = materialManager;
 	}
 
 	registerStage(key, stage) {

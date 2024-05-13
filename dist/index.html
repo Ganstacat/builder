@@ -44,18 +44,26 @@ button {
 }
 
 .controls {
-  position: absolute;
+  float: left;
+  width: 200px;
+  position: fixed;
+}
+
+button:after {
+  content: "";
+  clear: both;
+  display: table;
+}
+
+button, select {
+  width: 80px;
 }
 </style>
 </head>
 
 <body>
-<<<<<<< HEAD
 	<div class="controls">
-=======
-	<div class="controls">
->>>>>>> 8eeede1df78f6e73d71049c605bcb8abaa1836e8
-		<button id="builder">Builder</button>
+		<button id="builder">Builder Stage</button>
 		<button id="floorPlanner" class="clickme">Floor Planner</button>
 		<button id="exportToFloor">Export</button>
 		<button id="addCube">Cube</button>
@@ -63,23 +71,14 @@ button {
 		<button id="clone">Clone</button><br>
 		<button id="delobj">Delete</button>
 		<button id="clear">Clear</button>
+		<button id="downloadScene">Save</button>
 		<select name="materials" id="materials">
-<<<<<<< HEAD
 			<option value="light_brick">brick</option>
 			<option value="tile1">tile1</option>
 			<option value="tile2">tile2</option>
 			<option value="marbletiles">marbletiles</option>
 		</select>
 	</div>
-=======
-		  <option value="light_brick">brick</option>
-		  <option value="tile1">tile1</option>
-		  <option value="tile2">tile2</option>
-		  <option value="marbletiles">marbletiles</option>
-		
-	</div>
-	
->>>>>>> 8eeede1df78f6e73d71049c605bcb8abaa1836e8
 	<script src="/index.64a4978e.js" defer=""></script>
 </body>
 

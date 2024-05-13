@@ -50,17 +50,25 @@ export class MeshFactory {
 	}
 	cloneRestrainedMesh(mesh){
 		let newobj;
+		console.log("rest");
+		console.log(mesh.userData.baserestraint);
+		let baseRestraint = new THREE.Box3(
+			mesh.userData.baserestraint.min,
+			mesh.userData.baserestraint.max,
+		)
 		newobj = this.createRestrainedMesh(
 			mesh.geometry.clone(), mesh.material.clone(),
-			mesh.userData.isMovable, mesh.userData.hasCollision, mesh.baserestraint.clone()
+			mesh.userData.isMovable, mesh.userData.hasCollision,baseRestraint 
 		);
 		newobj.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
 		return newobj;
 	}
 	cloneGroup(grp){
+		console.log("group!");
+		console.log(grp);
 		let newobj = new THREE.Group();
 		let stage = this.stage;
-		stage.applyToMeshes(stage.selectedObject, function (o){
+		stage.applyToMeshes(grp, function (o){
 			if(o.userData.isRestrainedMesh) newobj.add(stage.meshFactory.cloneRestrainedMesh(o));
 			else if(o.isMesh) newobj.add(stage.meshFactory.cloneMesh(o));
 		});

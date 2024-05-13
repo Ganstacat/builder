@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {MeshFactory} from './MeshFactory.js';
-import * as dat from 'dat.gui'; 
 import {GuiManager} from './GuiManager.js';
 
 export class Stage {
 	constructor() {
-		this.renderer = this.setupRenderer();
+		this.setCanvas();
+		this.renderer = this.setupRenderer(this.canvas);
 		this.scene = this.setupScene();
 		this.camera = this.setupCamera();
 		this.controls = this.setupOrbitControls(this.camera, this.renderer);
@@ -29,10 +29,19 @@ export class Stage {
 		this.addEventListeners();
 	}
 	
+	setCanvas(){
+		// Для переопределения
+		// this.canvas = document.querySelector('#builder');
+	}
 	setupRenderer() {
-		const renderer = new THREE.WebGLRenderer({antialias:true});
-		renderer.setSize(window.innerWidth, window.innerHeight);
-		document.body.appendChild(renderer.domElement);
+		let renderer;
+		if (this.canvas) {
+			renderer = new THREE.WebGLRenderer({ antialias: true, canvas: this.canvas });
+		} else {
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			document.body.appendChild(renderer.domElement);
+		}
 		renderer.setClearColor(0x333333);
 		renderer.shadowMap.enabled = true;
 		return renderer;
@@ -110,7 +119,9 @@ export class Stage {
 		this.scene.add(obj);
 		if(isMovable) this.movableObjects.push(obj);
 		if(hasCollision) this.objectsWithCollision.push(obj);
-		obj.position.set(0,0,0);
+		// obj.position.set(0,0,0);
+		// const box = new THREE.BoxHelper( obj, 0xffff00 );
+		// this.scene.add( box );
 		this.placeObjectOnPlane(obj);
 	}
 
@@ -167,6 +178,7 @@ export class Stage {
 		);
 	}
 	applyToMeshes(obj, cb, args) {
+		
 		if(obj.isMesh) {
 			cb(obj, args);
 		}

@@ -5,7 +5,8 @@ export class GuiManager {
 	
 	constructor(stage) {
 		this.stage = stage;
-		this.gui = new dat.GUI();
+		this.gui = new dat.GUI({autoplace: false});
+		// this.gui.domElement = document.querySelector('#controls');
 		this.listeners = [];
 		this.setupOptions();
 	}
