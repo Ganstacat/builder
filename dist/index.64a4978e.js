@@ -36797,7 +36797,7 @@ class Stage {
     }
 }
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","./MeshFactory.js":"5E0Nw","./GuiManager.js":"eEqGm","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7mqRv":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","./MeshFactory.js":"5E0Nw","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./GuiManager.js":"eEqGm"}],"7mqRv":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "OrbitControls", ()=>OrbitControls);
