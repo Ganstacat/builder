@@ -57,6 +57,9 @@
 		button, select {
 			width: 120px;
 		}
+		.hidden {
+			display: none;
+		}
 
 	</style>
 </head>
@@ -73,11 +76,17 @@
 		<button id="clear">Отчистить</button>
 		<button id="downloadScene">Скачать</button>
 		<select name="materials" id="materials">
-			<option value="light_brick">brick</option>
-			<option value="tile1">tile1</option>
-			<option value="tile2">tile2</option>
-			<option value="marbletiles">marbletiles</option>
+			<option value="reset">Материал:</option>
+			<option value="none">Без материала</option>
+			<option value="light_brick">Кирпич</option>
+			<option value="tile1">Плитка1</option>
+			<option value="tile2">Плитка2</option>
+			<option value="marbletiles">Мрамор</option>
 		</select>
+		<form action="/api" method="post" enctype="multipart/form-data">
+			<input id="file" name="file" type="file" class="hidden" />
+			<button id="upload">Загрузить</button>
+		</form>
 	</div>
 	<script src="./js/scripts.js" type="module"></script>
 </body>

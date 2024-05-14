@@ -31,10 +31,3 @@ mainController.setCurrentStage("builder");
 
 addListeners(mainController);
 addKeyboardControls(mainController);
-
-const box = builderStage.meshFactory.createRestrainedMesh(
-	new THREE.BoxGeometry(0.5,0.5,0.5),
-	new THREE.MeshStandardMaterial(),
-	true, true, builderStage.constraintBox
-);
-console.log(box);

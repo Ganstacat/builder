@@ -3,18 +3,22 @@ export function addListeners(controller) {
 	let floorPlanner = "floorPlanner";
 	let builder = "builder";
 	
+	// Смена текущей сцены на Планировщик
 	document.querySelector("#floorPlanner").onclick = function(){	
 		controller.setCurrentStage(floorPlanner);
 	};
+	// Смена текущей сцены на Сборщик
 	document.querySelector("#builder").onclick = function(){
 		controller.setCurrentStage(builder);
 	};
+	// Перенос объектов из сцены Сборщика в сцену Планировщика
 	document.querySelector("#exportToFloor").onclick = function(){	
 		controller.exportManager.exportToStage(
 			controller.getStage(builder).movableObjects,
 			controller.getStage(floorPlanner)
 		);
 	}
+	// Скачать объекты из текущей сцены на устройство пользователя
 	document.querySelector("#downloadScene").onclick = function(){
 		console.log("ad");
 		controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
@@ -25,6 +29,7 @@ export function addListeners(controller) {
 			exportable
 		);
 	}
+	// Добавить куб на текущую сцену. Куб ограничен в пределах сцены.
 	document.querySelector("#addCube").onclick = function(){
 		let box = controller.currentStage.meshFactory.createRestrainedMesh(
 			new THREE.BoxGeometry(0.5,0.5,0.5),
@@ -33,6 +38,7 @@ export function addListeners(controller) {
 		);
 		box.position.y -= box.geometry.boundingBox.min.y;
 	}
+	// Добавить стену на текущую сцену. Стена имеет высоту и длину по размеру сцены и ограничена в её пределах.
 	document.querySelector("#addWall").onclick = function(){
 		let cbox = controller.currentStage.constraintBox;
 		let len = cbox.max.x - cbox.min.x;
@@ -46,14 +52,17 @@ export function addListeners(controller) {
 		box.castShadow = true;
 		box.position.y -= box.geometry.boundingBox.min.y;
 	}
+	// Удалить выбранный объект
 	document.querySelector("#delobj").onclick = function() {
 		controller.currentStage.removeObject(controller.currentStage.selectedObject);
 	}
 	
+	// Отчистить текущую сцену от объектов
 	document.querySelector("#clear").onclick = function() {
 		controller.currentStage.clearScene();
 	}
 	
+	// Клонировать выбранный объект.
 	document.querySelector("#clone").onclick = function(){
 		if(!controller.currentStage.selectedObject) return;
 		
@@ -82,12 +91,29 @@ export function addListeners(controller) {
 		}
 		
 	}
+	
+	// Выбор материала для выбранного объекта
 	const materialSelector = document.querySelector("#materials");
 	materialSelector.onchange = function (e) {
+		if (materialSelector.value === 'reset') return;
+		
 		if (controller.currentStage.selectedObject && controller.currentStage.selectedObject.isMesh)
 			controller.materialManager.setMeshTexture(controller.currentStage.selectedObject, materialSelector.value);
 		else if (controller.currentStage.selectedObject) {
 			controller.currentStage.applyToMeshes(controller.currentStage.selectedObject, (o) => { controller.materialManager.setMeshTexture(o, materialSelector.value); });
 		}
+		
+		materialSelector.value = 'reset';
 	}
+	
+	// загрузка пользовательского файла на сцену
+	document.querySelector('#upload').onclick = function (){
+		document.querySelector('#file').click();
+	};
+	document.querySelector('form').addEventListener('submit', (e)=>{e.preventDefault();});
+	document.querySelector('#file').addEventListener("change", function handleFiles(){
+		const fileList = this.files;
+		controller.exportManager.loadBlobToStage(fileList[0], controller.currentStage);
+	}, false);
+	
 }

@@ -97,12 +97,13 @@ export class Stage {
 		);
 		const helperbox = new THREE.Box3Helper(this.constraintBox, "orange");
 		this.scene.add(helperbox);
-		// const box = this.meshFactory.createRestrainedMesh(
-			// new THREE.BoxGeometry(0.5,0.5,0.5),
-			// new THREE.MeshStandardMaterial(),
-			// true, true, this.constraintBox
-		// );
-		// box.position.y -= box.geometry.boundingBox.min.y;
+		
+		const box = this.meshFactory.createRestrainedMesh(
+			new THREE.BoxGeometry(0.5,0.5,0.5),
+			new THREE.MeshStandardMaterial(),
+			true, true, this.constraintBox
+		);
+		box.position.y -= box.geometry.boundingBox.min.y;
 	}
 	addEventListeners(){
 		let self = this;

@@ -8,6 +8,7 @@ export class MaterialManager {
 		
 		let self = this;
 		this.materials = {
+			none: ()=>{return new THREE.MeshStandardMaterial()},
 			light_brick: ()=>{return self.createStandardTexturedMaterial("light_brick.jpg")},
 			hardwood: ()=>{return self.createStandardTexturedMaterial("hardwood.png")},
 			tile1: ()=>{return self.createStandardTexturedMaterial("tile-01.jpg")},

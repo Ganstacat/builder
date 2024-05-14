@@ -42,13 +42,13 @@ export class GuiManager {
 		this.gui.add(options, 'высота',0.1, 10).listen().onChange((e)=>{
 			self.stage.setScale(self.stage.selectedObject, options["длина"], options["высота"], options["ширина"] );
 		});
-		this.gui.add(options, 'поворотX',0, Math.PI, Math.PI/16).listen().onChange((e)=>{
+		this.gui.add(options, 'поворотX',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
 			self.stage.setRotation(self.stage.selectedObject, options["поворотX"], options["поворотY"], options["поворотZ"]);
 		});
-		this.gui.add(options, 'поворотY',0, Math.PI, Math.PI/16).listen().onChange((e)=>{
+		this.gui.add(options, 'поворотY',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
 			self.stage.setRotation(self.stage.selectedObject, options["поворотX"], options["поворотY"], options["поворотZ"]);
 		});
-		this.gui.add(options, 'поворотZ',0, Math.PI, Math.PI/16).listen().onChange((e)=>{
+		this.gui.add(options, 'поворотZ',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
 			self.stage.setRotation(self.stage.selectedObject, options["поворотX"], options["поворотY"], options["поворотZ"]);
 		});
 		this.gui.addColor(options, 'цвет').onChange((e)=>{
