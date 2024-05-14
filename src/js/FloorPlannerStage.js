@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import  {Stage} from './Stage.js';
 
+/**
+	Потомок класса Stage, отличается набором моделей, присутствующих на сцене после инициализации.
+*/
 export class FloorPlannerStage extends Stage {	
 	setCanvas() {
 		// this.canvas = document.querySelector('#floorPlanner');

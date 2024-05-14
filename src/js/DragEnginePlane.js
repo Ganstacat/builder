@@ -1,7 +1,14 @@
 import * as THREE from 'three';
 import  {Stage} from './Stage.js';
 
+/**
+	Класс, добавляющий управление моделями с помощью мыши, и так же просчитывающий коллизии между моделями и ограничителями
+*/
 export class DragEnginePlane {
+	/**
+		Инициализация необходимых переменных.
+		Так же этому классу требуется объект класса Stage для работы, но он передаётся не в конструкторе, а с помощью отдельного метода.
+	*/
 	constructor() {
 		this.mousePosition = new THREE.Vector2();
 		this.planeIntersect = new THREE.Vector3();
@@ -17,21 +24,27 @@ export class DragEnginePlane {
 		this.lockY = false;
 		this.lockZ = false;
 		
-		this.restriction = true;
 		this.collision = true;
 	}
+	/**
+		Добавляет отслеживание мыши на сцене, чтобы пользователь мог перемещать модели с помощью мыши.
+	*/
 	addEventListenersToStage() {
 		let self = this;
 		
+		// Движение мыши: перемещение выбранный предмет
 		this.stage.renderer.domElement.addEventListener('pointermove', function(e) {
 			self.calculateRayToPointer(e.offsetX, e.offsetY);
 			if (self.dragObject) self.drag();
 		});
 
-		
+		// Нажатие любой кнопки мыши: выбрать модель, если курсор находится на ней
 		this.stage.renderer.domElement.addEventListener('pointerdown', function(){
 			self.tryPickup();
 		});
+		
+		// Нажатие любой кнопки мыши: если мышь выбрала какую-то модель, то информируем объект сцены об этом.
+		// Этот слушатель переедет в другое место, скорее всего, в контроллер.
 		this.stage.renderer.domElement.addEventListener('pointerdown', function(){
 			// self.stage.scene.add(new THREE.ArrowHelper(self.stage.raycaster.ray.direction, self.stage.raycaster.ray.origin, 100, 0xff0000) );
 			if(self.dragObject) {
@@ -43,16 +56,23 @@ export class DragEnginePlane {
 			}
 			
 		});
+		// Отпускание кнопки мыши: прекратить перемещение объекта
 		this.stage.renderer.domElement.addEventListener("pointerup", function(){
 			self.drop();
 		});
 	
 
 	}
+	/**
+		Убирает блокировку оси перемещения.
+	*/
 	resetLocks() {
 		this.lockX = false; this.lockY = false; this.lockZ = false;
 	}
 	
+	/**
+		Проверяет, находится ли курсор на какой-то модели, которую можно выбрать, и вызывает this.pickup(), если это так.
+	*/
 	tryPickup() {
 		let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
 		
@@ -63,6 +83,10 @@ export class DragEnginePlane {
 			this.pickup(point, obj);
 		}
 	}
+	
+	/**
+		То же самое, что и верхняя tryPickup(), но тот работает только на movableObjects, а этот на тот список, что передан в массиве. Это говно и надо переделать. 
+	*/
 	selectObject(objectlist) {
 		let intersects = this.stage.raycaster.intersectObjects(objectlist);
 		if(intersects.length > 0 && intersects[0].object.userData.isSelectable)
@@ -71,6 +95,9 @@ export class DragEnginePlane {
 			return null;
 	}
 	
+	/**
+		Начать перемещение модели
+	*/
 	pickup(intersectionPoint, obj) {
 		this.stage.controls.enabled = false;
 		this.dragObject = obj;
@@ -81,11 +108,17 @@ export class DragEnginePlane {
 		
 		this.shift.subVectors(obj.position, intersectionPoint);
 	}
+	/**
+		Прекратить перемещение модели
+	*/
 	drop() {
 		this.dragObject = null;
 		this.stage.controls.enabled = true;
 	}
 	
+	/**
+		Перемещать выбранную модель к курсору мыши с учётом блокировки по осям, ограничений и коллизий.
+	*/
 	drag() {
 		this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
 		this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
@@ -94,15 +127,15 @@ export class DragEnginePlane {
 		let y = this.dragObject.position.y;
 		let z = this.dragObject.position.z;
 		this.dragObject.position.addVectors(this.planeIntersect, this.shift);
-		// this.dragObject.position.x = x;
-		// this.dragObject.position.y = y;
-		// this.dragObject.position.z = z;
 		this.applyAxisLock(x,y,z);
 		this.applyRestraint(this.dragObject);
 		this.applyCollision(this.dragObject);
 		console.log(this.dragObject);
 	}
 	
+	/**
+		Ограничить перемещение модели в случае, если включена блокировка какой-то из осей.
+	*/
 	applyAxisLock(x,y,z) {
 		if (this.lockX) {
 			this.dragObject.position.y = y;
@@ -116,6 +149,10 @@ export class DragEnginePlane {
 		}
 	}
 	
+	/**
+		Применить ограничение на перемещение модели, в случае если коллизии активированы и в объекте модели эти коллизии прописаны.
+		Если какая-то из сторон куба вышла за пределы ограничителя, то позиция корректируется так, чтобы вернуть модель обратно внутрь ограничителя.
+	*/
 	applyRestraint(obj) {
 		if (!this.collision) return;
 		let restraint = obj.userData.restraint;
@@ -123,6 +160,9 @@ export class DragEnginePlane {
 			obj.position.clamp( restraint.min,restraint.max );
 	}
 	
+	/*
+		Применить коллизию: если перемещаемая модель столкнулась с другой моделью, у которой есть коллизия, то пересчитываем позицию перемещаемой модели так, чтобы коллизионные коробки двух моделей не пересекались.
+	**/
 	applyCollision(obj) {
 		if (!this.collision) return;
 		for(let colobj of this.stage.objectsWithCollision) {
@@ -171,18 +211,26 @@ export class DragEnginePlane {
 		}
 	}
 	
+	/**
+		Рассчитывает нормализованное положение мыши в сцене.
+		В окне браузера положение мышии выражается в количестве пикселей от левого верхнего угла страницы с поправкой на прокрутку окна.
+		Например, если окно состоит из 1920 x 600 пикселей, то курсор, установленный в центре будет иметь координаты 
+		(960, 300)
+		
+		В сцене рендера же для определения положения курсора используются нормализованные координаты: центр экрана считается за точку (0,0), левый верхний угол (-1,-1) и правый нижний (1,!).
+
+		Рассчитывать нужно, чтобы определить, на какую модель в сцене указывает курсор.
+	*/
 	calculateRayToPointer(pointerX, pointerY) {
 		let canvas = this.stage.renderer.domElement;
 		this.mousePosition.x = (pointerX / canvas.clientWidth) * 2 - 1;
 		this.mousePosition.y = - (pointerY / canvas.clientHeight) * 2 + 1;
 		this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
-
-		// this.mousePosition.x = (pointerX / window.innerWidth) * 2 - 1;
-		// this.mousePosition.y = - (pointerY / window.innerHeight) * 2 + 1;
-		// this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
-		
 	}
 	
+	/**
+		Проверяет, пересекаются ли два объекта или нет. Используется при определении коллизии.
+	*/
 	hasIntersection(obj1, obj2) {
 		
 		let colbox1 = new THREE.Box3();
@@ -193,6 +241,10 @@ export class DragEnginePlane {
 		return colbox1.intersectsBox(colbox2);
 	}
 
+	/**
+		Выбирает самого верхнего потомка модели, не являющегося сценой.
+		Возможно, этот метод переедет в контроллер.
+	*/
 	getRootParentGroup(obj) {
 		let objParent = obj;
 		while (objParent.parent && !objParent.parent.isScene) {
@@ -200,7 +252,10 @@ export class DragEnginePlane {
 		}
 		return objParent;
 	}
-
+	
+	/**
+		Устанавливает сцену, на которой будут перемещаться модели.
+	*/
 	setStage(stage) {
 		this.stage = stage;
 	}

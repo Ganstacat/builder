@@ -11,6 +11,10 @@ import {ExportManager} from './ExportManager.js';
 import {addListeners} from './addListeners.js';
 import {addKeyboardControls} from './addKeyboardControls.js';
 
+/**
+	Точка входа в приложение, создаются объекты, разрешаются зависимости
+*/
+
 const dragEngine = new DragEnginePlane();
 
 const textureLoader = new THREE.TextureLoader();

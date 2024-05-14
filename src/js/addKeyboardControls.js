@@ -1,15 +1,18 @@
+/**
+	Функция, которая добавляет управление приложением с помощью клавиатуры.
+	Управление:
+	xyz - заблокировать перемещение объекта мышью по одной из осей, нажатие любой другой клавиши снимает блокировку.
+	c - отключить коллизии и ограничения на перемещение для объектов
+	46x, 28z, 39y - перемещение объекта по оси x,z,y
+	1x 5y 7z - выбрать, какой параметр объекта изменять - длину, высоту. ширину
+		+- увеличить или уменшить размер объекта 
+		q убрать выделение объекта
+*/
 export function addKeyboardControls(controller){
 	let keyboardScaleAxis = 'x';
 	document.addEventListener('keypress', (e) => {
 		controller.dragEngine.resetLocks();
 		controller.dragEngine.pNormal = controller.dragEngine.pNormalHorizontal;
-		/*
-			xyz lock moving axis, any other key - remove lock
-			46x, 28z, 39y 
-			157 axis to scale
-			+- scale
-			q unselect
-		*/
 		
 		switch (e.key) {
 			case "x":

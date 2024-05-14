@@ -3,7 +3,13 @@ import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {MeshFactory} from './MeshFactory.js';
 import {GuiManager} from './GuiManager.js';
 
+/**
+	Класс, производящий инициализацию сцены, хранящий её состояние и имеющий методы для манипуляции над сценой.
+*/
 export class Stage {
+	/**
+		Инициализация объекта сцены в конструкторе с помощью методов этого класса.
+	*/
 	constructor() {
 		this.setCanvas();
 		this.renderer = this.setupRenderer(this.canvas);
@@ -14,13 +20,16 @@ export class Stage {
 		this.raycaster = this.setupRaycaster();
 		
 		
-		
+		// включается рендер сцены
 		this.renderer.setAnimationLoop( ()=>{
 			this.renderer.render(this.scene, this.camera);
 		});
+		
+		// инициализация массивов, хранящих перемещаемые модели (группы моделей) и модели с коллизией
 		this.movableObjects = [];
 		this.objectsWithCollision = [];
 		
+		// meshFactory желательно отсюда выкинуть
 		this.guiManager = new GuiManager(this);
 		this.meshFactory = new MeshFactory(this);
 		this.selectedObject = null;
@@ -29,10 +38,18 @@ export class Stage {
 		this.addEventListeners();
 	}
 	
+	/**
+		В ручную устанавливает элемент <canvas>, на котором будет выполняться рендер сцены.
+		Нужно, если рендер будет происходить на заранее созданном canvas.
+		По-моему оно пока ещё не работает, как положено, чтобы заработало надо обновить медоты show и hide
+	*/
 	setCanvas(){
 		// Для переопределения
 		// this.canvas = document.querySelector('#builder');
 	}
+	/**
+		Инициализация THREE.WebGLRenderer, объект из библиотеки, отвечающий за отрисовку всей графики на элементе canvas.
+	*/
 	setupRenderer() {
 		let renderer;
 		if (this.canvas) {
@@ -46,9 +63,15 @@ export class Stage {
 		renderer.shadowMap.enabled = true;
 		return renderer;
 	}
+	/**
+		Инициализация объекта THREE.Scene(), что содержит в себе все объекты на сцене.
+	*/
 	setupScene() {
 		return new THREE.Scene();
 	}
+	/**
+		Инициализурет камеру, из которой пользователь наблюдает за сценой.
+	*/
 	setupCamera() {
 		const camera = new THREE.PerspectiveCamera(
 			60, window.innerWidth / window.innerHeight,
@@ -58,11 +81,17 @@ export class Stage {
 
 		return camera;
 	}
+	/**
+		Инициализирует объект класса OrbitControls из библиотеки, позволяет пользователю управлять камерой с помощью мыши и клавиатуры. 
+	*/
 	setupOrbitControls(camera, renderer) {
 		const controls = new OrbitControls(camera, renderer.domElement);
 		controls.update();
 		return controls;
 	}
+	/**
+		Устанавливает освещение для сцены.
+	*/
 	setupLights(scene) {
 		const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1);
 		scene.add(ambientLight);
@@ -73,20 +102,34 @@ export class Stage {
 		
 		return [directionalLight];
 	}
+	/**
+		Инициализирует объект класса THREE.Raycaster, который предназначен для помощи в рейкастинге. Raycasting используется, среди прочего, для выбора мышью (определения того, над какими объектами в трехмерном пространстве находится мышь).
+		^ перевод гуглтранслитом из документации Three.js
+	*/
 	setupRaycaster(){
 		return new THREE.Raycaster();
 	}
 	
-	
+	/**
+		Скрывает текущую сцену, отсоединяя канвас рендера от документа.
+		Так же скрывается интерфейс dat.GUI
+	*/
 	hideScene() {
 		this.renderer.domElement.remove();
 		this.guiManager.hide();
 	}
+	/**
+		Показывает текущую сцену, присоединяя канвас рендера к документу.
+		Так же показывается интерфейс dat.GUI
+	*/
 	showScene() {
 		document.body.appendChild(this.renderer.domElement);
 		this.guiManager.show();
 	}
 	
+	/**
+		Определить обеъкты, которыу будут добавлены после инициализации сцены.
+	*/
 	addStartingObjects() {
 		// для переопределения
 		const gridHelper = new THREE.GridHelper(4, 16);
@@ -99,23 +142,29 @@ export class Stage {
 		this.scene.add(helperbox);
 		
 		const box = this.meshFactory.createRestrainedMesh(
-			new THREE.BoxGeometry(0.5,0.5,0.5),
+			new THREE.BoxGeometry(1.5,1.5,1.5),
 			new THREE.MeshStandardMaterial(),
 			true, true, this.constraintBox
 		);
 		box.position.y -= box.geometry.boundingBox.min.y;
 	}
+	/**
+		Добавляет слушатели событий, необходимые для работы этого класса
+	*/
 	addEventListeners(){
 		let self = this;
+		// Обновляет размер холста при изменении размеров окна браузера.
+		// ПЕРЕПИСАТЬ - Работает неправильно, должно считать не от window, а от this.renderer.domElement
 		window.addEventListener('resize', function(){
 			self.camera.aspect = window.innerWidth / window.innerHeight;
 			self.camera.updateProjectionMatrix();
 			self.renderer.setSize(window.innerWidth, window.innerHeight);
 		});
-		
-		
 	}
 
+	/**
+		Добавляет модель или группу моделей на сцену.
+	*/
 	addObject(obj, isMovable, hasCollision) {
 		this.scene.add(obj);
 		if(isMovable) this.movableObjects.push(obj);
@@ -126,22 +175,35 @@ export class Stage {
 		// this.placeObjectOnPlane(obj);
 	}
 
+	/**
+		Не используется. 
+		Назначение - установить позицию модели по высоте на значение "0 + высота", чтобы модель встала "на пол".
+	*/
 	placeObjectOnPlane(obj) {
 		const box3 = new THREE.Box3().setFromObject(obj);
 		let halfHeight = (box3.max.y - box3.min.y)/2;
 		obj.position.y = halfHeight;
 	}
 
+	/**
+		Изменить размер модели
+	*/
 	setScale(obj,x,y,z){
 		console.log(obj);
 		if(!obj) return;
 		if (obj.userData.isRestrainedMesh) obj.setScale(x,y,z);
 		else obj.scale.set(x,y,z);
 	}
+	/**
+		Установить поворт модели*
+	*/
 	setRotation(obj,x,y,z){
 		if(!obj) return;
 		obj.rotation.x = x; obj.rotation.y = y; obj.rotation.z = z;
 	}
+	/**
+		Установить цвет модели
+	*/
 	setMeshColor(obj, val){
 		if(!obj) return;
 		this.applyToMeshes(
@@ -157,28 +219,44 @@ export class Stage {
 		);
 	}
 	
+	/**
+		Уставновить модель как выбранную.
+	*/
 	setSelectedObject(obj) {
 		if(this.selectedObject) this.removeSelectionColor(this.selectedObject);
 		this.selectedObject = obj;
 		this.applySelectionColor(this.selectedObject);
 		this.guiManager.updateGui();
 	}
+	/**
+		Отменить выделение модели
+	*/
 	unsetSelectedObject() {
 		if(this.selectedObject) this.removeSelectionColor(this.selectedObject);
 		this.selectedObject = null;
 	}
 	
+	/**
+		Убрать оранжевую подсветку у модели.
+	*/
 	removeSelectionColor(obj) {
 		if (!obj) return;
 		this.applyToMeshes(obj,
 			(o)=>{o.material.emissive.set(0x000000)}
 		);
 	}
+	/**
+		Включить оранжевую подсветку у модели
+	*/
 	applySelectionColor(obj){
 		this.applyToMeshes(obj,
 			(o)=>{o.material.emissive.set(0x9c8e30)}
 		);
 	}
+	/**
+		Применить функцию cb с аргументами args ко всем потомкам-моделям объекта obj.
+		По-хорошему надо вынести эту функцию в контроллер или в utils
+	*/
 	applyToMeshes(obj, cb, args) {
 		
 		if(obj.isMesh) {
@@ -190,10 +268,17 @@ export class Stage {
 		}
 	}
 	
+	/**
+		Убрать объект со сцены
+	*/
 	removeObject(obj) {
 		this.scene.remove(obj);
 		this.movableObjects = this.movableObjects.filter((o)=>{return o !== obj});
 	}
+	
+	/**
+		Отчистить сцену от всех movable объектов.
+	*/
 	clearScene() {
 		for(let obj of this.movableObjects){
 			this.scene.remove(obj);

@@ -1,6 +1,14 @@
 import * as THREE from 'three';
 
+/**
+	Класс, хранящий в себе материалы для моделей (объекты класса THREE.*Material) и содержащий методы для изменения материалов объектов
+*/
 export class MaterialManager {
+	
+	/**
+		Конструктор принимает THREE.TextureLoader() в качестве зависимости.
+		Так же во время инициализации устанавливается список материалов и переменная, хранящая путь до папки с текстурами.
+	*/
 	constructor(textureLoader){
 		this.textureLoader = textureLoader;
 		this.textureFolderPath = "./assets/textures/";
@@ -16,6 +24,9 @@ export class MaterialManager {
 			marbletiles: ()=>{return self.createStandardTexturedMaterial("marbletiles.jpg")},
 		}
 	}
+	/**
+		Возвращает объект THREE.MeshStandardMaterial с текстурой filename
+	*/
 	createStandardTexturedMaterial(filename){
 		let texture;
 		if (this.loadedTextures.has(filename))
@@ -27,6 +38,9 @@ export class MaterialManager {
 		
 		return new THREE.MeshStandardMaterial({ map: texture });
 	}
+	/**
+		Устанавливает материал для модели
+	*/
 	setMeshMaterial(mesh, materialKey){
 		try {
 			mesh.material = this.materials[materialKey]();
@@ -34,6 +48,9 @@ export class MaterialManager {
 			console.error(e);
 		}
 	}
+	/**
+		Устанавливает текстуру для модели.
+	*/
 	setMeshTexture(mesh, materialKey){
 		try {
 			let map = this.materials[materialKey]().map;

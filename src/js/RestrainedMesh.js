@@ -1,12 +1,20 @@
 import * as THREE from 'three';
 
+/**
+	Класс-декоратор, обозначает модель с ограничениями на перемещение.
+*/
 export class RestrainedMesh extends THREE.Mesh {
+	
+	/**
+		Установить размер этой модели
+	*/
 	setScale(x,y,z) {
-		
 		this.scale.set(x, y, z);
 		this.adjustRestraintForScale();
 	}
-	
+	/**
+		Обновить размеры ограничительного куба в зависимости от размера модели.
+	*/
 	adjustRestraintForScale() {
 		if(!this.userData.baserestraint) return;
 		console.log(this.userData.baserestraint);
@@ -26,6 +34,9 @@ export class RestrainedMesh extends THREE.Mesh {
 		)
 	}
 
+	/**
+		Установить ограничение для этой модели.
+	*/
 	setRestraint(restraint) {
 		this.userData.baserestraint = restraint;
 		this.adjustRestraintForScale();

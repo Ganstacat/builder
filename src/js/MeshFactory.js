@@ -2,10 +2,24 @@ import * as THREE from 'three';
 import  {Stage} from './Stage.js';
 import  {RestrainedMesh} from './RestrainedMesh.js';
 
+/**
+	Класс, отвечающий за создание новых моделей на сцене.
+*/
 export class MeshFactory {
+	
+	/*
+		объект класса Stage определён как зависимость в конструкторе
+		Возможно ПЕРЕПИСАТЬ, т.к. сейчас MeshFactory привязан к одной сцене, хотя в этом нет необходимости. Надо сделать на манер DragEnginePlane
+		
+		UPD: необходимость таки есть, для объектов Scene.addStartingObjects 
+	**/
 	constructor(stage) {
 		this.stage = stage;
 	}
+	/**
+		Создать модель, используя данные о её геометрии, материале, а так же двух параметров - можно ли модель перемещать и имеет ли она коллизия.
+		ПЕРЕПИСАТЬ - вместо this.stage.scene надо обращаться к stage.addObject()
+	*/
 	createMesh(geometry, material, isMovable, hasCollision) {
 		const mesh = new THREE.Mesh(geometry, material);
 		this.stage.scene.add(mesh);
@@ -21,6 +35,10 @@ export class MeshFactory {
 		}
 		return mesh;
 	}
+	/**
+		Создать модель, так же, как и в методе createMesh(), но с добавлением ограничения на перемещение этой модели.
+		ПЕРЕПИСАТЬ - вместо this.stage.scene надо обращаться к stage.addObject()
+	*/
 	createRestrainedMesh(geometry, material, isMovable, hasCollision, restraint) {
 		const mesh = new RestrainedMesh(geometry, material);
 		this.stage.scene.add(mesh);
@@ -39,6 +57,9 @@ export class MeshFactory {
 		mesh.userData.isRestrainedMesh = true;
 		return mesh;
 	}
+	/**
+		Создать дупликат модели
+	*/
 	cloneMesh(mesh) {
 		let newobj;
 		newobj = this.createMesh(
@@ -48,6 +69,9 @@ export class MeshFactory {
 		newobj.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
 		return newobj;
 	}
+	/**
+		Создать дупликат модели с ограничениями на перемещение
+	*/
 	cloneRestrainedMesh(mesh){
 		let newobj;
 		console.log("rest");
@@ -63,9 +87,10 @@ export class MeshFactory {
 		newobj.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
 		return newobj;
 	}
+	/**
+		Создать дупликат группы моделей
+	*/
 	cloneGroup(grp){
-		console.log("group!");
-		console.log(grp);
 		let newobj = new THREE.Group();
 		let stage = this.stage;
 		stage.applyToMeshes(grp, function (o){
@@ -75,6 +100,9 @@ export class MeshFactory {
 		stage.addObject(newobj, true, true);
 		return newobj;
 	}
+	/**
+		Создать дупликат какого-то объекта - либо модели, либо модели с ограничением, либо группы моделей.
+	*/
 	cloneObject(obj) {
 		if(obj.userData.isRestrainedMesh) return this.cloneRestrainedMesh(obj);
 		else if (obj.isMesh) return this.cloneMesh(obj);
@@ -82,6 +110,9 @@ export class MeshFactory {
 		else throw "cannot clone object: "+ obj;
 	}
 	
+	/**
+		Установить объект, над которым будет работать этот класс.
+	*/
 	setStage(stage) {
 		this.stage = stage;
 	}

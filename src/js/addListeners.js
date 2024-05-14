@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+
+/**
+	Функция, устанавливающая поведение кнопок управления, определённых в html файле.
+*/
 export function addListeners(controller) {
 	let floorPlanner = "floorPlanner";
 	let builder = "builder";
