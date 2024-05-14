@@ -609,8 +609,6 @@ mainController.registerStage("floorPlanner", floorStage);
 mainController.setCurrentStage("builder");
 (0, _addListenersJs.addListeners)(mainController);
 (0, _addKeyboardControlsJs.addKeyboardControls)(mainController);
-const box = builderStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial(), true, true, builderStage.constraintBox);
-console.log(box);
 
 },{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./ExportManager.js":"8hs9t","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ"}],"ktPTu":[function(require,module,exports) {
 /**
@@ -36708,12 +36706,8 @@ class Stage {
         this.constraintBox = new _three.Box3(new _three.Vector3(-1.5, 0, -2), new _three.Vector3(1.5, 1.5, 2));
         const helperbox = new _three.Box3Helper(this.constraintBox, "orange");
         this.scene.add(helperbox);
-    // const box = this.meshFactory.createRestrainedMesh(
-    // new THREE.BoxGeometry(0.5,0.5,0.5),
-    // new THREE.MeshStandardMaterial(),
-    // true, true, this.constraintBox
-    // );
-    // box.position.y -= box.geometry.boundingBox.min.y;
+        const box = this.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial(), true, true, this.constraintBox);
+        box.position.y -= box.geometry.boundingBox.min.y;
     }
     addEventListeners() {
         let self = this;
@@ -37781,13 +37775,13 @@ class GuiManager {
         this.gui.add(options, "\u0432\u044B\u0441\u043E\u0442\u0430", 0.1, 10).listen().onChange((e)=>{
             self.stage.setScale(self.stage.selectedObject, options["\u0434\u043B\u0438\u043D\u0430"], options["\u0432\u044B\u0441\u043E\u0442\u0430"], options["\u0448\u0438\u0440\u0438\u043D\u0430"]);
         });
-        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442X", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442X", 0, Math.PI * 2, Math.PI / 16).listen().onChange((e)=>{
             self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
         });
-        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y", 0, Math.PI * 2, Math.PI / 16).listen().onChange((e)=>{
             self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
         });
-        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z", 0, Math.PI, Math.PI / 16).listen().onChange((e)=>{
+        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z", 0, Math.PI * 2, Math.PI / 16).listen().onChange((e)=>{
             self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
         });
         this.gui.addColor(options, "\u0446\u0432\u0435\u0442").onChange((e)=>{
@@ -40346,6 +40340,9 @@ class MaterialManager {
         this.loadedTextures = new Map();
         let self = this;
         this.materials = {
+            none: ()=>{
+                return new _three.MeshStandardMaterial();
+            },
             light_brick: ()=>{
                 return self.createStandardTexturedMaterial("light_brick.jpg");
             },
@@ -40447,56 +40444,45 @@ class ExportManager {
         this.link = document.createElement("a");
         document.body.appendChild(this.link);
     }
+    createBlobFromBuffer(buffer) {
+        return new Blob([
+            buffer
+        ], {
+            type: "application/octet-stream"
+        });
+    }
+    saveToUserDevice(blob, filename) {
+        this.link.href = URL.createObjectURL(blob);
+        this.link.download = filename;
+        this.link.click();
+    }
     downloadScene(objects) {
-        function saveArrayBuffer(buffer, filename) {
-            save(new Blob([
-                buffer
-            ], {
-                type: "application/octet-stream"
-            }), filename);
-        }
-        function save(blob, filename) {
-            const link = document.createElement("a");
-            document.body.appendChild(link);
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            link.click();
-        }
+        let self = this;
         this.exporter.parse(objects, function(result) {
-            saveArrayBuffer(result, Math.floor(Math.random() * 9999) + ".glb");
+            let blob = self.createBlobFromBuffer(result);
+            self.saveToUserDevice(blob, Math.floor(Math.random() * 9999) + ".glb");
         }, function(error) {
-            console.log("An error occured when exporting! : " + error);
+            console.log("An error occured when downloading file! : " + error);
         }, {
             binary: true
         });
     }
-    exportToStage(objects, stage) {
-        function saveArrayBuffer(buffer, filename) {
-            save(new Blob([
-                buffer
-            ], {
-                type: "application/octet-stream"
-            }), filename);
-        }
-        function save(blob, filename) {
-            const link = document.createElement("a");
-            document.body.appendChild(link);
-            link.href = URL.createObjectURL(blob);
-            let assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
-            assetLoader.load(link.href, function(gltf) {
-                const model = gltf.scene;
-                for (let child of model.children)child.castShadow = true;
-                stage.addObject(model, true, false);
-            // let newObject = stage.meshFactory.cloneObject(model);
-            // stage.scene.add(model);
-            // stage.movableObjects.push(model);
-            }, undefined, function(error) {
-                console.log(error);
+    loadBlobToStage(blob, stage) {
+        this.link.href = URL.createObjectURL(blob);
+        this.assetLoader.load(this.link.href, (gltf)=>{
+            const model = gltf.scene;
+            stage.applyToMeshes(model, (o)=>{
+                o.castShadow = true;
+                o.receiveShadow = true;
             });
-            link.download = filename;
-        }
+            stage.addObject(model, true, false);
+        });
+    }
+    exportToStage(objects, stage) {
+        let self = this;
         this.exporter.parse(objects, function(result) {
-            saveArrayBuffer(result, "Scene.glb");
+            let blob = self.createBlobFromBuffer(result);
+            self.loadBlobToStage(blob, stage);
         }, function(error) {
             console.log("An error occured when exporting! : " + error);
         }, {
@@ -40513,15 +40499,19 @@ var _three = require("three");
 function addListeners(controller) {
     let floorPlanner = "floorPlanner";
     let builder = "builder";
+    // Смена текущей сцены на Планировщик
     document.querySelector("#floorPlanner").onclick = function() {
         controller.setCurrentStage(floorPlanner);
     };
+    // Смена текущей сцены на Сборщик
     document.querySelector("#builder").onclick = function() {
         controller.setCurrentStage(builder);
     };
+    // Перенос объектов из сцены Сборщика в сцену Планировщика
     document.querySelector("#exportToFloor").onclick = function() {
         controller.exportManager.exportToStage(controller.getStage(builder).movableObjects, controller.getStage(floorPlanner));
     };
+    // Скачать объекты из текущей сцены на устройство пользователя
     document.querySelector("#downloadScene").onclick = function() {
         console.log("ad");
         controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
@@ -40530,12 +40520,14 @@ function addListeners(controller) {
         });
         controller.exportManager.downloadScene(exportable);
     };
+    // Добавить куб на текущую сцену. Куб ограничен в пределах сцены.
     document.querySelector("#addCube").onclick = function() {
         let box = controller.currentStage.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
             side: _three.DoubleSide
         }), true, true, controller.currentStage.constraintBox);
         box.position.y -= box.geometry.boundingBox.min.y;
     };
+    // Добавить стену на текущую сцену. Стена имеет высоту и длину по размеру сцены и ограничена в её пределах.
     document.querySelector("#addWall").onclick = function() {
         let cbox = controller.currentStage.constraintBox;
         let len = cbox.max.x - cbox.min.x;
@@ -40546,12 +40538,15 @@ function addListeners(controller) {
         box.castShadow = true;
         box.position.y -= box.geometry.boundingBox.min.y;
     };
+    // Удалить выбранный объект
     document.querySelector("#delobj").onclick = function() {
         controller.currentStage.removeObject(controller.currentStage.selectedObject);
     };
+    // Отчистить текущую сцену от объектов
     document.querySelector("#clear").onclick = function() {
         controller.currentStage.clearScene();
     };
+    // Клонировать выбранный объект.
     document.querySelector("#clone").onclick = function() {
         if (!controller.currentStage.selectedObject) return;
         controller.currentStage.removeSelectionColor(controller.currentStage.selectedObject);
@@ -40564,13 +40559,27 @@ function addListeners(controller) {
             newObject.rotation.set(controller.currentStage.selectedObject.rotation.x, controller.currentStage.selectedObject.rotation.y, controller.currentStage.selectedObject.rotation.z);
         }
     };
+    // Выбор материала для выбранного объекта
     const materialSelector = document.querySelector("#materials");
     materialSelector.onchange = function(e) {
+        if (materialSelector.value === "reset") return;
         if (controller.currentStage.selectedObject && controller.currentStage.selectedObject.isMesh) controller.materialManager.setMeshTexture(controller.currentStage.selectedObject, materialSelector.value);
         else if (controller.currentStage.selectedObject) controller.currentStage.applyToMeshes(controller.currentStage.selectedObject, (o)=>{
             controller.materialManager.setMeshTexture(o, materialSelector.value);
         });
+        materialSelector.value = "reset";
     };
+    // загрузка пользовательского файла на сцену
+    document.querySelector("#upload").onclick = function() {
+        document.querySelector("#file").click();
+    };
+    document.querySelector("form").addEventListener("submit", (e)=>{
+        e.preventDefault();
+    });
+    document.querySelector("#file").addEventListener("change", function handleFiles() {
+        const fileList = this.files;
+        controller.exportManager.loadBlobToStage(fileList[0], controller.currentStage);
+    }, false);
 }
 
 },{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"c6KBJ":[function(require,module,exports) {
