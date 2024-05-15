@@ -87,11 +87,15 @@ export function addKeyboardControls(controller){
 				break;
 		}
 		if (controller.dragEngine.dragObject) controller.dragEngine.tryPickup();
-		
 		controller.currentStage.guiManager.updateGui();
+		
 		if(controller.currentStage.selectedObject && controller.currentStage.selectedObject.userData.isRestrainedMesh){
 			controller.currentStage.selectedObject.adjustRestraintForScale();
 			controller.dragEngine.applyRestraint(controller.currentStage.selectedObject);
 		}
+		// todo - make this work
+		// if(controller.currentStage.selectedObject) {
+			// controller.dragEngine.applyCollision(controller.currentStage.selectedObject);
+		// }
 	});
 }

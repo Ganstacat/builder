@@ -165,7 +165,7 @@ export class DragEnginePlane {
 	applyCollision(obj) {
 		if (!this.collision) return;
 		for(let colobj of this.stage.objectsWithCollision) {
-			if (obj=== colobj) continue;
+			if (obj.isGroup || obj === colobj) continue;
 			if (this.hasIntersection(obj, colobj)) {
 				let prevpos = obj.position.clone();
 				let colbbox = colobj.isBox3 ? colobj : new THREE.Box3().setFromObject(colobj);
@@ -183,7 +183,7 @@ export class DragEnginePlane {
 					|	1   |  1     =>		|		1	   1
 					|___11111111			|_______11111111
 				*/
-				let dragbbox = new THREE.Box3().setFromObject(this.dragObject);
+				let dragbbox = new THREE.Box3().setFromObject(obj);
 				let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;
 				let halfHeight = (dragbbox.max.y - dragbbox.min.y)/2;
 				let halfWidth  = (dragbbox.max.z - dragbbox.min.z)/2;

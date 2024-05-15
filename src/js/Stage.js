@@ -175,9 +175,16 @@ export class Stage {
 		Добавляет модель или группу моделей на сцену.
 	*/
 	addObject(obj, isMovable, hasCollision) {
-		this.scene.add(obj);
 		if(isMovable) this.movableObjects.push(obj);
-		if(hasCollision) this.objectsWithCollision.push(obj);
+		if(hasCollision) {
+			// this.objectsWithCollision.push(obj);
+			this.applyToMeshes(obj, (o)=>{
+				this.objectsWithCollision.push(o);
+			});
+		}
+		this.scene.add(obj);
+		
+		// this.objectsWithCollision.push(obj);
 		// obj.position.set(0,0,0);
 		// const box = new THREE.BoxHelper( obj, 0xffff00 );
 		// this.scene.add( box );
@@ -283,6 +290,7 @@ export class Stage {
 	removeObject(obj) {
 		this.scene.remove(obj);
 		this.movableObjects = this.movableObjects.filter((o)=>{return o !== obj});
+		this.objectsWithCollision = this.objectsWithCollision.filter((o)=>{return o !== obj});
 	}
 	
 	/**
@@ -293,5 +301,6 @@ export class Stage {
 			this.scene.remove(obj);
 		}
 		this.movableObjects = [];
+		this.objectsWithCollision = [];
 	}
 }
