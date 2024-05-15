@@ -36762,9 +36762,13 @@ class Stage {
     /**
 		Добавляет модель или группу моделей на сцену.
 	*/ addObject(obj, isMovable, hasCollision) {
-        this.scene.add(obj);
         if (isMovable) this.movableObjects.push(obj);
-        if (hasCollision) this.objectsWithCollision.push(obj);
+        if (hasCollision) // this.objectsWithCollision.push(obj);
+        this.applyToMeshes(obj, (o)=>{
+            this.objectsWithCollision.push(o);
+        });
+        this.scene.add(obj);
+    // this.objectsWithCollision.push(obj);
     // obj.position.set(0,0,0);
     // const box = new THREE.BoxHelper( obj, 0xffff00 );
     // this.scene.add( box );
@@ -36851,12 +36855,16 @@ class Stage {
         this.movableObjects = this.movableObjects.filter((o)=>{
             return o !== obj;
         });
+        this.objectsWithCollision = this.objectsWithCollision.filter((o)=>{
+            return o !== obj;
+        });
     }
     /**
 		Отчистить сцену от всех movable объектов.
 	*/ clearScene() {
         for (let obj of this.movableObjects)this.scene.remove(obj);
         this.movableObjects = [];
+        this.objectsWithCollision = [];
     }
 }
 
@@ -40384,7 +40392,7 @@ class DragEnginePlane {
 	**/ applyCollision(obj) {
         if (!this.collision) return;
         for (let colobj of this.stage.objectsWithCollision){
-            if (obj === colobj) continue;
+            if (obj.isGroup || obj === colobj) continue;
             if (this.hasIntersection(obj, colobj)) {
                 let prevpos = obj.position.clone();
                 let colbbox = colobj.isBox3 ? colobj : new _three.Box3().setFromObject(colobj);
@@ -40400,7 +40408,7 @@ class DragEnginePlane {
 					|---1---|  1			|-------1	   1
 					|	1   |  1     =>		|		1	   1
 					|___11111111			|_______11111111
-				*/ let dragbbox = new _three.Box3().setFromObject(this.dragObject);
+				*/ let dragbbox = new _three.Box3().setFromObject(obj);
                 let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
                 let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
                 let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
@@ -40882,6 +40890,10 @@ function addKeyboardControls(controller) {
             controller.currentStage.selectedObject.adjustRestraintForScale();
             controller.dragEngine.applyRestraint(controller.currentStage.selectedObject);
         }
+    // todo - make this work
+    // if(controller.currentStage.selectedObject) {
+    // controller.dragEngine.applyCollision(controller.currentStage.selectedObject);
+    // }
     });
 }
 
