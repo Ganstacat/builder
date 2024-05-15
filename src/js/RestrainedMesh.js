@@ -17,7 +17,6 @@ export class RestrainedMesh extends THREE.Mesh {
 	*/
 	adjustRestraintForScale() {
 		if(!this.userData.baserestraint) return;
-		console.log(this.userData.baserestraint);
 		
 		let dragbbox = new THREE.Box3().setFromObject(this);
 		let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;

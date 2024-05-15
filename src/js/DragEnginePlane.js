@@ -77,10 +77,10 @@ export class DragEnginePlane {
 		let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
 		
 		if(intersects.length >0) {
-			
 			let obj = this.getRootParentGroup(intersects[0].object);
 			let point = intersects[0].point;
 			this.pickup(point, obj);
+			console.log(obj);
 		}
 	}
 	
@@ -130,7 +130,6 @@ export class DragEnginePlane {
 		this.applyAxisLock(x,y,z);
 		this.applyRestraint(this.dragObject);
 		this.applyCollision(this.dragObject);
-		console.log(this.dragObject);
 	}
 	
 	/**
@@ -242,7 +241,7 @@ export class DragEnginePlane {
 	}
 
 	/**
-		Выбирает самого верхнего потомка модели, не являющегося сценой.
+		Выбирает самого верхнего предка модели, не являющегося сценой.
 		Возможно, этот метод переедет в контроллер.
 	*/
 	getRootParentGroup(obj) {

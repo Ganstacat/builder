@@ -15,7 +15,6 @@ import {addKeyboardControls} from './addKeyboardControls.js';
 	Точка входа в приложение, создаются объекты, разрешаются зависимости
 */
 
-const dragEngine = new DragEnginePlane();
 
 const textureLoader = new THREE.TextureLoader();
 const materialManager = new MaterialManager(textureLoader);
@@ -23,6 +22,8 @@ const materialManager = new MaterialManager(textureLoader);
 const assetLoader = new GLTFLoader();
 const exporter = new GLTFExporter();
 const exportManager = new ExportManager(exporter, assetLoader);
+
+const dragEngine = new DragEnginePlane();
 const mainController = new MainController(dragEngine, exportManager, materialManager);
 
 const builderStage = new Stage();

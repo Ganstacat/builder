@@ -61,11 +61,48 @@ export class ExportManager {
 		this.link.href = URL.createObjectURL(blob);
 		this.assetLoader.load(this.link.href, (gltf)=>{
 			const model = gltf.scene;
+
 			stage.applyToMeshes(model, (o)=>{
 				o.castShadow = true;
 				o.receiveShadow = true;
-			})
-			stage.addObject(model, true, false);
+			});
+			
+			// let size = new THREE.Box3().setFromObject(model);
+			// let length = size.min.x.distanceTo(size.max.x);
+			// let height = size.min.y.distanceTo(size.max.y);
+			// let width = size.min.z.distanceTo(size.max.z);
+			// let mB;
+			// if(length >= width && length >= height)
+				// mB = length;
+			// else if (width >= length && width >= height)
+				// mB = width;
+			// else 
+				// mB= height;
+			
+			// mB /= 10;
+			
+			// for(let o of model.children) {
+				// let biggest = 0;
+				// for (let f of model.children) {
+					// if (o === f) continue;
+					// let dist = o.position.distanceTo(f.position)
+					// if ( dist > mB)
+						// biggest = dist;
+				// }
+			// }
+			
+			// let con = new THREE.Box3().setFromObject(model);
+			// let con_help = new THREE.Box3Helper(con, "red");
+			
+			// model.add(con);
+			// model.add(con_help);
+			
+			// let pos_origin = new THREE.Vector3(model.position.x, model.position.y, model.position.z);
+			// let dir = new THREE.Vector3(model.position.x, model.position.y+10, model.position.z);
+			// let arrowhelp = new THREE.ArrowHelper(dir, pos_origin, 5, "green");
+			// model.add(arrowhelp);
+			
+			stage.addObject(model, true, true);
 		})
 	}
 

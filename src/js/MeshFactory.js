@@ -17,7 +17,7 @@ export class MeshFactory {
 		this.stage = stage;
 	}
 	/**
-		Создать модель, используя данные о её геометрии, материале, а так же двух параметров - можно ли модель перемещать и имеет ли она коллизия.
+		Создать модель, используя данные о её геометрии, материале, а так же двух параметров - можно ли модель перемещать и имеет ли она коллизию.
 		ПЕРЕПИСАТЬ - вместо this.stage.scene надо обращаться к stage.addObject()
 	*/
 	createMesh(geometry, material, isMovable, hasCollision) {
@@ -58,56 +58,15 @@ export class MeshFactory {
 		return mesh;
 	}
 	/**
-		Создать дупликат модели
+		Создать дубликат какого-то объекта - либо модели, либо модели с ограничением, либо группы моделей.
 	*/
-	cloneMesh(mesh) {
-		let newobj;
-		newobj = this.createMesh(
-			mesh.geometry.clone(), mesh.material.clone(),
-			mesh.userData.isMovable, mesh.userData.hasCollision
-		);
-		newobj.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
+	cloneObject(grp) {
+		let newobj = grp.clone();
+		this.stage.applyToMeshes(newobj, (o)=>{
+			o.material = o.material.clone();
+		})
+		this.stage.addObject(newobj, true, true);
 		return newobj;
-	}
-	/**
-		Создать дупликат модели с ограничениями на перемещение
-	*/
-	cloneRestrainedMesh(mesh){
-		let newobj;
-		console.log("rest");
-		console.log(mesh.userData.baserestraint);
-		let baseRestraint = new THREE.Box3(
-			mesh.userData.baserestraint.min,
-			mesh.userData.baserestraint.max,
-		)
-		newobj = this.createRestrainedMesh(
-			mesh.geometry.clone(), mesh.material.clone(),
-			mesh.userData.isMovable, mesh.userData.hasCollision,baseRestraint 
-		);
-		newobj.position.set(mesh.position.x,mesh.position.y,mesh.position.z);
-		return newobj;
-	}
-	/**
-		Создать дупликат группы моделей
-	*/
-	cloneGroup(grp){
-		let newobj = new THREE.Group();
-		let stage = this.stage;
-		stage.applyToMeshes(grp, function (o){
-			if(o.userData.isRestrainedMesh) newobj.add(stage.meshFactory.cloneRestrainedMesh(o));
-			else if(o.isMesh) newobj.add(stage.meshFactory.cloneMesh(o));
-		});
-		stage.addObject(newobj, true, true);
-		return newobj;
-	}
-	/**
-		Создать дупликат какого-то объекта - либо модели, либо модели с ограничением, либо группы моделей.
-	*/
-	cloneObject(obj) {
-		if(obj.userData.isRestrainedMesh) return this.cloneRestrainedMesh(obj);
-		else if (obj.isMesh) return this.cloneMesh(obj);
-		else if (obj.isGroup) return this.cloneGroup(obj);
-		else throw "cannot clone object: "+ obj;
 	}
 	
 	/**

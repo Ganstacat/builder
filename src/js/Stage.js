@@ -39,7 +39,7 @@ export class Stage {
 	}
 	
 	/**
-		В ручную устанавливает элемент <canvas>, на котором будет выполняться рендер сцены.
+		Вручную устанавливает элемент <canvas>, на котором будет выполняться рендер сцены.
 		Нужно, если рендер будет происходить на заранее созданном canvas.
 		По-моему оно пока ещё не работает, как положено, чтобы заработало надо обновить медоты show и hide
 	*/
@@ -64,7 +64,7 @@ export class Stage {
 		return renderer;
 	}
 	/**
-		Инициализация объекта THREE.Scene(), что содержит в себе все объекты на сцене.
+		Инициализация объекта THREE.Scene, что содержит в себе все объекты на сцене.
 	*/
 	setupScene() {
 		return new THREE.Scene();
@@ -142,11 +142,20 @@ export class Stage {
 		this.scene.add(helperbox);
 		
 		const box = this.meshFactory.createRestrainedMesh(
-			new THREE.BoxGeometry(1.5,1.5,1.5),
+			new THREE.BoxGeometry(0.5,0.5,0.5),
 			new THREE.MeshStandardMaterial(),
 			true, true, this.constraintBox
 		);
 		box.position.y -= box.geometry.boundingBox.min.y;
+		box.position.x -= 1;
+		
+		const box2 = this.meshFactory.createRestrainedMesh(
+			new THREE.BoxGeometry(0.5,0.5,0.5),
+			new THREE.MeshStandardMaterial(),
+			true, true, this.constraintBox
+		);
+		box2.position.y -= box.geometry.boundingBox.min.y;
+		box2.position.x += 1;
 	}
 	/**
 		Добавляет слушатели событий, необходимые для работы этого класса
@@ -262,7 +271,7 @@ export class Stage {
 		if(obj.isMesh) {
 			cb(obj, args);
 		}
-		else {
+		else if(obj.isGroup) {
 			for(let o of obj.children)
 				this.applyToMeshes(o,cb,args);
 		}
