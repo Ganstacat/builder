@@ -595,12 +595,14 @@ var _mainControllerJs = require("./MainController.js");
 var _exportManagerJs = require("./ExportManager.js");
 var _addListenersJs = require("./addListeners.js");
 var _addKeyboardControlsJs = require("./addKeyboardControls.js");
-const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)();
-const textureLoader = new _three.TextureLoader();
+/**
+	Точка входа в приложение, создаются объекты, разрешаются зависимости
+*/ const textureLoader = new _three.TextureLoader();
 const materialManager = new (0, _materialManagerJs.MaterialManager)(textureLoader);
 const assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
 const exporter = new (0, _gltfexporterJs.GLTFExporter)();
 const exportManager = new (0, _exportManagerJs.ExportManager)(exporter, assetLoader);
+const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)();
 const mainController = new (0, _mainControllerJs.MainController)(dragEngine, exportManager, materialManager);
 const builderStage = new (0, _stageJs.Stage)();
 const floorStage = new (0, _floorPlannerStageJs.FloorPlannerStage)();
@@ -36618,13 +36620,17 @@ function decompress(texture, maxTextureSize = Infinity, renderer = null) {
 },{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"5MQQY":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "Stage", ()=>Stage);
+/**
+	Класс, производящий инициализацию сцены, хранящий её состояние и имеющий методы для манипуляции над сценой.
+*/ parcelHelpers.export(exports, "Stage", ()=>Stage);
 var _three = require("three");
 var _orbitControlsJs = require("three/examples/jsm/controls/OrbitControls.js");
 var _meshFactoryJs = require("./MeshFactory.js");
 var _guiManagerJs = require("./GuiManager.js");
 class Stage {
-    constructor(){
+    /**
+		Инициализация объекта сцены в конструкторе с помощью методов этого класса.
+	*/ constructor(){
         this.setCanvas();
         this.renderer = this.setupRenderer(this.canvas);
         this.scene = this.setupScene();
@@ -36632,22 +36638,31 @@ class Stage {
         this.controls = this.setupOrbitControls(this.camera, this.renderer);
         this.lights = this.setupLights(this.scene);
         this.raycaster = this.setupRaycaster();
+        // включается рендер сцены
         this.renderer.setAnimationLoop(()=>{
             this.renderer.render(this.scene, this.camera);
         });
+        // инициализация массивов, хранящих перемещаемые модели (группы моделей) и модели с коллизией
         this.movableObjects = [];
         this.objectsWithCollision = [];
+        // meshFactory желательно отсюда выкинуть
         this.guiManager = new (0, _guiManagerJs.GuiManager)(this);
         this.meshFactory = new (0, _meshFactoryJs.MeshFactory)(this);
         this.selectedObject = null;
         this.addStartingObjects();
         this.addEventListeners();
     }
-    setCanvas() {
+    /**
+		Вручную устанавливает элемент <canvas>, на котором будет выполняться рендер сцены.
+		Нужно, если рендер будет происходить на заранее созданном canvas.
+		По-моему оно пока ещё не работает, как положено, чтобы заработало надо обновить медоты show и hide
+	*/ setCanvas() {
     // Для переопределения
     // this.canvas = document.querySelector('#builder');
     }
-    setupRenderer() {
+    /**
+		Инициализация THREE.WebGLRenderer, объект из библиотеки, отвечающий за отрисовку всей графики на элементе canvas.
+	*/ setupRenderer() {
         let renderer;
         if (this.canvas) renderer = new _three.WebGLRenderer({
             antialias: true,
@@ -36664,20 +36679,28 @@ class Stage {
         renderer.shadowMap.enabled = true;
         return renderer;
     }
-    setupScene() {
+    /**
+		Инициализация объекта THREE.Scene, что содержит в себе все объекты на сцене.
+	*/ setupScene() {
         return new _three.Scene();
     }
-    setupCamera() {
+    /**
+		Инициализурет камеру, из которой пользователь наблюдает за сценой.
+	*/ setupCamera() {
         const camera = new _three.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 3, 3);
         return camera;
     }
-    setupOrbitControls(camera, renderer) {
+    /**
+		Инициализирует объект класса OrbitControls из библиотеки, позволяет пользователю управлять камерой с помощью мыши и клавиатуры. 
+	*/ setupOrbitControls(camera, renderer) {
         const controls = new (0, _orbitControlsJs.OrbitControls)(camera, renderer.domElement);
         controls.update();
         return controls;
     }
-    setupLights(scene) {
+    /**
+		Устанавливает освещение для сцены.
+	*/ setupLights(scene) {
         const ambientLight = new _three.AmbientLight(0xFFFFFF, 1);
         scene.add(ambientLight);
         const directionalLight = new _three.DirectionalLight(0xFFFFFF, 4);
@@ -36688,18 +36711,29 @@ class Stage {
             directionalLight
         ];
     }
-    setupRaycaster() {
+    /**
+		Инициализирует объект класса THREE.Raycaster, который предназначен для помощи в рейкастинге. Raycasting используется, среди прочего, для выбора мышью (определения того, над какими объектами в трехмерном пространстве находится мышь).
+		^ перевод гуглтранслитом из документации Three.js
+	*/ setupRaycaster() {
         return new _three.Raycaster();
     }
-    hideScene() {
+    /**
+		Скрывает текущую сцену, отсоединяя канвас рендера от документа.
+		Так же скрывается интерфейс dat.GUI
+	*/ hideScene() {
         this.renderer.domElement.remove();
         this.guiManager.hide();
     }
-    showScene() {
+    /**
+		Показывает текущую сцену, присоединяя канвас рендера к документу.
+		Так же показывается интерфейс dat.GUI
+	*/ showScene() {
         document.body.appendChild(this.renderer.domElement);
         this.guiManager.show();
     }
-    addStartingObjects() {
+    /**
+		Определить обеъкты, которыу будут добавлены после инициализации сцены.
+	*/ addStartingObjects() {
         // для переопределения
         const gridHelper = new _three.GridHelper(4, 16);
         this.scene.add(gridHelper);
@@ -36708,16 +36742,26 @@ class Stage {
         this.scene.add(helperbox);
         const box = this.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial(), true, true, this.constraintBox);
         box.position.y -= box.geometry.boundingBox.min.y;
+        box.position.x -= 1;
+        const box2 = this.meshFactory.createRestrainedMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial(), true, true, this.constraintBox);
+        box2.position.y -= box.geometry.boundingBox.min.y;
+        box2.position.x += 1;
     }
-    addEventListeners() {
+    /**
+		Добавляет слушатели событий, необходимые для работы этого класса
+	*/ addEventListeners() {
         let self = this;
+        // Обновляет размер холста при изменении размеров окна браузера.
+        // ПЕРЕПИСАТЬ - Работает неправильно, должно считать не от window, а от this.renderer.domElement
         window.addEventListener("resize", function() {
             self.camera.aspect = window.innerWidth / window.innerHeight;
             self.camera.updateProjectionMatrix();
             self.renderer.setSize(window.innerWidth, window.innerHeight);
         });
     }
-    addObject(obj, isMovable, hasCollision) {
+    /**
+		Добавляет модель или группу моделей на сцену.
+	*/ addObject(obj, isMovable, hasCollision) {
         this.scene.add(obj);
         if (isMovable) this.movableObjects.push(obj);
         if (hasCollision) this.objectsWithCollision.push(obj);
@@ -36726,24 +36770,33 @@ class Stage {
     // this.scene.add( box );
     // this.placeObjectOnPlane(obj);
     }
-    placeObjectOnPlane(obj) {
+    /**
+		Не используется. 
+		Назначение - установить позицию модели по высоте на значение "0 + высота", чтобы модель встала "на пол".
+	*/ placeObjectOnPlane(obj) {
         const box3 = new _three.Box3().setFromObject(obj);
         let halfHeight = (box3.max.y - box3.min.y) / 2;
         obj.position.y = halfHeight;
     }
-    setScale(obj, x, y, z) {
+    /**
+		Изменить размер модели
+	*/ setScale(obj, x, y, z) {
         console.log(obj);
         if (!obj) return;
         if (obj.userData.isRestrainedMesh) obj.setScale(x, y, z);
         else obj.scale.set(x, y, z);
     }
-    setRotation(obj, x, y, z) {
+    /**
+		Установить поворт модели*
+	*/ setRotation(obj, x, y, z) {
         if (!obj) return;
         obj.rotation.x = x;
         obj.rotation.y = y;
         obj.rotation.z = z;
     }
-    setMeshColor(obj, val) {
+    /**
+		Установить цвет модели
+	*/ setMeshColor(obj, val) {
         if (!obj) return;
         this.applyToMeshes(obj, (o, args)=>{
             console.log("Setting color:");
@@ -36755,38 +36808,53 @@ class Stage {
             val
         ]);
     }
-    setSelectedObject(obj) {
+    /**
+		Уставновить модель как выбранную.
+	*/ setSelectedObject(obj) {
         if (this.selectedObject) this.removeSelectionColor(this.selectedObject);
         this.selectedObject = obj;
         this.applySelectionColor(this.selectedObject);
         this.guiManager.updateGui();
     }
-    unsetSelectedObject() {
+    /**
+		Отменить выделение модели
+	*/ unsetSelectedObject() {
         if (this.selectedObject) this.removeSelectionColor(this.selectedObject);
         this.selectedObject = null;
     }
-    removeSelectionColor(obj) {
+    /**
+		Убрать оранжевую подсветку у модели.
+	*/ removeSelectionColor(obj) {
         if (!obj) return;
         this.applyToMeshes(obj, (o)=>{
             o.material.emissive.set(0x000000);
         });
     }
-    applySelectionColor(obj) {
+    /**
+		Включить оранжевую подсветку у модели
+	*/ applySelectionColor(obj) {
         this.applyToMeshes(obj, (o)=>{
             o.material.emissive.set(0x9c8e30);
         });
     }
-    applyToMeshes(obj, cb, args) {
+    /**
+		Применить функцию cb с аргументами args ко всем потомкам-моделям объекта obj.
+		По-хорошему надо вынести эту функцию в контроллер или в utils
+	*/ applyToMeshes(obj, cb, args) {
         if (obj.isMesh) cb(obj, args);
-        else for (let o of obj.children)this.applyToMeshes(o, cb, args);
+        else if (obj.isGroup) for (let o of obj.children)this.applyToMeshes(o, cb, args);
     }
-    removeObject(obj) {
+    /**
+		Убрать объект со сцены
+	*/ removeObject(obj) {
         this.scene.remove(obj);
         this.movableObjects = this.movableObjects.filter((o)=>{
             return o !== obj;
         });
     }
-    clearScene() {
+    /**
+		Отчистить сцену от всех movable объектов.
+	*/ clearScene() {
         for (let obj of this.movableObjects)this.scene.remove(obj);
         this.movableObjects = [];
     }
@@ -37633,15 +37701,25 @@ class OrbitControls extends (0, _three.EventDispatcher) {
 },{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"5E0Nw":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "MeshFactory", ()=>MeshFactory);
+/**
+	Класс, отвечающий за создание новых моделей на сцене.
+*/ parcelHelpers.export(exports, "MeshFactory", ()=>MeshFactory);
 var _three = require("three");
 var _stageJs = require("./Stage.js");
 var _restrainedMeshJs = require("./RestrainedMesh.js");
 class MeshFactory {
-    constructor(stage){
+    /*
+		объект класса Stage определён как зависимость в конструкторе
+		Возможно ПЕРЕПИСАТЬ, т.к. сейчас MeshFactory привязан к одной сцене, хотя в этом нет необходимости. Надо сделать на манер DragEnginePlane
+		
+		UPD: необходимость таки есть, для объектов Scene.addStartingObjects 
+	**/ constructor(stage){
         this.stage = stage;
     }
-    createMesh(geometry, material, isMovable, hasCollision) {
+    /**
+		Создать модель, используя данные о её геометрии, материале, а так же двух параметров - можно ли модель перемещать и имеет ли она коллизию.
+		ПЕРЕПИСАТЬ - вместо this.stage.scene надо обращаться к stage.addObject()
+	*/ createMesh(geometry, material, isMovable, hasCollision) {
         const mesh = new _three.Mesh(geometry, material);
         this.stage.scene.add(mesh);
         mesh.geometry.computeBoundingBox();
@@ -37655,7 +37733,10 @@ class MeshFactory {
         }
         return mesh;
     }
-    createRestrainedMesh(geometry, material, isMovable, hasCollision, restraint) {
+    /**
+		Создать модель, так же, как и в методе createMesh(), но с добавлением ограничения на перемещение этой модели.
+		ПЕРЕПИСАТЬ - вместо this.stage.scene надо обращаться к stage.addObject()
+	*/ createRestrainedMesh(geometry, material, isMovable, hasCollision, restraint) {
         const mesh = new (0, _restrainedMeshJs.RestrainedMesh)(geometry, material);
         this.stage.scene.add(mesh);
         mesh.geometry.computeBoundingBox();
@@ -37671,40 +37752,19 @@ class MeshFactory {
         mesh.userData.isRestrainedMesh = true;
         return mesh;
     }
-    cloneMesh(mesh) {
-        let newobj;
-        newobj = this.createMesh(mesh.geometry.clone(), mesh.material.clone(), mesh.userData.isMovable, mesh.userData.hasCollision);
-        newobj.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
-        return newobj;
-    }
-    cloneRestrainedMesh(mesh) {
-        let newobj;
-        console.log("rest");
-        console.log(mesh.userData.baserestraint);
-        let baseRestraint = new _three.Box3(mesh.userData.baserestraint.min, mesh.userData.baserestraint.max);
-        newobj = this.createRestrainedMesh(mesh.geometry.clone(), mesh.material.clone(), mesh.userData.isMovable, mesh.userData.hasCollision, baseRestraint);
-        newobj.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
-        return newobj;
-    }
-    cloneGroup(grp) {
-        console.log("group!");
-        console.log(grp);
-        let newobj = new _three.Group();
-        let stage = this.stage;
-        stage.applyToMeshes(grp, function(o) {
-            if (o.userData.isRestrainedMesh) newobj.add(stage.meshFactory.cloneRestrainedMesh(o));
-            else if (o.isMesh) newobj.add(stage.meshFactory.cloneMesh(o));
+    /**
+		Создать дубликат какого-то объекта - либо модели, либо модели с ограничением, либо группы моделей.
+	*/ cloneObject(grp) {
+        let newobj = grp.clone();
+        this.stage.applyToMeshes(newobj, (o)=>{
+            o.material = o.material.clone();
         });
-        stage.addObject(newobj, true, true);
+        this.stage.addObject(newobj, true, true);
         return newobj;
     }
-    cloneObject(obj) {
-        if (obj.userData.isRestrainedMesh) return this.cloneRestrainedMesh(obj);
-        else if (obj.isMesh) return this.cloneMesh(obj);
-        else if (obj.isGroup) return this.cloneGroup(obj);
-        else throw "cannot clone object: " + obj;
-    }
-    setStage(stage) {
+    /**
+		Установить объект, над которым будет работать этот класс.
+	*/ setStage(stage) {
         this.stage = stage;
     }
 }
@@ -37712,23 +37772,30 @@ class MeshFactory {
 },{"three":"ktPTu","./Stage.js":"5MQQY","./RestrainedMesh.js":"6auIJ","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6auIJ":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "RestrainedMesh", ()=>RestrainedMesh);
+/**
+	Класс-декоратор, обозначает модель с ограничениями на перемещение.
+*/ parcelHelpers.export(exports, "RestrainedMesh", ()=>RestrainedMesh);
 var _three = require("three");
 class RestrainedMesh extends _three.Mesh {
-    setScale(x, y, z) {
+    /**
+		Установить размер этой модели
+	*/ setScale(x, y, z) {
         this.scale.set(x, y, z);
         this.adjustRestraintForScale();
     }
-    adjustRestraintForScale() {
+    /**
+		Обновить размеры ограничительного куба в зависимости от размера модели.
+	*/ adjustRestraintForScale() {
         if (!this.userData.baserestraint) return;
-        console.log(this.userData.baserestraint);
         let dragbbox = new _three.Box3().setFromObject(this);
         let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
         let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
         let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
         this.userData.restraint = new _three.Box3(new _three.Vector3(this.userData.baserestraint.min.x + halfLength, this.userData.baserestraint.min.y + halfHeight, this.userData.baserestraint.min.z + halfWidth), new _three.Vector3(this.userData.baserestraint.max.x - halfLength, this.userData.baserestraint.max.y - halfHeight, this.userData.baserestraint.max.z - halfWidth));
     }
-    setRestraint(restraint) {
+    /**
+		Установить ограничение для этой модели.
+	*/ setRestraint(restraint) {
         this.userData.baserestraint = restraint;
         this.adjustRestraintForScale();
     }
@@ -37737,11 +37804,15 @@ class RestrainedMesh extends _three.Mesh {
 },{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eEqGm":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "GuiManager", ()=>GuiManager);
+/**
+	Класс для более удобной работы с объектом dat.GUI из сторонней библиотеки. dat.GUI добавляет интерфейс, используемый для манипуляций над моделями в сцене: изменение размеров, поворот, цвет.
+*/ parcelHelpers.export(exports, "GuiManager", ()=>GuiManager);
 var _datGui = require("dat.gui");
 var _stageJs = require("./Stage.js");
 class GuiManager {
-    constructor(stage){
+    /**
+		Конструктор, определяет зависимость этого класса - объект класса Stage
+	*/ constructor(stage){
         this.stage = stage;
         this.gui = new _datGui.GUI({
             autoplace: false
@@ -37750,11 +37821,19 @@ class GuiManager {
         this.listeners = [];
         this.setupOptions();
     }
-    updateGui() {
+    /**
+		Обновляет значения на панели интерфейса для отражения актуального состояния объекта.
+	*/ updateGui() {
         for (let l of this.listeners)l();
         this.gui.updateDisplay();
     }
-    setupOptions() {
+    /**
+		Инициализация объекта интерфейа, определение параметров, которые можно менять через интерфейс.
+		Для добавления новых параметров необходимо:
+			1. Добавить новое поле в options
+			2. Добавить опцию к объекту dat.gui
+			3. Опционально - Добавить функцию, которая будет обновлять значения на интерфейсе в зависимости от реального состояния объекта.
+	*/ setupOptions() {
         let options = {
             "\u0434\u043B\u0438\u043D\u0430": 1,
             "\u0432\u044B\u0441\u043E\u0442\u0430": 1,
@@ -37801,10 +37880,14 @@ class GuiManager {
             });
         });
     }
-    hide() {
+    /**
+		Скрыть dat.GUI Элемент
+	*/ hide() {
         this.gui.hide();
     }
-    show() {
+    /**
+		Отобразить dat.GUI Элемент.
+	*/ show() {
         this.gui.show();
     }
 }
@@ -40103,7 +40186,9 @@ exports.default = index;
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"ivRbE":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "FloorPlannerStage", ()=>FloorPlannerStage);
+/**
+	Потомок класса Stage, отличается набором моделей, присутствующих на сцене после инициализации.
+*/ parcelHelpers.export(exports, "FloorPlannerStage", ()=>FloorPlannerStage);
 var _three = require("three");
 var _stageJs = require("./Stage.js");
 class FloorPlannerStage extends (0, _stageJs.Stage) {
@@ -40166,11 +40251,16 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
 },{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kmFdU":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "DragEnginePlane", ()=>DragEnginePlane);
+/**
+	Класс, добавляющий управление моделями с помощью мыши, и так же просчитывающий коллизии между моделями и ограничителями
+*/ parcelHelpers.export(exports, "DragEnginePlane", ()=>DragEnginePlane);
 var _three = require("three");
 var _stageJs = require("./Stage.js");
 class DragEnginePlane {
-    constructor(){
+    /**
+		Инициализация необходимых переменных.
+		Так же этому классу требуется объект класса Stage для работы, но он передаётся не в конструкторе, а с помощью отдельного метода.
+	*/ constructor(){
         this.mousePosition = new _three.Vector2();
         this.planeIntersect = new _three.Vector3();
         this.dragObject;
@@ -40183,18 +40273,23 @@ class DragEnginePlane {
         this.lockX = false;
         this.lockY = false;
         this.lockZ = false;
-        this.restriction = true;
         this.collision = true;
     }
-    addEventListenersToStage() {
+    /**
+		Добавляет отслеживание мыши на сцене, чтобы пользователь мог перемещать модели с помощью мыши.
+	*/ addEventListenersToStage() {
         let self = this;
+        // Движение мыши: перемещение выбранный предмет
         this.stage.renderer.domElement.addEventListener("pointermove", function(e) {
             self.calculateRayToPointer(e.offsetX, e.offsetY);
             if (self.dragObject) self.drag();
         });
+        // Нажатие любой кнопки мыши: выбрать модель, если курсор находится на ней
         this.stage.renderer.domElement.addEventListener("pointerdown", function() {
             self.tryPickup();
         });
+        // Нажатие любой кнопки мыши: если мышь выбрала какую-то модель, то информируем объект сцены об этом.
+        // Этот слушатель переедет в другое место, скорее всего, в контроллер.
         this.stage.renderer.domElement.addEventListener("pointerdown", function() {
             // self.stage.scene.add(new THREE.ArrowHelper(self.stage.raycaster.ray.direction, self.stage.raycaster.ray.origin, 100, 0xff0000) );
             if (self.dragObject) self.stage.setSelectedObject(self.dragObject);
@@ -40204,55 +40299,67 @@ class DragEnginePlane {
                 if (obj) self.stage.setSelectedObject(obj);
             }
         });
+        // Отпускание кнопки мыши: прекратить перемещение объекта
         this.stage.renderer.domElement.addEventListener("pointerup", function() {
             self.drop();
         });
     }
-    resetLocks() {
+    /**
+		Убирает блокировку оси перемещения.
+	*/ resetLocks() {
         this.lockX = false;
         this.lockY = false;
         this.lockZ = false;
     }
-    tryPickup() {
+    /**
+		Проверяет, находится ли курсор на какой-то модели, которую можно выбрать, и вызывает this.pickup(), если это так.
+	*/ tryPickup() {
         let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
         if (intersects.length > 0) {
             let obj = this.getRootParentGroup(intersects[0].object);
             let point = intersects[0].point;
             this.pickup(point, obj);
+            console.log(obj);
         }
     }
-    selectObject(objectlist) {
+    /**
+		То же самое, что и верхняя tryPickup(), но тот работает только на movableObjects, а этот на тот список, что передан в массиве. Это говно и надо переделать. 
+	*/ selectObject(objectlist) {
         let intersects = this.stage.raycaster.intersectObjects(objectlist);
         if (intersects.length > 0 && intersects[0].object.userData.isSelectable) return this.getRootParentGroup(intersects[0].object);
         else return null;
     }
-    pickup(intersectionPoint, obj) {
+    /**
+		Начать перемещение модели
+	*/ pickup(intersectionPoint, obj) {
         this.stage.controls.enabled = false;
         this.dragObject = obj;
         this.pIntersect.copy(intersectionPoint);
         this.planeDrag.setFromNormalAndCoplanarPoint(this.pNormal, this.pIntersect);
         this.shift.subVectors(obj.position, intersectionPoint);
     }
-    drop() {
+    /**
+		Прекратить перемещение модели
+	*/ drop() {
         this.dragObject = null;
         this.stage.controls.enabled = true;
     }
-    drag() {
+    /**
+		Перемещать выбранную модель к курсору мыши с учётом блокировки по осям, ограничений и коллизий.
+	*/ drag() {
         this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
         this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
         let x = this.dragObject.position.x;
         let y = this.dragObject.position.y;
         let z = this.dragObject.position.z;
         this.dragObject.position.addVectors(this.planeIntersect, this.shift);
-        // this.dragObject.position.x = x;
-        // this.dragObject.position.y = y;
-        // this.dragObject.position.z = z;
         this.applyAxisLock(x, y, z);
         this.applyRestraint(this.dragObject);
         this.applyCollision(this.dragObject);
-        console.log(this.dragObject);
     }
-    applyAxisLock(x, y, z) {
+    /**
+		Ограничить перемещение модели в случае, если включена блокировка какой-то из осей.
+	*/ applyAxisLock(x, y, z) {
         if (this.lockX) {
             this.dragObject.position.y = y;
             this.dragObject.position.z = z;
@@ -40264,12 +40371,17 @@ class DragEnginePlane {
             this.dragObject.position.x = x;
         }
     }
-    applyRestraint(obj) {
+    /**
+		Применить ограничение на перемещение модели, в случае если коллизии активированы и в объекте модели эти коллизии прописаны.
+		Если какая-то из сторон куба вышла за пределы ограничителя, то позиция корректируется так, чтобы вернуть модель обратно внутрь ограничителя.
+	*/ applyRestraint(obj) {
         if (!this.collision) return;
         let restraint = obj.userData.restraint;
         if (restraint) obj.position.clamp(restraint.min, restraint.max);
     }
-    applyCollision(obj) {
+    /*
+		Применить коллизию: если перемещаемая модель столкнулась с другой моделью, у которой есть коллизия, то пересчитываем позицию перемещаемой модели так, чтобы коллизионные коробки двух моделей не пересекались.
+	**/ applyCollision(obj) {
         if (!this.collision) return;
         for (let colobj of this.stage.objectsWithCollision){
             if (obj === colobj) continue;
@@ -40302,28 +40414,41 @@ class DragEnginePlane {
             }
         }
     }
-    calculateRayToPointer(pointerX, pointerY) {
+    /**
+		Рассчитывает нормализованное положение мыши в сцене.
+		В окне браузера положение мышии выражается в количестве пикселей от левого верхнего угла страницы с поправкой на прокрутку окна.
+		Например, если окно состоит из 1920 x 600 пикселей, то курсор, установленный в центре будет иметь координаты 
+		(960, 300)
+		
+		В сцене рендера же для определения положения курсора используются нормализованные координаты: центр экрана считается за точку (0,0), левый верхний угол (-1,-1) и правый нижний (1,!).
+
+		Рассчитывать нужно, чтобы определить, на какую модель в сцене указывает курсор.
+	*/ calculateRayToPointer(pointerX, pointerY) {
         let canvas = this.stage.renderer.domElement;
         this.mousePosition.x = pointerX / canvas.clientWidth * 2 - 1;
         this.mousePosition.y = -(pointerY / canvas.clientHeight) * 2 + 1;
         this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
-    // this.mousePosition.x = (pointerX / window.innerWidth) * 2 - 1;
-    // this.mousePosition.y = - (pointerY / window.innerHeight) * 2 + 1;
-    // this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
     }
-    hasIntersection(obj1, obj2) {
+    /**
+		Проверяет, пересекаются ли два объекта или нет. Используется при определении коллизии.
+	*/ hasIntersection(obj1, obj2) {
         let colbox1 = new _three.Box3();
         let colbox2 = new _three.Box3();
         colbox1 = obj1.isBox3 ? obj1 : colbox1.setFromObject(obj1);
         colbox2 = obj2.isBox3 ? obj2 : colbox2.setFromObject(obj2);
         return colbox1.intersectsBox(colbox2);
     }
-    getRootParentGroup(obj) {
+    /**
+		Выбирает самого верхнего предка модели, не являющегося сценой.
+		Возможно, этот метод переедет в контроллер.
+	*/ getRootParentGroup(obj) {
         let objParent = obj;
         while(objParent.parent && !objParent.parent.isScene)objParent = objParent.parent;
         return objParent;
     }
-    setStage(stage) {
+    /**
+		Устанавливает сцену, на которой будут перемещаться модели.
+	*/ setStage(stage) {
         this.stage = stage;
     }
 }
@@ -40331,10 +40456,15 @@ class DragEnginePlane {
 },{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4SNlt":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "MaterialManager", ()=>MaterialManager);
+/**
+	Класс, хранящий в себе материалы для моделей (объекты класса THREE.*Material) и содержащий методы для изменения материалов объектов
+*/ parcelHelpers.export(exports, "MaterialManager", ()=>MaterialManager);
 var _three = require("three");
 class MaterialManager {
-    constructor(textureLoader){
+    /**
+		Конструктор принимает THREE.TextureLoader() в качестве зависимости.
+		Так же во время инициализации устанавливается список материалов и переменная, хранящая путь до папки с текстурами.
+	*/ constructor(textureLoader){
         this.textureLoader = textureLoader;
         this.textureFolderPath = "./assets/textures/";
         this.loadedTextures = new Map();
@@ -40360,7 +40490,9 @@ class MaterialManager {
             }
         };
     }
-    createStandardTexturedMaterial(filename) {
+    /**
+		Возвращает объект THREE.MeshStandardMaterial с текстурой filename
+	*/ createStandardTexturedMaterial(filename) {
         let texture;
         if (this.loadedTextures.has(filename)) texture = this.loadedTextures.get(filename);
         else texture = this.textureLoader.load(this.textureFolderPath + filename);
@@ -40369,14 +40501,18 @@ class MaterialManager {
             map: texture
         });
     }
-    setMeshMaterial(mesh, materialKey) {
+    /**
+		Устанавливает материал для модели
+	*/ setMeshMaterial(mesh, materialKey) {
         try {
             mesh.material = this.materials[materialKey]();
         } catch (e) {
             console.error(e);
         }
     }
-    setMeshTexture(mesh, materialKey) {
+    /**
+		Устанавливает текстуру для модели.
+	*/ setMeshTexture(mesh, materialKey) {
         try {
             let map = this.materials[materialKey]().map;
             mesh.material.map = this.materials[materialKey]().map;
@@ -40390,42 +40526,62 @@ class MaterialManager {
 },{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cHEjt":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "MainController", ()=>MainController);
+/**
+	Класс - контроллер для управления сценами.
+	Хранит в своих полях: все зарегестрированные сцены, DragEngine, ExportManager, MaterialManager.
+	(В теории, по крайней мере. Сейчас это больше похоже на массив с глобальными переменными. Для превращения этого класса в контролер надо определить методы, которые будут взаимодействовать с объектами в полях. Когда-нибудь я этим займусь...)
+*/ parcelHelpers.export(exports, "MainController", ()=>MainController);
 var _dragEnginePlaneJs = require("./DragEnginePlane.js");
 class MainController {
-    constructor(dragEngine, exportManager, materialManager){
+    /**
+		Инициализация класса.
+	*/ constructor(dragEngine, exportManager, materialManager){
         this.stages = new Map();
         this.currentStage;
         this.dragEngine = dragEngine;
         this.exportManager = exportManager;
         this.materialManager = materialManager;
     }
-    registerStage(key, stage) {
+    /**
+		Зарегестрировать сцену и добавить к ней слушатели событий от DragEngine
+	*/ registerStage(key, stage) {
         this.stages.set(key, stage);
         this.dragEngine.setStage(stage);
         this.dragEngine.addEventListenersToStage();
     }
-    getStage(key) {
+    /**
+		Получить какую-то сцену по ключу
+	*/ getStage(key) {
         let stage = this.stages.get(key);
         if (!stage) throw key + " stage is not defined";
         return stage;
     }
-    hideCurrentStage() {
+    /*
+		Скрыть текущую сцену и dat.GUI, прилепленный к ней
+	**/ hideCurrentStage() {
         if (this.currentStage) this.currentStage.hideScene();
     }
-    hideAllStages() {
+    /**
+		Скрыть все зарегестрированные сцены
+	*/ hideAllStages() {
         for (let st of this.stages.values())st.hideScene();
     }
-    showCurrentStage() {
+    /**
+		Показать текущую сцену.
+	*/ showCurrentStage() {
         if (this.currentStage) this.currentStage.showScene();
     }
-    setCurrentStage(key) {
+    /**
+		Установить определённую сцену из зарегестрированных текущей.
+	*/ setCurrentStage(key) {
         this.hideAllStages();
         this.currentStage = this.getStage(key);
         this.dragEngine.setStage(this.currentStage);
         this.showCurrentStage();
     }
-    addListeners() {
+    /**
+		Пока не используется.
+	*/ addListeners() {
         let self = this;
     }
 }
@@ -40433,30 +40589,44 @@ class MainController {
 },{"./DragEnginePlane.js":"kmFdU","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8hs9t":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "ExportManager", ()=>ExportManager);
+/**
+	Класс, управляющий загрузкой моделей из сцены и на сцену, а так же перемещением моделей между сценами.
+*/ parcelHelpers.export(exports, "ExportManager", ()=>ExportManager);
 var _three = require("three");
 var _gltfloaderJs = require("three/examples/jsm/loaders/GLTFLoader.js");
 var _gltfexporterJs = require("three/examples/jsm/exporters/GLTFExporter.js");
 class ExportManager {
-    constructor(exporter, assetLoader){
+    /**
+		Конструктор класса
+		exporter - GLTFExporter
+		assetLoader - GLTFLoader
+	*/ constructor(exporter, assetLoader){
         this.exporter = exporter;
         this.assetLoader = assetLoader;
         this.link = document.createElement("a");
         document.body.appendChild(this.link);
     }
-    createBlobFromBuffer(buffer) {
+    /**
+		Возвращает Blob объект из результата работы 
+		GLTFExporter.parse().
+		Blob объект содержит в себе данные о сцене и позволяет отправить сцену на компьютер пользователя или в другую сцену.
+	*/ createBlobFromBuffer(buffer) {
         return new Blob([
             buffer
         ], {
             type: "application/octet-stream"
         });
     }
-    saveToUserDevice(blob, filename) {
+    /**
+		Скачивает Blob объект на устройство пользователя.
+	*/ saveToUserDevice(blob, filename) {
         this.link.href = URL.createObjectURL(blob);
         this.link.download = filename;
         this.link.click();
     }
-    downloadScene(objects) {
+    /**
+		Скачивает модели на устройство пользователя.
+	*/ downloadScene(objects) {
         let self = this;
         this.exporter.parse(objects, function(result) {
             let blob = self.createBlobFromBuffer(result);
@@ -40467,7 +40637,9 @@ class ExportManager {
             binary: true
         });
     }
-    loadBlobToStage(blob, stage) {
+    /**
+		Загружает модели из blob объекта на сцену
+	*/ loadBlobToStage(blob, stage) {
         this.link.href = URL.createObjectURL(blob);
         this.assetLoader.load(this.link.href, (gltf)=>{
             const model = gltf.scene;
@@ -40475,10 +40647,41 @@ class ExportManager {
                 o.castShadow = true;
                 o.receiveShadow = true;
             });
-            stage.addObject(model, true, false);
+            // let size = new THREE.Box3().setFromObject(model);
+            // let length = size.min.x.distanceTo(size.max.x);
+            // let height = size.min.y.distanceTo(size.max.y);
+            // let width = size.min.z.distanceTo(size.max.z);
+            // let mB;
+            // if(length >= width && length >= height)
+            // mB = length;
+            // else if (width >= length && width >= height)
+            // mB = width;
+            // else 
+            // mB= height;
+            // mB /= 10;
+            // for(let o of model.children) {
+            // let biggest = 0;
+            // for (let f of model.children) {
+            // if (o === f) continue;
+            // let dist = o.position.distanceTo(f.position)
+            // if ( dist > mB)
+            // biggest = dist;
+            // }
+            // }
+            // let con = new THREE.Box3().setFromObject(model);
+            // let con_help = new THREE.Box3Helper(con, "red");
+            // model.add(con);
+            // model.add(con_help);
+            // let pos_origin = new THREE.Vector3(model.position.x, model.position.y, model.position.z);
+            // let dir = new THREE.Vector3(model.position.x, model.position.y+10, model.position.z);
+            // let arrowhelp = new THREE.ArrowHelper(dir, pos_origin, 5, "green");
+            // model.add(arrowhelp);
+            stage.addObject(model, true, true);
         });
     }
-    exportToStage(objects, stage) {
+    /**
+		Загружает модели на сцену
+	*/ exportToStage(objects, stage) {
         let self = this;
         this.exporter.parse(objects, function(result) {
             let blob = self.createBlobFromBuffer(result);
@@ -40494,7 +40697,9 @@ class ExportManager {
 },{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eDO5i":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "addListeners", ()=>addListeners);
+/**
+	Функция, устанавливающая поведение кнопок управления, определённых в html файле.
+*/ parcelHelpers.export(exports, "addListeners", ()=>addListeners);
 var _three = require("three");
 function addListeners(controller) {
     let floorPlanner = "floorPlanner";
@@ -40583,7 +40788,16 @@ function addListeners(controller) {
 }
 
 },{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"c6KBJ":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+/**
+	Функция, которая добавляет управление приложением с помощью клавиатуры.
+	Управление:
+	xyz - заблокировать перемещение объекта мышью по одной из осей, нажатие любой другой клавиши снимает блокировку.
+	c - отключить коллизии и ограничения на перемещение для объектов
+	46x, 28z, 39y - перемещение объекта по оси x,z,y
+	1x 5y 7z - выбрать, какой параметр объекта изменять - длину, высоту. ширину
+		+- увеличить или уменьшить размер объекта 
+		q убрать выделение объекта
+*/ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "addKeyboardControls", ()=>addKeyboardControls);
 function addKeyboardControls(controller) {
@@ -40591,13 +40805,7 @@ function addKeyboardControls(controller) {
     document.addEventListener("keypress", (e)=>{
         controller.dragEngine.resetLocks();
         controller.dragEngine.pNormal = controller.dragEngine.pNormalHorizontal;
-        /*
-			xyz lock moving axis, any other key - remove lock
-			46x, 28z, 39y 
-			157 axis to scale
-			+- scale
-			q unselect
-		*/ switch(e.key){
+        switch(e.key){
             case "x":
                 controller.dragEngine.lockX = true;
                 break;
