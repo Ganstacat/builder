@@ -40222,10 +40222,10 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
                 map: walltexture
             });
         };
-        const wall1 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
-        const wall2 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
-        const wall3 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
-        const wall4 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, false);
+        const wall1 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, true);
+        const wall2 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, true);
+        const wall3 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, true);
+        const wall4 = this.meshFactory.createMesh(wallGeometry, wallMaterial(), false, true);
         wall1.rotation.y = 0.5 * Math.PI;
         wall1.rotation.z = -0.5 * Math.PI;
         wall1.position.set(-2, 0.75, 0);
@@ -40324,8 +40324,14 @@ class DragEnginePlane {
 	*/ tryPickup() {
         let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
         if (intersects.length > 0) {
-            let obj = this.getRootParentGroup(intersects[0].object);
-            let point = intersects[0].point;
+            let index = 0;
+            while(!intersects[index].object.isMesh){
+                index++;
+                console.log(index);
+                if (index >= intersects.length) return;
+            }
+            let obj = this.getRootParentGroup(intersects[index].object);
+            let point = intersects[index].point;
             this.pickup(point, obj);
             console.log(obj);
         }
@@ -40392,11 +40398,14 @@ class DragEnginePlane {
 	**/ applyCollision(obj) {
         if (!this.collision) return;
         for (let colobj of this.stage.objectsWithCollision){
-            if (obj.isGroup || obj === colobj) continue;
+            if (obj === colobj) continue;
+            if (obj === this.getRootParentGroup(colobj)) continue;
             if (this.hasIntersection(obj, colobj)) {
                 let prevpos = obj.position.clone();
                 let colbbox = colobj.isBox3 ? colobj : new _three.Box3().setFromObject(colobj);
                 obj.position.clamp(colbbox.min, colbbox.max);
+                // let con_help1 = new THREE.Box3Helper(colbbox, "blue");
+                // this.stage.scene.add(con_help1);
                 /*	
 					после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
 					на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
@@ -40646,6 +40655,20 @@ class ExportManager {
         });
     }
     /**
+		Получает координаты всех 8 точек, определяющих box3 в пространстве
+	*/ getBox3Points(box3) {
+        let points = [];
+        points.push(new _three.Vector3(box3.max.x, box3.max.y, box3.max.z));
+        points.push(new _three.Vector3(box3.min.x, box3.max.y, box3.max.z));
+        points.push(new _three.Vector3(box3.min.x, box3.max.y, box3.min.z));
+        points.push(new _three.Vector3(box3.max.x, box3.max.y, box3.min.z));
+        points.push(new _three.Vector3(box3.max.x, box3.min.y, box3.max.z));
+        points.push(new _three.Vector3(box3.min.x, box3.min.y, box3.max.z));
+        points.push(new _three.Vector3(box3.min.x, box3.min.y, box3.min.z));
+        points.push(new _three.Vector3(box3.max.x, box3.min.y, box3.min.z));
+        return points;
+    }
+    /**
 		Загружает модели из blob объекта на сцену
 	*/ loadBlobToStage(blob, stage) {
         this.link.href = URL.createObjectURL(blob);
@@ -40655,36 +40678,74 @@ class ExportManager {
                 o.castShadow = true;
                 o.receiveShadow = true;
             });
-            // let size = new THREE.Box3().setFromObject(model);
-            // let length = size.min.x.distanceTo(size.max.x);
-            // let height = size.min.y.distanceTo(size.max.y);
-            // let width = size.min.z.distanceTo(size.max.z);
-            // let mB;
-            // if(length >= width && length >= height)
-            // mB = length;
-            // else if (width >= length && width >= height)
-            // mB = width;
-            // else 
-            // mB= height;
-            // mB /= 10;
-            // for(let o of model.children) {
-            // let biggest = 0;
-            // for (let f of model.children) {
-            // if (o === f) continue;
-            // let dist = o.position.distanceTo(f.position)
-            // if ( dist > mB)
-            // biggest = dist;
-            // }
-            // }
-            // let con = new THREE.Box3().setFromObject(model);
-            // let con_help = new THREE.Box3Helper(con, "red");
-            // model.add(con);
-            // model.add(con_help);
-            // let pos_origin = new THREE.Vector3(model.position.x, model.position.y, model.position.z);
-            // let dir = new THREE.Vector3(model.position.x, model.position.y+10, model.position.z);
-            // let arrowhelp = new THREE.ArrowHelper(dir, pos_origin, 5, "green");
-            // model.add(arrowhelp);
-            stage.addObject(model, true, true);
+            // Определить, какие модельки находятся рядом и сгруппировать их вместе
+            let groups = [];
+            for (let o of model.children){
+                groups.push([
+                    o
+                ]);
+                let index = groups.length - 1;
+                for (let c of model.children){
+                    if (o === c) continue;
+                    let oB = new _three.Box3().setFromObject(o);
+                    let cB = new _three.Box3().setFromObject(c);
+                    let distances = [];
+                    let p1 = this.getBox3Points(oB);
+                    let p2 = this.getBox3Points(cB);
+                    for (let p of p1)distances.push(cB.distanceToPoint(p));
+                    for (let p of p2)distances.push(oB.distanceToPoint(p));
+                    let shortest = 99;
+                    for (let d of distances)if (d < shortest) shortest = d;
+                    if (shortest < 0.1) groups[index].push(c);
+                }
+            }
+            // объединить разные группы, если они содержат общих потомков (union) - типа [1,2,3] и [3,4,5] объединится в [1,2,3,4,5]
+            for(let i = 0; i < groups.length; i++){
+                if (!groups[i]) continue;
+                for(let j = 0; j < groups.length; j++){
+                    if (!groups[j] || groups[i] === groups[j]) continue;
+                    let intersection = groups[i].filter((x)=>groups[j].includes(x));
+                    if (intersection.length > 0) {
+                        let union = [
+                            ...new Set([
+                                ...groups[i],
+                                ...groups[j]
+                            ])
+                        ];
+                        groups[i] = union;
+                        groups[j] = null;
+                    }
+                }
+            }
+            // добавить модельки в сцену. Сделать поправку на их положение в текущей сцене.
+            for (let g of groups){
+                if (!g) continue;
+                let group = new _three.Group();
+                for (let m of g)group.add(m);
+                let pos = new _three.Vector3();
+                new _three.Box3().setFromObject(group).getCenter(pos);
+                for (let m of group.children){
+                    m.position.x -= pos.x;
+                    m.position.y -= pos.y;
+                    m.position.z -= pos.z;
+                }
+                // let pos_origin = new THREE.Vector3(group.position.x, group.position.y, group.position.z);
+                // let dir = new THREE.Vector3(group.position.x, group.position.y+10, group.position.z);
+                // let arrowhelp = new THREE.ArrowHelper(dir, pos_origin, 5, "green");
+                // group.add(arrowhelp);
+                stage.addObject(group, true, true);
+                group.position.copy(pos);
+            }
+        // console.log(groups);
+        // let con = new THREE.Box3().setFromObject(model);
+        // let con_help = new THREE.Box3Helper(con, "red");
+        // model.add(con);
+        // model.add(con_help);
+        // let pos_origin = new THREE.Vector3(model.position.x, model.position.y, model.position.z);
+        // let dir = new THREE.Vector3(model.position.x, model.position.y+10, model.position.z);
+        // let arrowhelp = new THREE.ArrowHelper(dir, pos_origin, 5, "green");
+        // model.add(arrowhelp);
+        // stage.addObject(model, true, true);
         });
     }
     /**
@@ -40890,10 +40951,8 @@ function addKeyboardControls(controller) {
             controller.currentStage.selectedObject.adjustRestraintForScale();
             controller.dragEngine.applyRestraint(controller.currentStage.selectedObject);
         }
-    // todo - make this work
-    // if(controller.currentStage.selectedObject) {
-    // controller.dragEngine.applyCollision(controller.currentStage.selectedObject);
-    // }
+        // todo - make this work
+        if (controller.currentStage.selectedObject) controller.dragEngine.applyCollision(controller.currentStage.selectedObject);
     });
 }
 
