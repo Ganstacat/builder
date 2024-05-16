@@ -77,8 +77,15 @@ export class DragEnginePlane {
 		let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
 		
 		if(intersects.length >0) {
-			let obj = this.getRootParentGroup(intersects[0].object);
-			let point = intersects[0].point;
+			let index = 0;
+			while (!intersects[index].object.isMesh) {
+				index++;
+				console.log(index);
+				if (index >= intersects.length) return;
+			}
+			
+			let obj = this.getRootParentGroup(intersects[index].object);
+			let point = intersects[index].point;
 			this.pickup(point, obj);
 			console.log(obj);
 		}
@@ -165,11 +172,16 @@ export class DragEnginePlane {
 	applyCollision(obj) {
 		if (!this.collision) return;
 		for(let colobj of this.stage.objectsWithCollision) {
-			if (obj.isGroup || obj === colobj) continue;
+			if ( obj === colobj) continue;
+			if (obj === this.getRootParentGroup(colobj)) continue;
+			
 			if (this.hasIntersection(obj, colobj)) {
 				let prevpos = obj.position.clone();
 				let colbbox = colobj.isBox3 ? colobj : new THREE.Box3().setFromObject(colobj);
 				obj.position.clamp(colbbox.min, colbbox.max);
+				
+				// let con_help1 = new THREE.Box3Helper(colbbox, "blue");
+				// this.stage.scene.add(con_help1);
 				
 				/*	
 					после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
@@ -183,6 +195,7 @@ export class DragEnginePlane {
 					|	1   |  1     =>		|		1	   1
 					|___11111111			|_______11111111
 				*/
+				
 				let dragbbox = new THREE.Box3().setFromObject(obj);
 				let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;
 				let halfHeight = (dragbbox.max.y - dragbbox.min.y)/2;
@@ -205,6 +218,7 @@ export class DragEnginePlane {
 				} else if (prevpos.y > dragpos.y) {
 					dragpos.y += halfHeight;
 				}
+				
 			}
 			
 		}
@@ -237,6 +251,7 @@ export class DragEnginePlane {
 		
 		colbox1 = obj1.isBox3 ? obj1 : colbox1.setFromObject(obj1);
 		colbox2 = obj2.isBox3 ? obj2 : colbox2.setFromObject(obj2);
+		
 		return colbox1.intersectsBox(colbox2);
 	}
 

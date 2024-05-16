@@ -94,8 +94,8 @@ export function addKeyboardControls(controller){
 			controller.dragEngine.applyRestraint(controller.currentStage.selectedObject);
 		}
 		// todo - make this work
-		// if(controller.currentStage.selectedObject) {
-			// controller.dragEngine.applyCollision(controller.currentStage.selectedObject);
-		// }
+		if(controller.currentStage.selectedObject) {
+			controller.dragEngine.applyCollision(controller.currentStage.selectedObject);
+		}
 	});
 }

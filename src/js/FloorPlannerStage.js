@@ -32,22 +32,22 @@ export class FloorPlannerStage extends Stage {
 		const wall1 = this.meshFactory.createMesh(
 			wallGeometry,
 			wallMaterial(),
-			false, false
+			false, true
 		)
 		const wall2 = this.meshFactory.createMesh(
 			wallGeometry,
 			wallMaterial(),
-			false, false
+			false, true
 		)	
 		const wall3 = this.meshFactory.createMesh(
 			wallGeometry,
 			wallMaterial(),
-			false, false
+			false, true
 		)
 		const wall4 = this.meshFactory.createMesh(
 			wallGeometry,
 			wallMaterial(),
-			false, false
+			false, true
 		)
 		
 		wall1.rotation.y = 0.5 * Math.PI;
