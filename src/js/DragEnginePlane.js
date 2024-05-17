@@ -80,7 +80,6 @@ export class DragEnginePlane {
 			let index = 0;
 			while (!intersects[index].object.isMesh) {
 				index++;
-				console.log(index);
 				if (index >= intersects.length) return;
 			}
 			
@@ -171,10 +170,30 @@ export class DragEnginePlane {
 	**/
 	applyCollision(obj) {
 		if (!this.collision) return;
+		
+		// вынимаем линии из потомков объекта, чтобы они не учавствовали в коллизии
+		let tempchild1 = [];
+		let chiCopy1 = [...obj.children];
+		for (let c of chiCopy1) {
+			if (c.isLine || c.userData.isText) {
+				tempchild1.push(c);
+				obj.remove(c);
+			}
+		}
 		for(let colobj of this.stage.objectsWithCollision) {
-			if ( obj === colobj) continue;
+			if (obj === colobj) continue;
 			if (obj === this.getRootParentGroup(colobj)) continue;
 			
+			
+			let tempchild2 = [];
+			let chiCopy2 = [...colobj.children]
+			for (let c of chiCopy2) {
+				if (c.isLine || c.userData.isText) {
+					tempchild2.push(c);
+					colobj.remove(c);
+				}
+			}
+
 			if (this.hasIntersection(obj, colobj)) {
 				let prevpos = obj.position.clone();
 				let colbbox = colobj.isBox3 ? colobj : new THREE.Box3().setFromObject(colobj);
@@ -220,7 +239,12 @@ export class DragEnginePlane {
 				}
 				
 			}
-			
+			for (let c of tempchild2) {
+				colobj.add(c);
+			}
+		}
+		for (let c of tempchild1) {
+			obj.add(c);
 		}
 	}
 	
@@ -244,14 +268,13 @@ export class DragEnginePlane {
 	/**
 		Проверяет, пересекаются ли два объекта или нет. Используется при определении коллизии.
 	*/
-	hasIntersection(obj1, obj2) {
-		
+	hasIntersection(obj1, obj2) {		
 		let colbox1 = new THREE.Box3();
 		let colbox2 = new THREE.Box3();
 		
 		colbox1 = obj1.isBox3 ? obj1 : colbox1.setFromObject(obj1);
 		colbox2 = obj2.isBox3 ? obj2 : colbox2.setFromObject(obj2);
-		
+
 		return colbox1.intersectsBox(colbox2);
 	}
 

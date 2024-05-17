@@ -93,7 +93,7 @@ export function addKeyboardControls(controller){
 			controller.currentStage.selectedObject.adjustRestraintForScale();
 			controller.dragEngine.applyRestraint(controller.currentStage.selectedObject);
 		}
-		// todo - make this work
+		
 		if(controller.currentStage.selectedObject) {
 			controller.dragEngine.applyCollision(controller.currentStage.selectedObject);
 		}

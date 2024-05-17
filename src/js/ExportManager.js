@@ -83,6 +83,12 @@ export class ExportManager {
 			});
 			
 			
+			
+			
+			
+			
+			
+			
 			// Определить, какие модельки находятся рядом и сгруппировать их вместе
 			let groups =  [];
 			for(let o of model.children) {
@@ -145,16 +151,30 @@ export class ExportManager {
 					m.position.y -= pos.y;
 					m.position.z -= pos.z;
 				}
-			
+				let container = new THREE.Group();
+				container.name = 'container';
+				group.name = 'models';
+				container.add(group);
+				
+				stage.addObject(container, true, true);
+				container.position.copy(pos);
+				
+				stage.meshFactory.labelManager.addDimensionLines(container);
 				
 				// let pos_origin = new THREE.Vector3(group.position.x, group.position.y, group.position.z);
 				// let dir = new THREE.Vector3(group.position.x, group.position.y+10, group.position.z);
 				// let arrowhelp = new THREE.ArrowHelper(dir, pos_origin, 5, "green");
 				// group.add(arrowhelp);
 				
-				stage.addObject(group, true, true);
-					group.position.copy(pos);
 			}
+			
+			
+			
+			
+			
+			
+			
+			
 			
 			// console.log(groups);
 			// let con = new THREE.Box3().setFromObject(model);
@@ -177,6 +197,11 @@ export class ExportManager {
 	*/
 	exportToStage(objects, stage) {
 		let self = this;
+		
+		for (let o of objects) {
+			stage.meshFactory.labelManager.removeLabel(o);
+		}
+		
 		this.exporter.parse(
 				objects,
 				function ( result ) {
@@ -190,5 +215,9 @@ export class ExportManager {
 					binary:true
 				}
 		);
+		
+		for (let o of objects) {
+			stage.meshFactory.labelManager.addDimensionLines(o);
+		}
 	}
 }

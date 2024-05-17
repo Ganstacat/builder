@@ -11,8 +11,7 @@ export class FloorPlannerStage extends Stage {
 	addStartingObjects() {
 		const plane = this.meshFactory.createMesh(
 			new THREE.PlaneGeometry(4,4),
-			new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide}),
-			false, false
+			new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide})
 		);
 		plane.rotation.x = -0.5 * Math.PI;
 		plane.receiveShadow = true;
@@ -31,23 +30,19 @@ export class FloorPlannerStage extends Stage {
 
 		const wall1 = this.meshFactory.createMesh(
 			wallGeometry,
-			wallMaterial(),
-			false, true
+			wallMaterial()
 		)
 		const wall2 = this.meshFactory.createMesh(
 			wallGeometry,
-			wallMaterial(),
-			false, true
+			wallMaterial()
 		)	
 		const wall3 = this.meshFactory.createMesh(
 			wallGeometry,
-			wallMaterial(),
-			false, true
+			wallMaterial()
 		)
 		const wall4 = this.meshFactory.createMesh(
 			wallGeometry,
-			wallMaterial(),
-			false, true
+			wallMaterial()
 		)
 		
 		wall1.rotation.y = 0.5 * Math.PI;
@@ -74,6 +69,11 @@ export class FloorPlannerStage extends Stage {
 		wall4.userData.isSelectable = true;
 		plane.userData.isSelectable = true;
 		
+		this.addObject(wall1,false,true);
+		this.addObject(wall2,false,true);
+		this.addObject(wall3,false,true);
+		this.addObject(wall4,false,true);
+		this.addObject(plane,false,false);
 		
 		
 		this.constraintBox = new THREE.Box3(
@@ -84,7 +84,7 @@ export class FloorPlannerStage extends Stage {
 		// const box = this.meshFactory.createRestrainedMesh(
 			// new THREE.BoxGeometry(0.5,0.5,0.5),
 			// new THREE.MeshStandardMaterial(),
-			// true, true, this.constraintBox
+			// this.constraintBox
 		// );
 		// box.castShadow = true;
 		// const helperbox = new THREE.Box3Helper(constraintBox, "orange");

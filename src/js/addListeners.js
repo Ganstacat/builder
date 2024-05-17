@@ -35,12 +35,13 @@ export function addListeners(controller) {
 	}
 	// Добавить куб на текущую сцену. Куб ограничен в пределах сцены.
 	document.querySelector("#addCube").onclick = function(){
-		let box = controller.currentStage.meshFactory.createRestrainedMesh(
+		let box = controller.currentStage.meshFactory.createMesh(
 			new THREE.BoxGeometry(0.5,0.5,0.5),
 			new THREE.MeshStandardMaterial({side: THREE.DoubleSide}),
-			true, true, controller.currentStage.constraintBox
+			// controller.currentStage.constraintBox
 		);
-		box.position.y -= box.geometry.boundingBox.min.y;
+		// box.position.y -= box.geometry.boundingBox.min.y;
+		controller.currentStage.addObject(box,true,true);
 	}
 	// Добавить стену на текущую сцену. Стена имеет высоту и длину по размеру сцены и ограничена в её пределах.
 	document.querySelector("#addWall").onclick = function(){
@@ -48,13 +49,13 @@ export function addListeners(controller) {
 		let len = cbox.max.x - cbox.min.x;
 		let hei = cbox.max.y - cbox.min.y;
 		
-		let box = controller.currentStage.meshFactory.createRestrainedMesh(
+		let box = controller.currentStage.meshFactory.createMesh(
 			new THREE.BoxGeometry(len,hei,0.1),
-			new THREE.MeshStandardMaterial({side: THREE.DoubleSide}),
-			true, true, controller.currentStage.constraintBox
+			new THREE.MeshStandardMaterial({side: THREE.DoubleSide})
 		);
 		box.castShadow = true;
-		box.position.y -= box.geometry.boundingBox.min.y;
+		controller.currentStage.addObject(box,true,true);
+		// box.position.y -= box.geometry.boundingBox.min.y;
 	}
 	// Удалить выбранный объект
 	document.querySelector("#delobj").onclick = function() {
@@ -76,7 +77,7 @@ export function addListeners(controller) {
 		let newObject = controller.currentStage.meshFactory.cloneObject(controller.currentStage.selectedObject);
 		
 		if (newObject) {
-			controller.currentStage.addObject(newObject, newObject.isMovable, newObject.hasCollision);
+			controller.currentStage.addObject(newObject, newObject.userData.isMovable, newObject.userData.hasCollision);
 			newObject.position.set(
 				controller.currentStage.selectedObject.position.x,
 				controller.currentStage.selectedObject.position.y,

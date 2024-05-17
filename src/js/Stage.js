@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {MeshFactory} from './MeshFactory.js';
 import {GuiManager} from './GuiManager.js';
+import {LabelManager} from './LabelManager.js';
 
 /**
 	Класс, производящий инициализацию сцены, хранящий её состояние и имеющий методы для манипуляции над сценой.
@@ -31,7 +32,7 @@ export class Stage {
 		
 		// meshFactory желательно отсюда выкинуть
 		this.guiManager = new GuiManager(this);
-		this.meshFactory = new MeshFactory(this);
+		this.meshFactory = new MeshFactory(this, new LabelManager());
 		this.selectedObject = null;
 		
 		this.addStartingObjects();
@@ -141,21 +142,26 @@ export class Stage {
 		const helperbox = new THREE.Box3Helper(this.constraintBox, "orange");
 		this.scene.add(helperbox);
 		
-		const box = this.meshFactory.createRestrainedMesh(
+		const box = this.meshFactory.createMesh(
 			new THREE.BoxGeometry(0.5,0.5,0.5),
-			new THREE.MeshStandardMaterial(),
-			true, true, this.constraintBox
+			new THREE.MeshStandardMaterial()
 		);
-		box.position.y -= box.geometry.boundingBox.min.y;
+		// box.position.y -= box.geometry.boundingBox.min.y;
 		box.position.x -= 1;
+		this.addObject(box,true,true);
 		
-		const box2 = this.meshFactory.createRestrainedMesh(
+		const box2 = this.meshFactory.createMesh(
 			new THREE.BoxGeometry(0.5,0.5,0.5),
 			new THREE.MeshStandardMaterial(),
-			true, true, this.constraintBox
+			this.constraintBox
 		);
-		box2.position.y -= box.geometry.boundingBox.min.y;
+		// box2.position.y -= box.geometry.boundingBox.min.y;
 		box2.position.x += 1;
+		this.addObject(box2,true,true);
+		
+		this.setRestraint(box, this.constraintBox);
+		this.setRestraint(box2, this.constraintBox);
+		
 	}
 	/**
 		Добавляет слушатели событий, необходимые для работы этого класса
@@ -175,13 +181,16 @@ export class Stage {
 		Добавляет модель или группу моделей на сцену.
 	*/
 	addObject(obj, isMovable, hasCollision) {
-		if(isMovable) this.movableObjects.push(obj);
+		if(isMovable) {this.movableObjects.push(obj);}
 		if(hasCollision) {
 			// this.objectsWithCollision.push(obj);
 			this.applyToMeshes(obj, (o)=>{
 				this.objectsWithCollision.push(o);
 			});
 		}
+		
+		obj.userData.isMovable = isMovable;
+		obj.userData.hasCollision = hasCollision;
 		this.scene.add(obj);
 		
 		// this.objectsWithCollision.push(obj);
@@ -205,10 +214,21 @@ export class Stage {
 		Изменить размер модели
 	*/
 	setScale(obj,x,y,z){
-		console.log(obj);
 		if(!obj) return;
-		if (obj.userData.isRestrainedMesh) obj.setScale(x,y,z);
-		else obj.scale.set(x,y,z);
+		
+		this.meshFactory.labelManager.removeLabel(obj);
+		for(let grp of obj.children){
+			if (grp.name === 'models') {
+				grp.scale.set(x,y,z);
+				if (obj.userData.isRestrained) {
+					this.adjustRestraintForScale(obj);
+				}
+			}
+		}
+		// if (obj.userData.isRestrainedMesh) obj.setScale(x,y,z);
+		// else obj.scale.set(x,y,z);
+		
+		this.meshFactory.labelManager.addDimensionLines(obj);
 	}
 	/**
 		Установить поворт модели*
@@ -258,7 +278,9 @@ export class Stage {
 	removeSelectionColor(obj) {
 		if (!obj) return;
 		this.applyToMeshes(obj,
-			(o)=>{o.material.emissive.set(0x000000)}
+			(o)=>{
+				if(o.material) o.material.emissive.set(0x000000)
+			}
 		);
 	}
 	/**
@@ -266,7 +288,7 @@ export class Stage {
 	*/
 	applySelectionColor(obj){
 		this.applyToMeshes(obj,
-			(o)=>{o.material.emissive.set(0x9c8e30)}
+			(o)=>{if(o.material) o.material.emissive.set(0x9c8e30)}
 		);
 	}
 	/**
@@ -274,11 +296,11 @@ export class Stage {
 		По-хорошему надо вынести эту функцию в контроллер или в utils
 	*/
 	applyToMeshes(obj, cb, args) {
-		
-		if(obj.isMesh) {
+		console.log(obj);
+		if(obj.isMesh && !obj.userData.isText && !obj.userData.isLine) {
 			cb(obj, args);
 		}
-		else if(obj.isGroup) {
+		else if(obj.children.length > 0) {
 			for(let o of obj.children)
 				this.applyToMeshes(o,cb,args);
 		}
@@ -303,4 +325,38 @@ export class Stage {
 		this.movableObjects = [];
 		this.objectsWithCollision = [];
 	}
+	
+	
+	
+	
+	/**
+		Обновить размеры ограничительного куба в зависимости от размера модели.
+	*/
+	adjustRestraintForScale(obj) {
+		if(!obj.userData.baserestraint) return;
+		
+		let dragbbox = new THREE.Box3().setFromObject(obj);
+		let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;
+		let halfHeight = (dragbbox.max.y - dragbbox.min.y)/2;
+		let halfWidth  = (dragbbox.max.z - dragbbox.min.z)/2;
+
+		obj.userData.restraint = new THREE.Box3(
+			new THREE.Vector3(obj.userData.baserestraint.min.x+(halfLength),
+							  obj.userData.baserestraint.min.y+(halfHeight),
+							  obj.userData.baserestraint.min.z+(halfWidth)),
+			new THREE.Vector3(obj.userData.baserestraint.max.x-(halfLength),
+							  obj.userData.baserestraint.max.y-(halfHeight),
+							  obj.userData.baserestraint.max.z-(halfWidth))
+		)
+	}
+	/**
+		Установить ограничение для модели.
+	*/
+	setRestraint(obj, restraint) {
+		obj.userData.baserestraint = restraint;
+		obj.userData.isRestrained = true;
+		this.adjustRestraintForScale(obj);
+	}
+	
+	
 }

@@ -42,20 +42,24 @@ export class GuiManager {
 			"поворотY":0,
 			"поворотZ":0,
 			
-			цвет: 0xFFFFFF
+			цвет: 0xFFFFFF,
+			
+			"ТекстX":0,
+			"ТекстY":0,
+			"ТекстZ":0,
 
 		};
 		this.options = options;
 		
 		let self = this;
 		
-		this.gui.add(options, 'длина',0.1, 10).listen().onChange((e)=>{
+		this.gui.add(options, 'длина',0.1, 10, 0.1).listen().onChange((e)=>{
 			self.stage.setScale(self.stage.selectedObject, options["длина"], options["высота"], options["ширина"] );
 		});
-		this.gui.add(options, 'ширина',0.1, 10).listen().onChange((e)=>{
+		this.gui.add(options, 'ширина',0.1, 10, 0.1).listen().onChange((e)=>{
 			self.stage.setScale(self.stage.selectedObject, options["длина"], options["высота"], options["ширина"] );
 		});
-		this.gui.add(options, 'высота',0.1, 10).listen().onChange((e)=>{
+		this.gui.add(options, 'высота',0.1, 10, 0.1).listen().onChange((e)=>{
 			self.stage.setScale(self.stage.selectedObject, options["длина"], options["высота"], options["ширина"] );
 		});
 		this.gui.add(options, 'поворотX',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
@@ -70,6 +74,17 @@ export class GuiManager {
 		this.gui.addColor(options, 'цвет').onChange((e)=>{
 			self.stage.setMeshColor(self.stage.selectedObject, e);
 		});
+		
+		this.gui.add(options, 'ТекстX',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
+			self.stage.selectedObject.children[3].rotation.set(options["ТекстX"],options["ТекстY"],options["ТекстZ"]);
+		});
+		this.gui.add(options, 'ТекстY',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
+			self.stage.selectedObject.children[3].rotation.set(options["ТекстX"],options["ТекстY"],options["ТекстZ"]);
+		});
+		this.gui.add(options, 'ТекстZ',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
+			self.stage.selectedObject.children[3].rotation.set(options["ТекстX"],options["ТекстY"],options["ТекстZ"]);
+		});
+	
 		
 		this.listeners.push(()=>{
 			if(!self.stage.selectedObject) return;
