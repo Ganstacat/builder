@@ -41,7 +41,7 @@ export function addListeners(controller) {
 			// controller.currentStage.constraintBox
 		);
 		// box.position.y -= box.geometry.boundingBox.min.y;
-		controller.currentStage.addObject(box,true,true);
+		controller.currentStage.addObject(box,true,true,true);
 	}
 	// Добавить стену на текущую сцену. Стена имеет высоту и длину по размеру сцены и ограничена в её пределах.
 	document.querySelector("#addWall").onclick = function(){
@@ -54,7 +54,7 @@ export function addListeners(controller) {
 			new THREE.MeshStandardMaterial({side: THREE.DoubleSide})
 		);
 		box.castShadow = true;
-		controller.currentStage.addObject(box,true,true);
+		controller.currentStage.addObject(box,true,true,true);
 		// box.position.y -= box.geometry.boundingBox.min.y;
 	}
 	// Удалить выбранный объект

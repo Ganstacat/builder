@@ -156,10 +156,9 @@ export class ExportManager {
 				group.name = 'models';
 				container.add(group);
 				
-				stage.addObject(container, true, true);
+				stage.addObject(container, true, true, true);
 				container.position.copy(pos);
 				
-				stage.meshFactory.labelManager.addDimensionLines(container);
 				
 				// let pos_origin = new THREE.Vector3(group.position.x, group.position.y, group.position.z);
 				// let dir = new THREE.Vector3(group.position.x, group.position.y+10, group.position.z);

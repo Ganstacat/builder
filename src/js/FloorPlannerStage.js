@@ -19,11 +19,11 @@ export class FloorPlannerStage extends Stage {
 		const wallColor = 0xf8c471;
 		const textureLoader = new THREE.TextureLoader();
 		
-		const wallGeometry = new THREE.PlaneGeometry(1.5,4);
+		const wallGeometry = new THREE.PlaneGeometry(4,4);
 		const walltexture = textureLoader.load('./assets/textures/wallpaper2.jpg');
 		walltexture.wrapS = THREE.RepeatWrapping;
 		walltexture.wrapT = THREE.RepeatWrapping;
-		walltexture.repeat.set(2,4);
+		walltexture.repeat.set(4,4);
 		const wallMaterial = ()=>{return new THREE.MeshStandardMaterial( {
 			map: walltexture
 		});}
@@ -68,6 +68,7 @@ export class FloorPlannerStage extends Stage {
 		wall3.userData.isSelectable = true;
 		wall4.userData.isSelectable = true;
 		plane.userData.isSelectable = true;
+		
 		
 		this.addObject(wall1,false,true);
 		this.addObject(wall2,false,true);

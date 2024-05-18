@@ -33,7 +33,7 @@ export class MeshFactory {
 		modelGroup.add(mesh);
 		containerGroup.name = 'container';
 		containerGroup.add(modelGroup);
-		this.labelManager.addDimensionLines(containerGroup);
+		// this.labelManager.addDimensionLines(containerGroup);
 		
 		return containerGroup;
 	}

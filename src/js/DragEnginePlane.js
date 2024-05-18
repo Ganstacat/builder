@@ -126,7 +126,11 @@ export class DragEnginePlane {
 		Перемещать выбранную модель к курсору мыши с учётом блокировки по осям, ограничений и коллизий.
 	*/
 	drag() {
-		this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+		if(this.stage.stage1P) {
+			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera1P);			
+		} else {
+			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+		}
 		this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
 
 		let x = this.dragObject.position.x;
@@ -262,7 +266,12 @@ export class DragEnginePlane {
 		let canvas = this.stage.renderer.domElement;
 		this.mousePosition.x = (pointerX / canvas.clientWidth) * 2 - 1;
 		this.mousePosition.y = - (pointerY / canvas.clientHeight) * 2 + 1;
-		this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+		
+		if (this.stage.stage1P) {
+			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera1P);
+		} else {
+			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);			
+		}
 	}
 	
 	/**

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import {MeshFactory} from './MeshFactory.js';
 import {GuiManager} from './GuiManager.js';
 import {LabelManager} from './LabelManager.js';
@@ -17,14 +18,15 @@ export class Stage {
 		this.scene = this.setupScene();
 		this.camera = this.setupCamera();
 		this.controls = this.setupOrbitControls(this.camera, this.renderer);
+		// this.pointerLockControls = 
+		this.setupPointerLockControls();
+		this.stage1P = false;
 		this.lights = this.setupLights(this.scene);
 		this.raycaster = this.setupRaycaster();
 		
 		
 		// включается рендер сцены
-		this.renderer.setAnimationLoop( ()=>{
-			this.renderer.render(this.scene, this.camera);
-		});
+		this.animate3P();
 		
 		// инициализация массивов, хранящих перемещаемые модели (группы моделей) и модели с коллизией
 		this.movableObjects = [];
@@ -38,7 +40,172 @@ export class Stage {
 		this.addStartingObjects();
 		this.addEventListeners();
 	}
+	setupPointerLockControls(){
+		let camera, controls;
+		let raycaster;
+		
+		let moveForward = false;
+		let moveBackward = false;
+		let moveLeft = false;
+		let moveRight = false;
+		let canJump = false;
+		let crouching = false;
+		
+		let prevTime = performance.now();
+		
+		const velocity = new THREE.Vector3();
+		const direction = new THREE.Vector3();
+		const height = 1.8;
+		const crouchHeight = 0.8;
+		
+		// init
+		camera = new THREE.PerspectiveCamera(90, window.innerWidth/window.innerHeight, 0.1,1000);
+		camera.position.y = height;
+		
+		controls = new PointerLockControls(camera, document.body);
+		
+		// enable controls- controls.lock();
+		// disable - controls.unlock()
+		raycaster = new THREE.Raycaster(
+			new THREE.Vector3(),
+			new THREE.Vector3(0,-1,0),
+			0,10
+		);
+		
+		this.scene.add ( controls.getObject() );
+		
+		this.camera1P = camera;
+		this.controls1P = controls;
+		this.raycaster1P = raycaster;
+		this.moveForward = false;
+		this.moveBackward = false;
+		this.moveLeft = false;
+		this.moveRight = false;
+		this.canJump = false;
+		this.prevTime = performance.now();
+		
+		this.velocity = new THREE.Vector3();
+		this.direction = new THREE.Vector3();
+		this.height = height;
+		this.crouchHeight = crouchHeight;
+		
+
+		
+		
+		// animate
+		/*
+		let self = this;
+		function animate() {
+			requestAnimationFrame(animate);
+			
+			const time = performance.now();
+			
+			if (controls.isLocked === true) {
+				raycaster.ray.origin.copy ( controls.getObject().position );
+				raycaster.ray.origin.y -= height;
+				
+				const intersections = raycaster.intersectObjects( self.movableObjects, false );
+				const onObject = intersections.length > 0;
+				
+				const delta = (time - prevTime) / 1000;
+				
+				velocity.x -= velocity.x * 10.0 * delta;
+				velocity.z -= velocity.z * 10.0 * delta;
+				
+				velocity.y -= 9.8 * delta;
+				
+				direction.z = Number(moveForward) - Number(moveBackward);
+				direction.x = Number(moveRight) - Number(moveLeft);
+				direction.normalize();
+				
+				if (moveForward || moveBackward)
+					velocity.z -= direction.z * 40.0 * delta;
+				if (moveLeft || moveRight)
+					velocity.x -= direction.x * 40.0 * delta;
+				if (onObject) {
+					velocity.y = Math.max(0,velocity.y);
+					canJump = true;
+				}
+				
+				controls.moveRight(-velocity.x * delta);
+				controls.moveForward(-velocity.z * delta);
+				
+				controls.getObject().position.y += (velocity.y * delta);
+				
+				if (controls.getObject().position.y < height) {
+					velocity.y = 0;
+					controls.getObject().position.y = height;
+					canJump = true;
+				}
+				
+			}
+			prevTime = time;
+			self.renderer.render(self.scene, camera);
+		}
+		animate();
+		*/
+	}
 	
+	animate1P() {
+		// requestAnimationFrame(this.animate1P);
+		
+		this.renderer.setAnimationLoop(()=>{
+			const time = performance.now();
+			let height;
+			if(this.crouching) height = this.crouchHeight;
+			else height = this.height;
+			
+			if (this.controls1P.isLocked === true) {
+				this.raycaster1P.ray.origin.copy ( this.controls1P.getObject().position );
+				this.raycaster1P.ray.origin.y -= height;
+				
+				const intersections = this.raycaster1P.intersectObjects( this.movableObjects, false );
+				const onObject = intersections.length > 0;
+				
+				const delta = (time - this.prevTime) / 1000;
+				
+				this.velocity.x -= this.velocity.x * 10.0 * delta;
+				this.velocity.z -= this.velocity.z * 10.0 * delta;
+				
+				this.velocity.y -= 9.8 * delta;
+				
+				this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
+				this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
+				this.direction.normalize();
+				
+				if (this.moveForward || this.moveBackward)
+					this.velocity.z -= this.direction.z * 40.0 * delta;
+				if (this.moveLeft || this.moveRight)
+					this.velocity.x -= this.direction.x * 40.0 * delta;
+				if (onObject) {
+					this.velocity.y = Math.max(0,this.velocity.y);
+					this.canJump = true;
+				}
+				
+				this.controls1P.moveRight(-this.velocity.x * delta);
+				this.controls1P.moveForward(-this.velocity.z * delta);
+				
+				this.controls1P.getObject().position.y += (this.velocity.y * delta);
+				
+				if (this.controls1P.getObject().position.y < height) {
+					this.velocity.y = 0;
+					this.controls1P.getObject().position.y = height;
+					this.canJump = true;
+				}
+				
+			}
+			this.prevTime = time;
+			this.renderer.render(this.scene, this.camera1P);
+		});
+	}
+	
+	animate3P() {
+		// requestAnimationFrame(this.animate3P);
+		// this.renderer.render(this.scene, this.camera);
+		this.renderer.setAnimationLoop( ()=>{
+			this.renderer.render(this.scene, this.camera);
+		});
+	}
 	/**
 		Вручную устанавливает элемент <canvas>, на котором будет выполняться рендер сцены.
 		Нужно, если рендер будет происходить на заранее созданном canvas.
@@ -148,7 +315,7 @@ export class Stage {
 		);
 		// box.position.y -= box.geometry.boundingBox.min.y;
 		box.position.x -= 1;
-		this.addObject(box,true,true);
+		this.addObject(box,true,true,true);
 		
 		const box2 = this.meshFactory.createMesh(
 			new THREE.BoxGeometry(0.5,0.5,0.5),
@@ -157,7 +324,7 @@ export class Stage {
 		);
 		// box2.position.y -= box.geometry.boundingBox.min.y;
 		box2.position.x += 1;
-		this.addObject(box2,true,true);
+		this.addObject(box2,true,true,true);
 		
 		this.setRestraint(box, this.constraintBox);
 		this.setRestraint(box2, this.constraintBox);
@@ -169,18 +336,63 @@ export class Stage {
 	addEventListeners(){
 		let self = this;
 		// Обновляет размер холста при изменении размеров окна браузера.
-		// ПЕРЕПИСАТЬ - Работает неправильно, должно считать не от window, а от this.renderer.domElement
 		window.addEventListener('resize', function(){
 			self.camera.aspect = window.innerWidth / window.innerHeight;
 			self.camera.updateProjectionMatrix();
 			self.renderer.setSize(window.innerWidth, window.innerHeight);
+			
+			self.camera1P.aspect = window.innerWidth / window.innerHeight;
+			self.camera1P.updateProjectionMatrix();
 		});
+		
+		// управление для первого лица, потом вынести в кб контролз, наверное
+		const onKeyDown = function (event) {
+			switch (event.code) {
+				case 'KeyB':
+					self.crouching = true;
+					self.velocity.y -= 6;
+					break;
+				case 'KeyI': 
+					self.controls1P.lock();
+					self.animate1P();
+					self.stage1P = true;
+					break;
+				case 'KeyO':
+					self.controls1P.unlock();
+					self.animate3P();
+					self.velocity.set(0,0,0);
+					self.stage1P = false;
+					break;
+				case 'KeyW': self.moveForward = true; break;
+				case 'KeyA': self.moveLeft = true; break;
+				case 'KeyD': self.moveRight = true; break;
+				case 'KeyS': self.moveBackward = true; break;
+				case 'Space':
+					if (self.canJump === true) self.velocity.y += 3.5;
+					self.canJump = false;
+					break;
+			}
+		};
+		const onKeyUp = function (event) {
+			switch (event.code) {
+				case 'KeyB':
+					self.crouching = false;
+					// self.height = 1.8;
+					break;
+				case 'KeyW': self.moveForward = false; break;
+				case 'KeyA': self.moveLeft = false; break;
+				case 'KeyD': self.moveRight = false; break;
+				case 'KeyS': self.moveBackward = false; break;
+			}
+		};
+		document.addEventListener('keydown', onKeyDown);
+		document.addEventListener('keyup', onKeyUp);
 	}
 
 	/**
 		Добавляет модель или группу моделей на сцену.
 	*/
-	addObject(obj, isMovable, hasCollision) {
+	addObject(obj, isMovable, hasCollision, hasDimensions) {
 		if(isMovable) {this.movableObjects.push(obj);}
 		if(hasCollision) {
 			// this.objectsWithCollision.push(obj);
@@ -191,6 +403,7 @@ export class Stage {
 		
 		obj.userData.isMovable = isMovable;
 		obj.userData.hasCollision = hasCollision;
+		if (hasDimensions) this.meshFactory.labelManager.addDimensionLines(obj);
 		this.scene.add(obj);
 		
 		// this.objectsWithCollision.push(obj);
@@ -296,7 +509,6 @@ export class Stage {
 		По-хорошему надо вынести эту функцию в контроллер или в utils
 	*/
 	applyToMeshes(obj, cb, args) {
-		console.log(obj);
 		if(obj.isMesh && !obj.userData.isText && !obj.userData.isLine) {
 			cb(obj, args);
 		}

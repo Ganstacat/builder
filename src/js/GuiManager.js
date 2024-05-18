@@ -43,10 +43,6 @@ export class GuiManager {
 			"поворотZ":0,
 			
 			цвет: 0xFFFFFF,
-			
-			"ТекстX":0,
-			"ТекстY":0,
-			"ТекстZ":0,
 
 		};
 		this.options = options;
@@ -74,24 +70,17 @@ export class GuiManager {
 		this.gui.addColor(options, 'цвет').onChange((e)=>{
 			self.stage.setMeshColor(self.stage.selectedObject, e);
 		});
-		
-		this.gui.add(options, 'ТекстX',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
-			self.stage.selectedObject.children[3].rotation.set(options["ТекстX"],options["ТекстY"],options["ТекстZ"]);
-		});
-		this.gui.add(options, 'ТекстY',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
-			self.stage.selectedObject.children[3].rotation.set(options["ТекстX"],options["ТекстY"],options["ТекстZ"]);
-		});
-		this.gui.add(options, 'ТекстZ',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
-			self.stage.selectedObject.children[3].rotation.set(options["ТекстX"],options["ТекстY"],options["ТекстZ"]);
-		});
 	
 		
 		this.listeners.push(()=>{
-			if(!self.stage.selectedObject) return;
+			console.log(self.stage.selectedObject);
+			if(!self.stage.selectedObject || self.stage.selectedObject.name !== "container") return;
 			
-			self.options["длина"] = self.stage.selectedObject.scale.x;
-			self.options["высота"] = self.stage.selectedObject.scale.y;
-			self.options["ширина"] = self.stage.selectedObject.scale.z;
+			let models = self.stage.selectedObject.children.filter( (c) => {return c.name === 'models'});
+			
+			self.options["длина"] = models[0].scale.x;
+			self.options["высота"] = models[0].scale.y;
+			self.options["ширина"] = models[0].scale.z;
 			
 			self.options["поворотX"] = self.stage.selectedObject.rotation.x;
 			self.options["поворотY"] = self.stage.selectedObject.rotation.y;
