@@ -126,10 +126,12 @@ export class DragEnginePlane {
 		Перемещать выбранную модель к курсору мыши с учётом блокировки по осям, ограничений и коллизий.
 	*/
 	drag() {
-		if(this.stage.stage1P) {
+		if(this.stage.currentCamera === '1P') {
 			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera1P);			
-		} else {
+		} else if (this.stage.currentCamera === '3P' ){
 			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+		} else {
+			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.cameraOrtho);
 		}
 		this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
 
@@ -258,7 +260,7 @@ export class DragEnginePlane {
 		Например, если окно состоит из 1920 x 600 пикселей, то курсор, установленный в центре будет иметь координаты 
 		(960, 300)
 		
-		В сцене рендера же для определения положения курсора используются нормализованные координаты: центр экрана считается за точку (0,0), левый верхний угол (-1,-1) и правый нижний (1,!).
+		В сцене рендера же для определения положения курсора используются нормализованные координаты: центр экрана считается за точку (0,0), левый верхний угол (-1,-1) и правый нижний (1,1).
 
 		Рассчитывать нужно, чтобы определить, на какую модель в сцене указывает курсор.
 	*/
@@ -267,10 +269,12 @@ export class DragEnginePlane {
 		this.mousePosition.x = (pointerX / canvas.clientWidth) * 2 - 1;
 		this.mousePosition.y = - (pointerY / canvas.clientHeight) * 2 + 1;
 		
-		if (this.stage.stage1P) {
+		if (this.stage.currentCamera === '1P') {
 			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera1P);
-		} else {
+		} else if (this.stage.currentCamera === '3P'){
 			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);			
+		} else {
+			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.cameraOrtho);			
 		}
 	}
 	

@@ -40,8 +40,8 @@ export class LabelManager {
 		
 		let textX = this.createText(
 			Math.floor(size_copy.x*1000)+'мм',
-			new THREE.Vector3(0,size_halved.y,-size_halved.z-0.1),
-			new THREE.Vector3(Math.PI/2, Math.PI, 0)
+			new THREE.Vector3(0,size_halved.y,size_halved.z+0.1),
+			new THREE.Vector3(Math.PI/2, Math.PI,Math.PI)
 		);
 		let textZ = this.createText(
 			Math.floor(size_copy.z*1000)+'мм',
@@ -56,10 +56,10 @@ export class LabelManager {
 		
 		obj.add(lineX);
 		obj.add(lineZ);
-		obj.add(lineY);
+		// obj.add(lineY);
 		obj.add(textX)
 		obj.add(textZ)
-		obj.add(textY)
+		// obj.add(textY)
 
 		// this.adjustTextScale(textX, size, obj.scale);
 		
@@ -70,7 +70,6 @@ export class LabelManager {
 		textX.sync();
 		textZ.sync();
 		textY.sync();
-		console.log(textX);
 	}
 	/**
 		Создаёт надпись по указанным координатам
@@ -96,7 +95,7 @@ export class LabelManager {
 			position.x, position.y, position.z
 		);
 		
-		myText.fontSize = 0.2
+		myText.fontSize = 0.1
 		myText.color = 'white'
 		myText.userData.isText = true;
 		myText.textAlign = 'center';
@@ -112,7 +111,6 @@ export class LabelManager {
 	removeLabel(obj) {
 		let temp = [...obj.children];
 		for (let c of temp) {
-			console.log(c.userData.isText);
 			if (c.userData.isText || c.isLine) {
 				obj.remove(c);
 				if (c.userData.isText) {
@@ -127,10 +125,10 @@ export class LabelManager {
 		return : Array:Vector3 - массив с точками
 	*/
 	getPointsForXLine(size){
-		let p0 = new THREE.Vector3(-size.x,size.y,-size.z);
-		let p1 = new THREE.Vector3(-size.x,size.y,-size.z-0.1);
-		let p2 = new THREE.Vector3(size.x,size.y,-size.z-0.1);
-		let p3 = new THREE.Vector3(size.x,size.y,-size.z);
+		let p0 = new THREE.Vector3(-size.x,size.y,size.z);
+		let p1 = new THREE.Vector3(-size.x,size.y,size.z+0.1);
+		let p2 = new THREE.Vector3(size.x,size.y,size.z+0.1);
+		let p3 = new THREE.Vector3(size.x,size.y,size.z);
 		return [p0,p1,p2,p3];
 	}
 	getPointsForYLine(size){

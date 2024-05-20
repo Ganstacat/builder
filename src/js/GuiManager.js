@@ -11,7 +11,7 @@ export class GuiManager {
 	*/
 	constructor(stage) {
 		this.stage = stage;
-		this.gui = new dat.GUI({autoplace: false});
+		this.gui = new dat.GUI({autoplace: true});
 		// this.gui.domElement = document.querySelector('#controls');
 		this.listeners = [];
 		this.setupOptions();
@@ -33,7 +33,7 @@ export class GuiManager {
 			3. Опционально - Добавить функцию, которая будет обновлять значения на интерфейсе в зависимости от реального состояния объекта.
 	*/
 	setupOptions(){
-		let options = {
+		const options = {
 			"длина":1,
 			"высота":1,
 			"ширина":1,
@@ -42,30 +42,43 @@ export class GuiManager {
 			"поворотY":0,
 			"поворотZ":0,
 			
-			цвет: 0xFFFFFF,
+			"цвет": 0xFFFFFF,
+			"размеры": true,
 
 		};
 		this.options = options;
 		
 		let self = this;
+
 		
-		this.gui.add(options, 'длина',0.1, 10, 0.1).listen().onChange((e)=>{
+		this.gui.add(options, 'длина',0.1, 10, 0.1).onChange((e)=>{
 			self.stage.setScale(self.stage.selectedObject, options["длина"], options["высота"], options["ширина"] );
 		});
-		this.gui.add(options, 'ширина',0.1, 10, 0.1).listen().onChange((e)=>{
+		this.gui.add(options, 'ширина',0.1, 10, 0.1).onChange((e)=>{
 			self.stage.setScale(self.stage.selectedObject, options["длина"], options["высота"], options["ширина"] );
 		});
-		this.gui.add(options, 'высота',0.1, 10, 0.1).listen().onChange((e)=>{
+		this.gui.add(options, 'высота',0.1, 10, 0.1).onChange((e)=>{
 			self.stage.setScale(self.stage.selectedObject, options["длина"], options["высота"], options["ширина"] );
 		});
-		this.gui.add(options, 'поворотX',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
+		this.gui.add(options, 'поворотX',0, Math.PI*2, Math.PI/16).onChange((e)=>{
 			self.stage.setRotation(self.stage.selectedObject, options["поворотX"], options["поворотY"], options["поворотZ"]);
 		});
-		this.gui.add(options, 'поворотY',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
+		this.gui.add(options, 'поворотY',0, Math.PI*2, Math.PI/16).onChange((e)=>{
 			self.stage.setRotation(self.stage.selectedObject, options["поворотX"], options["поворотY"], options["поворотZ"]);
 		});
-		this.gui.add(options, 'поворотZ',0, Math.PI*2, Math.PI/16).listen().onChange((e)=>{
+		this.gui.add(options, 'поворотZ',0, Math.PI*2, Math.PI/16).onChange((e)=>{
 			self.stage.setRotation(self.stage.selectedObject, options["поворотX"], options["поворотY"], options["поворотZ"]);
+		});
+		this.gui.add(options, 'размеры').onChange( (e)=>{
+			for(let o of self.stage.movableObjects) {
+				if (o.name === 'container') {
+					for(let c of o.children){
+						if (c.isLine || c.userData.isText) {
+							c.visible = e;
+						}
+					}
+				}
+			}
 		});
 		this.gui.addColor(options, 'цвет').onChange((e)=>{
 			self.stage.setMeshColor(self.stage.selectedObject, e);
@@ -73,7 +86,6 @@ export class GuiManager {
 	
 		
 		this.listeners.push(()=>{
-			console.log(self.stage.selectedObject);
 			if(!self.stage.selectedObject || self.stage.selectedObject.name !== "container") return;
 			
 			let models = self.stage.selectedObject.children.filter( (c) => {return c.name === 'models'});

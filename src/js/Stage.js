@@ -17,16 +17,20 @@ export class Stage {
 		this.renderer = this.setupRenderer(this.canvas);
 		this.scene = this.setupScene();
 		this.camera = this.setupCamera();
-		this.controls = this.setupOrbitControls(this.camera, this.renderer);
-		// this.pointerLockControls = 
+		this.cameraOrtho = this.setupOrthoCamera();
+		this.controls = this.setupOrbitControls(this.camera, this.renderer, true);
+		this.controlsOrtho = this.setupOrbitControls(this.cameraOrtho, this.renderer, false);
+		
+		
 		this.setupPointerLockControls();
-		this.stage1P = false;
+		this.currentCamera = 'Ortho';
 		this.lights = this.setupLights(this.scene);
 		this.raycaster = this.setupRaycaster();
 		
 		
 		// включается рендер сцены
-		this.animate3P();
+		// this.animate3P();
+		this.animateOrtho();
 		
 		// инициализация массивов, хранящих перемещаемые модели (группы моделей) и модели с коллизией
 		this.movableObjects = [];
@@ -40,6 +44,29 @@ export class Stage {
 		this.addStartingObjects();
 		this.addEventListeners();
 	}
+	setupOrthoCamera(){
+		let SCREEN_WIDTH = window.innerWidth;
+		let SCREEN_HEIGHT = window.innerHeight;
+		let aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
+		this.frustumSize = 5;
+
+		const camera = new THREE.OrthographicCamera (
+			 this.frustumSize * aspect / - 2, // left
+			 this.frustumSize * aspect / 2, // right
+			 this.frustumSize / 2, // top
+			 this.frustumSize /-2 , // bottom
+			 0.1, 1000 
+		);
+		camera.position.set(0,10,0);
+		camera.rotation.set(0,0,0);
+		camera.lookAt(0,0,0);
+		
+		let cameraOrthoHelper = new THREE.CameraHelper( camera );
+		// this.scene.add( cameraOrthoHelper );
+		
+		return camera;
+	}
+	
 	setupPointerLockControls(){
 		let camera, controls;
 		let raycaster;
@@ -88,62 +115,7 @@ export class Stage {
 		this.direction = new THREE.Vector3();
 		this.height = height;
 		this.crouchHeight = crouchHeight;
-		
-
-		
-		
-		// animate
-		/*
-		let self = this;
-		function animate() {
-			requestAnimationFrame(animate);
-			
-			const time = performance.now();
-			
-			if (controls.isLocked === true) {
-				raycaster.ray.origin.copy ( controls.getObject().position );
-				raycaster.ray.origin.y -= height;
-				
-				const intersections = raycaster.intersectObjects( self.movableObjects, false );
-				const onObject = intersections.length > 0;
-				
-				const delta = (time - prevTime) / 1000;
-				
-				velocity.x -= velocity.x * 10.0 * delta;
-				velocity.z -= velocity.z * 10.0 * delta;
-				
-				velocity.y -= 9.8 * delta;
-				
-				direction.z = Number(moveForward) - Number(moveBackward);
-				direction.x = Number(moveRight) - Number(moveLeft);
-				direction.normalize();
-				
-				if (moveForward || moveBackward)
-					velocity.z -= direction.z * 40.0 * delta;
-				if (moveLeft || moveRight)
-					velocity.x -= direction.x * 40.0 * delta;
-				if (onObject) {
-					velocity.y = Math.max(0,velocity.y);
-					canJump = true;
-				}
-				
-				controls.moveRight(-velocity.x * delta);
-				controls.moveForward(-velocity.z * delta);
-				
-				controls.getObject().position.y += (velocity.y * delta);
-				
-				if (controls.getObject().position.y < height) {
-					velocity.y = 0;
-					controls.getObject().position.y = height;
-					canJump = true;
-				}
-				
-			}
-			prevTime = time;
-			self.renderer.render(self.scene, camera);
-		}
-		animate();
-		*/
+	
 	}
 	
 	animate1P() {
@@ -200,10 +172,14 @@ export class Stage {
 	}
 	
 	animate3P() {
-		// requestAnimationFrame(this.animate3P);
-		// this.renderer.render(this.scene, this.camera);
 		this.renderer.setAnimationLoop( ()=>{
 			this.renderer.render(this.scene, this.camera);
+		});
+	}
+	
+	animateOrtho() {
+		this.renderer.setAnimationLoop( ()=>{
+			this.renderer.render(this.scene, this.cameraOrtho);
 		});
 	}
 	/**
@@ -252,8 +228,9 @@ export class Stage {
 	/**
 		Инициализирует объект класса OrbitControls из библиотеки, позволяет пользователю управлять камерой с помощью мыши и клавиатуры. 
 	*/
-	setupOrbitControls(camera, renderer) {
+	setupOrbitControls(camera, renderer, enableRotation) {
 		const controls = new OrbitControls(camera, renderer.domElement);
+		controls.enableRotate = enableRotation;
 		controls.update();
 		return controls;
 	}
@@ -337,12 +314,18 @@ export class Stage {
 		let self = this;
 		// Обновляет размер холста при изменении размеров окна браузера.
 		window.addEventListener('resize', function(){
-			self.camera.aspect = window.innerWidth / window.innerHeight;
+			let aspect = window.innerWidth / window.innerHeight;
+			
+			self.camera.aspect = aspect;
 			self.camera.updateProjectionMatrix();
 			self.renderer.setSize(window.innerWidth, window.innerHeight);
 			
-			self.camera1P.aspect = window.innerWidth / window.innerHeight;
+			self.camera1P.aspect = aspect;
 			self.camera1P.updateProjectionMatrix();
+			
+			self.cameraOrtho.left =  self.frustumSize * aspect /-2;
+			self.cameraOrtho.right =  self.frustumSize * aspect /2;
+			self.cameraOrtho.updateProjectionMatrix();
 		});
 		
 		// управление для первого лица, потом вынести в кб контролз, наверное
@@ -352,16 +335,23 @@ export class Stage {
 					self.crouching = true;
 					self.velocity.y -= 6;
 					break;
-				case 'KeyI': 
+				case 'Digit1':
 					self.controls1P.lock();
-					self.animate1P();
-					self.stage1P = true;
-					break;
-				case 'KeyO':
-					self.controls1P.unlock();
-					self.animate3P();
 					self.velocity.set(0,0,0);
-					self.stage1P = false;
+					self.animate1P();
+					self.currentCamera = '1P'
+					break;
+				case 'Digit2':
+					self.controls1P.unlock();
+					self.velocity.set(0,0,0);
+					self.animate3P();
+					self.currentCamera = '3P'
+					break;
+				case 'Digit3':
+					self.controls1P.unlock();
+					self.velocity.set(0,0,0);
+					self.animateOrtho();
+					self.currentCamera = 'Ortho'
 					break;
 				case 'KeyW': self.moveForward = true; break;
 				case 'KeyA': self.moveLeft = true; break;
@@ -438,8 +428,6 @@ export class Stage {
 				}
 			}
 		}
-		// if (obj.userData.isRestrainedMesh) obj.setScale(x,y,z);
-		// else obj.scale.set(x,y,z);
 		
 		this.meshFactory.labelManager.addDimensionLines(obj);
 	}
@@ -448,7 +436,7 @@ export class Stage {
 	*/
 	setRotation(obj,x,y,z){
 		if(!obj) return;
-		obj.rotation.x = x; obj.rotation.y = y; obj.rotation.z = z;
+		obj.rotation.set(x,y,z);
 	}
 	/**
 		Установить цвет модели

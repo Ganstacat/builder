@@ -10,53 +10,52 @@
 */
 export function addKeyboardControls(controller){
 	let keyboardScaleAxis = 'x';
-	document.addEventListener('keypress', (e) => {
+	document.addEventListener('keydown', (e) => {
 		controller.dragEngine.resetLocks();
 		controller.dragEngine.pNormal = controller.dragEngine.pNormalHorizontal;
-		
-		switch (e.key) {
-			case "x":
+		switch (e.code) {
+			case "KeyX":
 				controller.dragEngine.lockX = true;
 				break;
-			case "y":
+			case "KeyY":
 				controller.dragEngine.lockY = true;
 				controller.dragEngine.pNormal = controller.dragEngine.pNormalVertical;
 				break;
-			case "z":
+			case "KeyZ":
 				controller.dragEngine.lockZ = true;
 				break;
-			case "c":
+			case "KeyC":
 				controller.dragEngine.collision = !controller.dragEngine.collision;
 				break;
 			
-			case "4":
+			case "Numpad4":
 				controller.currentStage.selectedObject.position.x -= 0.1;
 				break;
-			case "6":
+			case "Numpad6":
 				controller.currentStage.selectedObject.position.x += 0.1;
 				break;
-			case "2":
-				controller.currentStage.selectedObject.position.z -= 0.1;
-				break;
-			case "8":
+			case "Numpad2":
 				controller.currentStage.selectedObject.position.z += 0.1;
 				break;
-			case "3":
+			case "Numpad8":
+				controller.currentStage.selectedObject.position.z -= 0.1;
+				break;
+			case "Numpad3":
 				controller.currentStage.selectedObject.position.y -= 0.1;
 				break;
-			case "9":
+			case "Numpad9":
 				controller.currentStage.selectedObject.position.y += 0.1;
 				break;
-			case "7":
+			case "Numpad7":
 				keyboardScaleAxis = "y";
 				break;
-			case "1":
+			case "Numpad1":
 				keyboardScaleAxis = "x";
 				break;		
-			case "5":
+			case "Numpad5":
 				keyboardScaleAxis = "z";
 				break;
-			case "+":
+			case "NumpadAdd":
 				switch (keyboardScaleAxis) {
 					case "x":
 						controller.currentStage.selectedObject.scale.x += 0.1;
@@ -69,7 +68,7 @@ export function addKeyboardControls(controller){
 						break;
 				}
 				break;
-			case "-":
+			case "NumpadSubtract":
 				switch (keyboardScaleAxis) {
 					case "x":
 						controller.currentStage.selectedObject.scale.x -= 0.1;
@@ -82,7 +81,7 @@ export function addKeyboardControls(controller){
 						break;
 				}
 				break;
-			case "q":
+			case "KeyQ":
 				controller.currentStage.unsetSelectedObject();
 				break;
 		}
