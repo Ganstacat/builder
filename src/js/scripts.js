@@ -103,3 +103,23 @@ document.addEventListener("click", ()=>{
 		point1 = point;
 	}
 })
+
+let line;
+document.addEventListener('pointermove', function(e) {
+	if (point1){
+		
+		if(line) {
+			controller.currentStage.scene.remove(line);
+		}
+		dragEngine.stage.raycaster.ray.intersectPlane(dragEngine.planeDrag, inter);
+		const point = new THREE.Vector3(
+				inter.x,
+				1,
+				inter.z,
+		);
+		const geometry = new THREE.BufferGeometry().setFromPoints([point1, point]);
+		line = new THREE.Line(geometry, material);
+		controller.currentStage.scene.add(line);
+	}
+	
+});
