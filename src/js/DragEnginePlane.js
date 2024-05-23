@@ -86,7 +86,7 @@ export class DragEnginePlane {
 			let obj = this.getRootParentGroup(intersects[index].object);
 			let point = intersects[index].point;
 			this.pickup(point, obj);
-			console.log(obj);
+			// console.log(obj);
 		}
 	}
 	
@@ -126,22 +126,20 @@ export class DragEnginePlane {
 		Перемещать выбранную модель к курсору мыши с учётом блокировки по осям, ограничений и коллизий.
 	*/
 	drag() {
-		if(this.stage.currentCamera === '1P') {
-			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera1P);			
-		} else if (this.stage.currentCamera === '3P' ){
-			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
-		} else {
-			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.cameraOrtho);
-		}
+		this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+		
 		this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
-
+	
+		const oldpos = this.dragObject.position.clone();
 		let x = this.dragObject.position.x;
 		let y = this.dragObject.position.y;
 		let z = this.dragObject.position.z;
 		this.dragObject.position.addVectors(this.planeIntersect, this.shift);
 		this.applyAxisLock(x,y,z);
-		this.applyRestraint(this.dragObject);
-		this.applyCollision(this.dragObject);
+		// this.applyRestraint(this.dragObject);
+		// this.applyCollision(this.dragObject);
+		
+		if(this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
 	}
 	
 	/**
@@ -269,13 +267,8 @@ export class DragEnginePlane {
 		this.mousePosition.x = (pointerX / canvas.clientWidth) * 2 - 1;
 		this.mousePosition.y = - (pointerY / canvas.clientHeight) * 2 + 1;
 		
-		if (this.stage.currentCamera === '1P') {
-			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera1P);
-		} else if (this.stage.currentCamera === '3P'){
-			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);			
-		} else {
-			this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.cameraOrtho);			
-		}
+		this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);			
+		
 	}
 	
 	/**

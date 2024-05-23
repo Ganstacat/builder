@@ -40,24 +40,35 @@ export class LabelManager {
 		
 		let textX = this.createText(
 			Math.floor(size_copy.x*1000)+'мм',
-			new THREE.Vector3(0,size_halved.y,size_halved.z+0.1),
+			new THREE.Vector3(
+				0,
+				// size_halved.y,
+				size_halved.y/2,
+				size_halved.z+0.1),
 			new THREE.Vector3(Math.PI/2, Math.PI,Math.PI)
 		);
 		let textZ = this.createText(
 			Math.floor(size_copy.z*1000)+'мм',
-			new THREE.Vector3(size_halved.x+0.1,size_halved.y,0),
+			new THREE.Vector3(
+				size_halved.x+0.1,
+				// size_halved.y,
+				size_halved.y/2,
+				0),
 			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI*1.5)
 		);
 		let textY = this.createText(
 			Math.floor(size_copy.y*1000)+'мм',
-			new THREE.Vector3(size_halved.x+0.1,0,-size_halved.z-0.1),
+			new THREE.Vector3(
+				size_halved.x+0.1,
+				0,
+				-size_halved.z-0.1),
 			new THREE.Vector3(0,Math.PI/4,Math.PI/2)
 		);
 		
-		obj.add(lineX);
-		obj.add(lineZ);
+		// obj.add(lineX);
+		// obj.add(lineZ);
 		// obj.add(lineY);
-		obj.add(textX)
+		// obj.add(textX)
 		obj.add(textZ)
 		// obj.add(textY)
 
@@ -95,7 +106,7 @@ export class LabelManager {
 			position.x, position.y, position.z
 		);
 		
-		myText.fontSize = 0.1
+		myText.fontSize = 0.3
 		myText.color = 'white'
 		myText.userData.isText = true;
 		myText.textAlign = 'center';

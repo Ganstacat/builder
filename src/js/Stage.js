@@ -4,6 +4,7 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 import {MeshFactory} from './MeshFactory.js';
 import {GuiManager} from './GuiManager.js';
 import {LabelManager} from './LabelManager.js';
+import * as utils from './utils.js';
 
 /**
 	Класс, производящий инициализацию сцены, хранящий её состояние и имеющий методы для манипуляции над сценой.
@@ -16,25 +17,29 @@ export class Stage {
 		this.setCanvas();
 		this.renderer = this.setupRenderer(this.canvas);
 		this.scene = this.setupScene();
-		this.camera = this.setupCamera();
+		this.height = 1.8;
+		this.crouchHeight = 0.8;
+		
+		this.camera;
+		this.camera3P = this.setup3PCamera();
 		this.cameraOrtho = this.setupOrthoCamera();
-		this.controls = this.setupOrbitControls(this.camera, this.renderer, true);
-		this.controlsOrtho = this.setupOrbitControls(this.cameraOrtho, this.renderer, false);
+		this.camera1P = this.setup1PCamera();
 		
+		this.controls;
+		this.controls3P = this.setupOrbitControls(this.camera3P, this.renderer, false);
+		this.controlsOrtho = this.setupOrbitControls(this.cameraOrtho, this.renderer, true);
+		this.controls1P = this.setupPointerLockControls(this.camera1P);
 		
-		this.setupPointerLockControls();
-		this.currentCamera = 'Ortho';
 		this.lights = this.setupLights(this.scene);
 		this.raycaster = this.setupRaycaster();
-		
-		
-		// включается рендер сцены
-		// this.animate3P();
-		this.animateOrtho();
 		
 		// инициализация массивов, хранящих перемещаемые модели (группы моделей) и модели с коллизией
 		this.movableObjects = [];
 		this.objectsWithCollision = [];
+		
+		// включается рендер сцены
+		this.animateOrtho();
+		
 		
 		// meshFactory желательно отсюда выкинуть
 		this.guiManager = new GuiManager(this);
@@ -43,6 +48,18 @@ export class Stage {
 		
 		this.addStartingObjects();
 		this.addEventListeners();
+	}
+	/**
+		Инициализурет камеру, из которой пользователь наблюдает за сценой.
+	*/
+	setup3PCamera() {
+		const camera = new THREE.PerspectiveCamera(
+			60, window.innerWidth / window.innerHeight,
+			0.1, 1000
+		);
+		camera.position.set(0,3,3);
+		camera.name = '3P';
+		return camera;
 	}
 	setupOrthoCamera(){
 		let SCREEN_WIDTH = window.innerWidth;
@@ -62,64 +79,46 @@ export class Stage {
 		camera.lookAt(0,0,0);
 		
 		let cameraOrthoHelper = new THREE.CameraHelper( camera );
-		// this.scene.add( cameraOrthoHelper );
-		
+		camera.name = 'Ortho';
 		return camera;
 	}
 	
-	setupPointerLockControls(){
-		let camera, controls;
-		let raycaster;
-		
-		let moveForward = false;
-		let moveBackward = false;
-		let moveLeft = false;
-		let moveRight = false;
-		let canJump = false;
-		let crouching = false;
-		
-		let prevTime = performance.now();
-		
-		const velocity = new THREE.Vector3();
-		const direction = new THREE.Vector3();
-		const height = 1.8;
-		const crouchHeight = 0.8;
-		
-		// init
-		camera = new THREE.PerspectiveCamera(90, window.innerWidth/window.innerHeight, 0.1,1000);
-		camera.position.y = height;
-		
-		controls = new PointerLockControls(camera, document.body);
-		
-		// enable controls- controls.lock();
-		// disable - controls.unlock()
-		raycaster = new THREE.Raycaster(
+	setup1PCamera(){
+		let camera = new THREE.PerspectiveCamera(90, window.innerWidth/window.innerHeight, 0.1,1000);
+		camera.position.y = this.height;
+		camera.name = '1P';
+		return camera;
+	}
+
+	setupPointerLockControls(camera){
+		const controls = new PointerLockControls(camera, document.body);
+		this.raycaster1P = new THREE.Raycaster(
 			new THREE.Vector3(),
 			new THREE.Vector3(0,-1,0),
 			0,10
-		);
+		);;
 		
-		this.scene.add ( controls.getObject() );
-		
-		this.camera1P = camera;
-		this.controls1P = controls;
-		this.raycaster1P = raycaster;
 		this.moveForward = false;
 		this.moveBackward = false;
 		this.moveLeft = false;
 		this.moveRight = false;
 		this.canJump = false;
+		this.crouching = false;
+		
 		this.prevTime = performance.now();
 		
 		this.velocity = new THREE.Vector3();
 		this.direction = new THREE.Vector3();
-		this.height = height;
-		this.crouchHeight = crouchHeight;
-	
+		
+		this.scene.add ( controls.getObject() );
+		
+		return controls;
 	}
 	
 	animate1P() {
-		// requestAnimationFrame(this.animate1P);
+		this.camera = this.camera1P;	
+		this.controls = this.controls1P;
+	
 		
 		this.renderer.setAnimationLoop(()=>{
 			const time = performance.now();
@@ -172,12 +171,35 @@ export class Stage {
 	}
 	
 	animate3P() {
+		this.camera = this.camera3P;
+		this.controls = this.controls3P;
 		this.renderer.setAnimationLoop( ()=>{
-			this.renderer.render(this.scene, this.camera);
+			this.renderer.render(this.scene, this.camera3P);
 		});
 	}
 	
 	animateOrtho() {
+		this.camera = this.cameraOrtho;
+		this.controls = this.controlsOrtho;
+		
+		// эксперименты с поворотом размеров в камеру. Так себе получилось.
+		// let self = this;
+		// function fixOritentation(mesh) {
+			// const quaternion = self.camera.quaternion;
+			// mesh.setRotationFromQuaternion(quaternion);
+			// mesh.updateMatrix();
+		// }
+		// for(let o of this.movableObjects) {
+			// if (o.name === 'container') {
+				// for(let c of o.children){
+					// if (c.userData.isText) {
+						// fixOritentation(c);
+					// }
+				// }
+			// }
+		// }
+		
+		
 		this.renderer.setAnimationLoop( ()=>{
 			this.renderer.render(this.scene, this.cameraOrtho);
 		});
@@ -197,14 +219,15 @@ export class Stage {
 	setupRenderer() {
 		let renderer;
 		if (this.canvas) {
-			renderer = new THREE.WebGLRenderer({ antialias: true, canvas: this.canvas });
+			renderer = new THREE.WebGLRenderer({antialias: true, canvas: this.canvas});
 		} else {
-			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer = new THREE.WebGLRenderer({antialias: true});
 			renderer.setSize(window.innerWidth, window.innerHeight);
 			document.body.appendChild(renderer.domElement);
 		}
 		renderer.setClearColor(0x333333);
 		renderer.shadowMap.enabled = true;
+		renderer.sortObjects = false
 		return renderer;
 	}
 	/**
@@ -213,24 +236,15 @@ export class Stage {
 	setupScene() {
 		return new THREE.Scene();
 	}
-	/**
-		Инициализурет камеру, из которой пользователь наблюдает за сценой.
-	*/
-	setupCamera() {
-		const camera = new THREE.PerspectiveCamera(
-			60, window.innerWidth / window.innerHeight,
-			0.1, 1000
-		);
-		camera.position.set(0,3,3);
 
-		return camera;
-	}
 	/**
 		Инициализирует объект класса OrbitControls из библиотеки, позволяет пользователю управлять камерой с помощью мыши и клавиатуры. 
 	*/
-	setupOrbitControls(camera, renderer, enableRotation) {
+	setupOrbitControls(camera, renderer, restrictRotation) {
 		const controls = new OrbitControls(camera, renderer.domElement);
-		controls.enableRotate = enableRotation;
+		if(restrictRotation)
+			controls.maxPolarAngle = 0;
+		controls.enableRotate = false;
 		controls.update();
 		return controls;
 	}
@@ -277,7 +291,7 @@ export class Stage {
 	*/
 	addStartingObjects() {
 		// для переопределения
-		const gridHelper = new THREE.GridHelper(4, 16);
+		const gridHelper = new THREE.GridHelper(16, 64);
 		this.scene.add(gridHelper);
 		this.constraintBox = new THREE.Box3(
 			new THREE.Vector3(-1.5, 0,-2),
@@ -446,11 +460,9 @@ export class Stage {
 		this.applyToMeshes(
 			obj,
 			(o, args)=>{
-				console.log("Setting color:");
-				console.log(o);
-				console.log(args);
-				o.material.color.set(args[0]);
-				console.log(o);
+				utils.applyToArrayOrValue(o.material, (o, a)=>{
+					o.color.set(a[0]);
+				}, args);
 			},
 			[val]
 		);
@@ -480,7 +492,9 @@ export class Stage {
 		if (!obj) return;
 		this.applyToMeshes(obj,
 			(o)=>{
-				if(o.material) o.material.emissive.set(0x000000)
+				utils.applyToArrayOrValue(o.material,(m)=>{
+					m.emissive.set(0)
+				});
 			}
 		);
 	}
@@ -489,7 +503,11 @@ export class Stage {
 	*/
 	applySelectionColor(obj){
 		this.applyToMeshes(obj,
-			(o)=>{if(o.material) o.material.emissive.set(0x9c8e30)}
+			(o)=>{
+				utils.applyToArrayOrValue(o.material,(m)=>{
+					m.emissive.set(0x9c8e30)
+				});
+			}
 		);
 	}
 	/**

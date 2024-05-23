@@ -1,5 +1,6 @@
 import * as dat from 'dat.gui';
 import {Stage} from './Stage.js';
+import * as utils from './utils.js';
 
 /**
 	Класс для более удобной работы с объектом dat.GUI из сторонней библиотеки. dat.GUI добавляет интерфейс, используемый для манипуляций над моделями в сцене: изменение размеров, поворот, цвет.
@@ -100,8 +101,16 @@ export class GuiManager {
 			
 			if(self.stage.selectedObject.isMesh) self.options["цвет"] = self.stage.selectedObject.material.color.getHex();
 			else {
-				self.stage.applyToMeshes(self.stage.selectedObject,
-					(o)=>{self.options["цвет"] = o.material.color.getHex();}
+				self.stage.applyToMeshes(
+					self.stage.selectedObject,
+					(o)=>{
+						utils.applyToArrayOrValue(
+							o.material,
+							(m)=>{
+								self.options["цвет"] = m.color.getHex();
+							}
+						);
+					}
 				)
 			}
 		})

@@ -9,6 +9,8 @@ export class FloorPlannerStage extends Stage {
 		// this.canvas = document.querySelector('#floorPlanner');
 	}
 	addStartingObjects() {
+		const gridHelper = new THREE.GridHelper(16, 64);
+		this.scene.add(gridHelper);
 		const plane = this.meshFactory.createMesh(
 			new THREE.PlaneGeometry(4,4),
 			new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide})
