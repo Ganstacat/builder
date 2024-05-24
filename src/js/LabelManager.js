@@ -83,6 +83,21 @@ export class LabelManager {
 		textY.sync();
 	}
 	/**
+		Убирает отображение размерных линии и размеры с объекта
+	*/
+	removeLabel(obj) {
+		let temp = [...obj.children];
+		for (let c of temp) {
+			if (c.userData.isText || c.isLine) {
+				obj.remove(c);
+				if (c.userData.isText) {
+					c.dispose();
+				}
+			}
+		}
+	}
+	
+	/**
 		Создаёт надпись по указанным координатам
 		txt - String - что будет написано
 		position - Vector3 - где будет расположен
@@ -116,20 +131,7 @@ export class LabelManager {
 		
 		return myText;
 	}
-	/**
-		Убирает отображение размерных линии и размеры с объекта
-	*/
-	removeLabel(obj) {
-		let temp = [...obj.children];
-		for (let c of temp) {
-			if (c.userData.isText || c.isLine) {
-				obj.remove(c);
-				if (c.userData.isText) {
-					c.dispose();
-				}
-			}
-		}
-	}
+	
 	/**
 		Рассчитывает точки, через которые должна проходить размерная линия, отмечающая размер объекта по оси X (длина)
 		size - THREE.Vector3() - размер объекта, на которого натягиваем линию

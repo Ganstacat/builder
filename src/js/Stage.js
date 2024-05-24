@@ -1,9 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
-import {MeshFactory} from './MeshFactory.js';
 import {GuiManager} from './GuiManager.js';
-import {LabelManager} from './LabelManager.js';
 import * as utils from './utils.js';
 
 /**
@@ -13,7 +11,9 @@ export class Stage {
 	/**
 		Инициализация объекта сцены в конструкторе с помощью методов этого класса.
 	*/
-	constructor() {
+	constructor(controller) {
+		this.controller = controller;
+		
 		this.setCanvas();
 		this.renderer = this.setupRenderer(this.canvas);
 		this.scene = this.setupScene();
@@ -40,10 +40,7 @@ export class Stage {
 		// включается рендер сцены
 		this.animateOrtho();
 		
-		
-		// meshFactory желательно отсюда выкинуть
 		this.guiManager = new GuiManager(this);
-		this.meshFactory = new MeshFactory(this, new LabelManager());
 		this.selectedObject = null;
 		
 		this.addStartingObjects();
@@ -283,7 +280,7 @@ export class Stage {
 	*/
 	showScene() {
 		document.body.appendChild(this.renderer.domElement);
-		this.guiManager.show();
+		if(this.selectedObject) this.guiManager.show();
 	}
 	
 	/**
@@ -300,7 +297,7 @@ export class Stage {
 		const helperbox = new THREE.Box3Helper(this.constraintBox, "orange");
 		this.scene.add(helperbox);
 		
-		const box = this.meshFactory.createMesh(
+		const box = utils.createMesh(
 			new THREE.BoxGeometry(0.5,0.5,0.5),
 			new THREE.MeshStandardMaterial()
 		);
@@ -308,7 +305,7 @@ export class Stage {
 		box.position.x -= 1;
 		this.addObject(box,true,true,true);
 		
-		const box2 = this.meshFactory.createMesh(
+		const box2 = utils.createMesh(
 			new THREE.BoxGeometry(0.5,0.5,0.5),
 			new THREE.MeshStandardMaterial(),
 			this.constraintBox
@@ -400,14 +397,14 @@ export class Stage {
 		if(isMovable) {this.movableObjects.push(obj);}
 		if(hasCollision) {
 			// this.objectsWithCollision.push(obj);
-			this.applyToMeshes(obj, (o)=>{
+			utils.applyToMeshes(obj, (o)=>{
 				this.objectsWithCollision.push(o);
 			});
 		}
 		
 		obj.userData.isMovable = isMovable;
 		obj.userData.hasCollision = hasCollision;
-		if (hasDimensions) this.meshFactory.labelManager.addDimensionLines(obj);
+		if (hasDimensions) this.controller.addLabelToObject(obj);
 		this.scene.add(obj);
 		
 		// this.objectsWithCollision.push(obj);
@@ -433,7 +430,7 @@ export class Stage {
 	setScale(obj,x,y,z){
 		if(!obj) return;
 		
-		this.meshFactory.labelManager.removeLabel(obj);
+		this.controller.removeLabelFromObject(obj);
 		for(let grp of obj.children){
 			if (grp.name === 'models') {
 				grp.scale.set(x,y,z);
@@ -443,7 +440,18 @@ export class Stage {
 			}
 		}
 		
-		this.meshFactory.labelManager.addDimensionLines(obj);
+		this.controller.addLabelToObject(obj);
+		this.onObjectUpdate();
+	}
+	scaleObjectAxisScalar(obj, axis, amount){
+		if(!obj) return;
+		
+		for(let grp of obj.children)
+			if(grp.name === 'models'){
+				const scale = grp.scale;
+				scale[axis] += amount;
+				this.setScale(obj, scale.x,scale.y,scale.z);
+			}
 	}
 	/**
 		Установить поворт модели*
@@ -451,13 +459,14 @@ export class Stage {
 	setRotation(obj,x,y,z){
 		if(!obj) return;
 		obj.rotation.set(x,y,z);
+		this.onObjectUpdate();
 	}
 	/**
 		Установить цвет модели
 	*/
 	setMeshColor(obj, val){
 		if(!obj) return;
-		this.applyToMeshes(
+		utils.applyToMeshes(
 			obj,
 			(o, args)=>{
 				utils.applyToArrayOrValue(o.material, (o, a)=>{
@@ -466,8 +475,15 @@ export class Stage {
 			},
 			[val]
 		);
+		this.onObjectUpdate();
 	}
-	
+	moveObject(obj, axis, amount){
+		obj.position[axis] += amount;
+		this.onObjectUpdate();
+	}
+	getSelectedObject(){
+		return this.selectedObject;
+	}
 	/**
 		Уставновить модель как выбранную.
 	*/
@@ -475,6 +491,7 @@ export class Stage {
 		if(this.selectedObject) this.removeSelectionColor(this.selectedObject);
 		this.selectedObject = obj;
 		this.applySelectionColor(this.selectedObject);
+		this.guiManager.show();
 		this.guiManager.updateGui();
 	}
 	/**
@@ -482,6 +499,7 @@ export class Stage {
 	*/
 	unsetSelectedObject() {
 		if(this.selectedObject) this.removeSelectionColor(this.selectedObject);
+		this.guiManager.hide();
 		this.selectedObject = null;
 	}
 	
@@ -490,7 +508,7 @@ export class Stage {
 	*/
 	removeSelectionColor(obj) {
 		if (!obj) return;
-		this.applyToMeshes(obj,
+		utils.applyToMeshes(obj,
 			(o)=>{
 				utils.applyToArrayOrValue(o.material,(m)=>{
 					m.emissive.set(0)
@@ -502,7 +520,7 @@ export class Stage {
 		Включить оранжевую подсветку у модели
 	*/
 	applySelectionColor(obj){
-		this.applyToMeshes(obj,
+		utils.applyToMeshes(obj,
 			(o)=>{
 				utils.applyToArrayOrValue(o.material,(m)=>{
 					m.emissive.set(0x9c8e30)
@@ -510,19 +528,7 @@ export class Stage {
 			}
 		);
 	}
-	/**
-		Применить функцию cb с аргументами args ко всем потомкам-моделям объекта obj.
-		По-хорошему надо вынести эту функцию в контроллер или в utils
-	*/
-	applyToMeshes(obj, cb, args) {
-		if(obj.isMesh && !obj.userData.isText && !obj.userData.isLine) {
-			cb(obj, args);
-		}
-		else if(obj.children.length > 0) {
-			for(let o of obj.children)
-				this.applyToMeshes(o,cb,args);
-		}
-	}
+
 	
 	/**
 		Убрать объект со сцены
@@ -543,9 +549,6 @@ export class Stage {
 		this.movableObjects = [];
 		this.objectsWithCollision = [];
 	}
-	
-	
-	
 	
 	/**
 		Обновить размеры ограничительного куба в зависимости от размера модели.
@@ -575,6 +578,9 @@ export class Stage {
 		obj.userData.isRestrained = true;
 		this.adjustRestraintForScale(obj);
 	}
+
 	
-	
+	onObjectUpdate(obj){
+		this.guiManager.updateGui();
+	}
 }

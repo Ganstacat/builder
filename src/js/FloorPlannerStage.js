@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import  {Stage} from './Stage.js';
+import * as utils from './utils.js';
 
 /**
 	Потомок класса Stage, отличается набором моделей, присутствующих на сцене после инициализации.
@@ -11,7 +12,7 @@ export class FloorPlannerStage extends Stage {
 	addStartingObjects() {
 		const gridHelper = new THREE.GridHelper(16, 64);
 		this.scene.add(gridHelper);
-		const plane = this.meshFactory.createMesh(
+		const plane = utils.createMesh(
 			new THREE.PlaneGeometry(4,4),
 			new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide})
 		);
@@ -30,19 +31,19 @@ export class FloorPlannerStage extends Stage {
 			map: walltexture
 		});}
 
-		const wall1 = this.meshFactory.createMesh(
+		const wall1 = utils.createMesh(
 			wallGeometry,
 			wallMaterial()
 		)
-		const wall2 = this.meshFactory.createMesh(
+		const wall2 = utils.createMesh(
 			wallGeometry,
 			wallMaterial()
 		)	
-		const wall3 = this.meshFactory.createMesh(
+		const wall3 = utils.createMesh(
 			wallGeometry,
 			wallMaterial()
 		)
-		const wall4 = this.meshFactory.createMesh(
+		const wall4 = utils.createMesh(
 			wallGeometry,
 			wallMaterial()
 		)
@@ -83,15 +84,5 @@ export class FloorPlannerStage extends Stage {
 			new THREE.Vector3(-2, 0,-2),
 			new THREE.Vector3( 2, 1.5, 2)
 		);
-		
-		// const box = this.meshFactory.createRestrainedMesh(
-			// new THREE.BoxGeometry(0.5,0.5,0.5),
-			// new THREE.MeshStandardMaterial(),
-			// this.constraintBox
-		// );
-		// box.castShadow = true;
-		// const helperbox = new THREE.Box3Helper(constraintBox, "orange");
-		// this.scene.add(helperbox);
-		
 	}
 }

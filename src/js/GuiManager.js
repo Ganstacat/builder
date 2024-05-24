@@ -101,7 +101,7 @@ export class GuiManager {
 			
 			if(self.stage.selectedObject.isMesh) self.options["цвет"] = self.stage.selectedObject.material.color.getHex();
 			else {
-				self.stage.applyToMeshes(
+				utils.applyToMeshes(
 					self.stage.selectedObject,
 					(o)=>{
 						utils.applyToArrayOrValue(

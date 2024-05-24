@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'; 
 import {GLTFExporter} from 'three/examples/jsm/exporters/GLTFExporter.js';
+import * as utils from './utils.js';
 
 /**
 	Класс, управляющий загрузкой моделей из сцены и на сцену, а так же перемещением моделей между сценами.
@@ -54,21 +55,7 @@ export class ExportManager {
 				}
 		);
 	}
-	/**
-		Получает координаты всех 8 точек, определяющих box3 в пространстве
-	*/
-	getBox3Points(box3){
-		let points = [];
-		points.push(new THREE.Vector3(box3.max.x, box3.max.y, box3.max.z));
-		points.push(new THREE.Vector3(box3.min.x, box3.max.y, box3.max.z));
-		points.push(new THREE.Vector3(box3.min.x, box3.max.y, box3.min.z));
-		points.push(new THREE.Vector3(box3.max.x, box3.max.y, box3.min.z));
-		points.push(new THREE.Vector3(box3.max.x, box3.min.y, box3.max.z));
-		points.push(new THREE.Vector3(box3.min.x, box3.min.y, box3.max.z));
-		points.push(new THREE.Vector3(box3.min.x, box3.min.y, box3.min.z));
-		points.push(new THREE.Vector3(box3.max.x, box3.min.y, box3.min.z));
-		return points;
-	}
+
 	/**
 		Загружает модели из blob объекта на сцену
 	*/
@@ -77,16 +64,10 @@ export class ExportManager {
 		this.assetLoader.load(this.link.href, (gltf)=>{
 			const model = gltf.scene;
 
-			stage.applyToMeshes(model, (o)=>{
+			utils.applyToMeshes(model, (o)=>{
 				o.castShadow = true;
 				o.receiveShadow = true;
 			});
-			
-			
-			
-			
-			
-			
 			
 			
 			// Определить, какие модельки находятся рядом и сгруппировать их вместе
@@ -102,8 +83,8 @@ export class ExportManager {
 					let distances = [];
 					
 					
-					let p1 = this.getBox3Points(oB);
-					let p2 = this.getBox3Points(cB);
+					let p1 = utils.getBox3Points(oB);
+					let p2 = utils.getBox3Points(cB);
 					for (let p of p1) {
 						distances.push(cB.distanceToPoint(p));
 					}
@@ -158,36 +139,7 @@ export class ExportManager {
 				
 				stage.addObject(container, true, true, true);
 				container.position.copy(pos);
-				
-				
-				// let pos_origin = new THREE.Vector3(group.position.x, group.position.y, group.position.z);
-				// let dir = new THREE.Vector3(group.position.x, group.position.y+10, group.position.z);
-				// let arrowhelp = new THREE.ArrowHelper(dir, pos_origin, 5, "green");
-				// group.add(arrowhelp);
-				
 			}
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			// console.log(groups);
-			// let con = new THREE.Box3().setFromObject(model);
-			// let con_help = new THREE.Box3Helper(con, "red");
-			
-			// model.add(con);
-			// model.add(con_help);
-			
-			// let pos_origin = new THREE.Vector3(model.position.x, model.position.y, model.position.z);
-			// let dir = new THREE.Vector3(model.position.x, model.position.y+10, model.position.z);
-			// let arrowhelp = new THREE.ArrowHelper(dir, pos_origin, 5, "green");
-			// model.add(arrowhelp);
-			
-			// stage.addObject(model, true, true);
 		})
 	}
 
@@ -196,10 +148,6 @@ export class ExportManager {
 	*/
 	exportToStage(objects, stage) {
 		let self = this;
-		
-		for (let o of objects) {
-			stage.meshFactory.labelManager.removeLabel(o);
-		}
 		
 		this.exporter.parse(
 				objects,
@@ -214,9 +162,6 @@ export class ExportManager {
 					binary:true
 				}
 		);
-		
-		for (let o of objects) {
-			stage.meshFactory.labelManager.addDimensionLines(o);
-		}
+
 	}
 }

@@ -24,7 +24,7 @@ export class DragEnginePlane {
 		this.lockY = false;
 		this.lockZ = false;
 		
-		this.collision = true;
+		this.collision = false;
 	}
 	/**
 		Добавляет отслеживание мыши на сцене, чтобы пользователь мог перемещать модели с помощью мыши.
@@ -63,11 +63,30 @@ export class DragEnginePlane {
 	
 
 	}
+	
+	setCollision(bool){
+		this.collision = bool;
+	}
+	isCollisionEnabled(){
+		return this.collision;
+	}
 	/**
 		Убирает блокировку оси перемещения.
 	*/
 	resetLocks() {
 		this.lockX = false; this.lockY = false; this.lockZ = false;
+		this.pNormal = this.pNormalHorizontal;
+	}
+	lockAxis(axis) {
+		this.resetLocks();
+		switch(axis){
+			case 'x': this.lockX = true; break;
+			case 'z': this.lockZ = true; break;
+			case 'y': this.lockY = true; 
+				this.pNormal = this.pNormalVertical;
+				break;
+		}
+		this.tryPickup();
 	}
 	
 	/**
@@ -136,8 +155,8 @@ export class DragEnginePlane {
 		let z = this.dragObject.position.z;
 		this.dragObject.position.addVectors(this.planeIntersect, this.shift);
 		this.applyAxisLock(x,y,z);
-		// this.applyRestraint(this.dragObject);
-		// this.applyCollision(this.dragObject);
+		this.applyRestraint(this.dragObject);
+		this.applyCollision(this.dragObject);
 		
 		if(this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
 	}

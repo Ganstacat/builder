@@ -10,12 +10,13 @@ export class MainController {
 	/**
 		Инициализация класса.
 	*/
-	constructor(dragEngine, exportManager, materialManager) {
+	constructor(dragEngine, exportManager, materialManager, labelManager) {
 		this.stages = new Map();
 		this.currentStage;
 		this.dragEngine = dragEngine;
 		this.exportManager = exportManager;
 		this.materialManager = materialManager;
+		this.labelManager = labelManager;
 	}
 
 	/**
@@ -42,8 +43,11 @@ export class MainController {
 			this.currentStage.hideScene();
 		}
 	}
+	getCurrentStage(){
+		return this.currentStage;
+	}
 	/**
-		Скрыть все зарегестрированные сцены
+		Скрыть все зарегистрированные сцены
 	*/
 	hideAllStages() {
 		for(let st of this.stages.values()) {
@@ -75,5 +79,92 @@ export class MainController {
 	addListeners(){
 		let self = this;
 	}
+	
+	
+	
+	addObjectToCurrentStage(obj, isMovable, hasCollision, hasDimensions){
+		this.currentStage.addObject(obj, isMovable, hasCollision, hasDimensions);
+	}
+	removeObjectFromCurrentStage(obj){
+		this.currentStage.removeObject(obj);
+	}
+	
+	addLabelToObject(obj){
+		this.labelManager.addDimensionLines(obj);
+	}
+	removeLabelFromObject(obj){
+		this.labelManager.removeLabel(obj);
+	}
+	
+	
+	clearCurrentStage(){
+		this.currentStage.clearScene();
+	}
+
+	disableDraggingLocks(){
+		this.dragEngine.resetLocks();
+	}
+	lockDraggingAxis(axis){
+		this.dragEngine.lockAxis(axis);
+	}
+	switchCollision(){
+		const collision = this.dragEngine.isCollisionEnabled();
+		this.dragEngine.setCollision(!collision);
+	}
+	getSelectedObject(){
+		return this.currentStage.getSelectedObject();
+	}
+
+	moveObject(obj, axis, amount){
+		this.currentStage.moveObject(obj, axis, amount);
+		this.applyCollisionAndRestraint(obj);
+	}
+	scaleObject(obj, axis, amount){
+		this.currentStage.scaleObjectAxisScalar(obj, axis, amount);
+		this.applyCollisionAndRestraint(obj);
+	}
+	applyCollisionAndRestraint(obj){
+		this.dragEngine.applyRestraint(obj);
+		this.dragEngine.applyCollision(obj);
+	}
+	
+	unsetSelection(){
+		this.currentStage.unsetSelectedObject();
+	}
+	removeSelectionColor(obj){
+		this.currentStage.removeSelectionColor(obj);
+	}
+	applySelectionColor(obj){
+		this.currentStage.applySelectionColor(obj);
+	}
+
+	#doExporting(objects, cb,args){
+		this.unsetSelection();
+		for (let o of objects) {
+			this.removeLabelFromObject(o);
+		}
 		
+		cb(args);
+		
+		for (let o of objects) {
+			this.addLabelToObject(o);
+		}
+	}
+
+	exportObjectsToStage(objects, stageTo) {
+		this.#doExporting(objects, ()=>{
+			this.exportManager.exportToStage(objects, stageTo);
+		});
+	}
+	downloadStageToUserPc(stage){
+		let exportable = stage.scene.children.filter((o) =>{
+			if(o.userData.isMovable || o.userData.isSelectable || o.isGroup) return o;
+		});
+		// а нахуя вот это всё усложнять? пиздец...
+		this.#doExporting(exportable, ()=>{
+			this.exportManager.downloadScene(exportable);
+		},this, stage)
+	}
+	
+
 }
