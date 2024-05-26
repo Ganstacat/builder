@@ -1,74 +1,119 @@
 import {WallGraph} from './WallGraph.js';
+import * as utils from './utils.js';
+import * as THREE from 'three'
 
 export class DrawEngine {
-	constructor(controller){
-		this.controller = controller;
+	#wallpaperMaterialKey = 'wallpaperTwo';
+	#notAllowedMaterialKey = 'redLine';
+	#allowedMaterialKey = 'greenLine';
+	#roundCornerMaterialKey = 'wallRoundCorner';
+	
+	constructor(dragEngine, materialManager){
+		this.dragEngine = dragEngine;
+		this.materialManager = materialManager;
+		
+		this.#initialize();
+		
+		this.drawing = false;
+		
+		this.wallMaterial = this.materialManager.getMaterial(this.#wallpaperMaterialKey);
+		this.cylinderMaterial = this.materialManager.getMaterial(this.#roundCornerMaterialKey);
+		
+		this.lineMaterialBad = this.materialManager.getMaterial(this.#notAllowedMaterialKey);
+		
+		this.lineMaterialGood =this.materialManager.getMaterial(this.#allowedMaterialKey);	
+		
+	}
+	#initialize(){
+		this.nodes = [];
+		this.nodesList = [];
+		this.polys = [];
+		this.walls = [];
+		this.corners = [];
 		this.wallGraph = new WallGraph();
 
 		this.inter = new THREE.Vector3();
 		this.start;
 		this.end;
 
-		this.nodes = [];
-		this.nodesList = [];
-		this.polys = [];
-		this.walls = [];
-		this.anchors = [];
 
+		this.line;
+		
 		this.angleStart;
 		this.angle;
 		this.height = 0.0001;
+		
 	}
-	removeFloor(){
+	setDrawing(bool){
+		this.drawing = bool;
+	}
+	#removeFloor(){
 		for (let p of this.polys) {
 			p.removeFromParent();
 		}
 		this.polys=[];
 		this.height = 0.0001;
 	}
-	changeFloor(oldP, newP){
+	#changeFloor(oldP, newP){
 		for(let i = 0; i < this.nodesList.length; i++){
 			for (let j = 0; j < this.nodesList[i].length; j++){
-				if (this.wallGraph.pointsEqual(this.nodesList[i][j],oldP)) {
+				if (utils.pointsHaveSameCoordinatesXZ(this.nodesList[i][j],oldP)) {
 					this.nodesList[i][j] = newP;
 				}
 			}
 		}
 	}
 	redrawFloor(){
-		this.removeFloor();
+		this.#removeFloor();
 		for(let nodes of this.nodesList) {
 			const poly = this.createPolygon(nodes);
-			this.controller.addObjectToCurrentStage(poly);
+			this.stage.addObject(poly);
 			this.polys.push(poly);
 		}
+	}
+	#removeCorners(){
+		for (let c of this.corners)
+			c.removeFromParent();
+	}
+	clearWalls(){
+		this.#removeFloor();
+		this.#removeCorners();
+		this.#initialize();
 	}
 	movePoint(p, newPos) {
 		const p_copy = p.clone();
 		p.addVectors(p, newPos);
+		
+		for(let c of this.corners){
+			const pos = c.position;
+			if (utils.pointsHaveSameCoordinatesXZ(p_copy,pos)) {
+				c.position.set(p.x, p.y, p.z);
+			}
+		}
+		
 		const connectedWalls = this.wallGraph.getWallsByPoint(p_copy);
 		const startPoints = [];
 		const endPoints = [];
 		for(let w of connectedWalls) {
 			endPoints.push(p);
-			if(this.wallGraph.pointsEqual(w.userData.startPoint, p_copy)) {
+			if(utils.pointsHaveSameCoordinatesXZ(w.userData.startPoint, p_copy)) {
 				startPoints.push(w.userData.endPoint);
 			} else {
 				startPoints.push(w.userData.startPoint);
 			}
-			this.controller.removeObjectFromCurrentStage(w);
+			this.stage.removeObject(w);
 			this.wallGraph.deleteRaw(w);
 		}
 		
 		for (let i = 0; i < startPoints.length; i++) {
-			const wall = this.makeWallBetweenTwoPoints(startPoints[i], endPoints[i], box2MultiMaterial);
+			const wall = this.makeWallBetweenTwoPoints(startPoints[i], endPoints[i], this.wallMaterial);
 			
 			const added = this.wallGraph.add(wall);
 			if(added)
-				this.controller.addObjectToCurrentStage(wall,true,false,false);
+				this.stage.addObject(wall,true,true,true);
 		}
 		
-		this.changeFloor(p_copy, p);
+		this.#changeFloor(p_copy, p);
 		this.redrawFloor();
 	}
 	
@@ -80,7 +125,7 @@ export class DrawEngine {
 		utils.applyToArrayOrValue(material, (m)=>{
 			mat.push(m.clone());
 		});
-	?	const mesh = utils.createMesh(boxgeo, mat);
+		const mesh = utils.createMesh(boxgeo, mat);
 		
 		mesh.position.set(
 			(start.x + end.x)/2,
@@ -90,6 +135,8 @@ export class DrawEngine {
 		
 		mesh.userData.startPoint = start;
 		mesh.userData.endPoint = end
+		mesh.userData.isWall = true;
+		mesh.userData.isNotAffectedByCollision = true;
 		const self = this;
 		mesh.userData.onMove = (sp, ep)=>{
 			// посчитать, как сдвинулась стена, то есть вектор
@@ -108,17 +155,29 @@ export class DrawEngine {
 			mesh.userData.startPoint = sp2;
 			mesh.userData.endPoint = ep2;
 		}
-		mesh.lookAt(end);
+		mesh.children[0].lookAt(end);
 		return mesh;
 	}
 
-	makeCylinderAtPoint(point) {
-		const mesh = new THREE.Mesh(
-			new THREE.CylinderGeometry(0.1,0.1,2), 
-			new THREE.MeshStandardMaterial({
-				color: 'gray'
-			})
+	makeCylinderAtPoint(point, material) {
+		for(let c of this.corners){
+			const p = c.position;
+			if (utils.pointsHaveSameCoordinatesXZ(p, point)) {
+				return;
+			}
+		}
+		
+		const mat = [];
+		utils.applyToArrayOrValue(material, (m)=>{
+			mat.push(m.clone());
+		});
+		
+		const mesh = utils.createMesh(
+			new THREE.CylinderGeometry(0.1,0.1,2.01), 
+			mat
 		);
+		this.corners.push(mesh);
+		mesh.userData.isNotAffectedByCollision = true;
 		
 		mesh.position.set(point.x, 1, point.z);
 		return mesh;
@@ -144,4 +203,115 @@ export class DrawEngine {
 		return mesh;
 	}
 	
+	addEventListenersToStage(stage){
+		const self = this;
+		console.log(this.stage);
+		this.stage.renderer.domElement.addEventListener("click", ()=>{
+			self.#onClick();
+		});
+		this.stage.renderer.domElement.addEventListener('pointermove', ()=>{self.#onPointerMove()});
+	}
+	#onPointerMove(){
+		if(this.line) this.stage.removeObject(this.line);
+		if (!this.drawing) return;
+
+		
+		this.stage.getRaycaster().ray.intersectPlane(
+			this.dragEngine.getDraggingPlane(),
+			this.inter
+		);
+
+		this.end = new THREE.Vector3(this.inter.x,1,this.inter.z);
+		utils.snapPoint(this.end);
+
+		if (!this.start) return;
+
+
+		
+		for (let c of this.corners){
+			const p = c.position;
+			if(utils.arePointsNearXZ(this.end, p)){
+				this.end.x = p.x;
+				this.end.z = p.z;
+			}		
+		}
+		
+		//adhoc
+		var material = this.lineMaterialGood;
+		
+		if (this.angleStart){
+			this.angle = utils.angleBetweenSegmentsXZ(this.angleStart, this.start, this.end);
+			if (this.angle < 45) material = this.lineMaterialBad;
+		}
+
+		const geometry = new THREE.BufferGeometry().setFromPoints([this.start, this.end]);
+		this.line = new THREE.Line(geometry, material);
+		this.stage.addObject(this.line);
+
+	}
+	#onClick(){
+		if (!this.drawing) return;
+		
+		if(!this.start) {
+			
+			for (let c of this.corners){
+				const p = c.position;
+				if(utils.arePointsNearXZ(this.end, p)){
+					this.end.x = p.x;
+					this.end.z = p.z;
+				}		
+			}
+			this.start = this.end;
+			
+			const cylinder = this.makeCylinderAtPoint(this.end, this.cylinderMaterial);
+			
+			if (cylinder)
+				this.stage.addObject(cylinder, true);
+			
+			
+		} else {
+			this.angleStart = this.start;
+			
+			const wall = this.makeWallBetweenTwoPoints(this.start, this.end, this.wallMaterial);
+			
+			const added = this.wallGraph.add(wall);
+			if(added)
+				this.stage.addObject(wall,true,true,true);
+
+			this.walls.push(wall);
+			
+			const cylinder = this.makeCylinderAtPoint(this.end, this.cylinderMaterial);
+			
+			if (cylinder)
+				this.stage.addObject(cylinder, true);
+			
+
+			this.nodes.push(this.start);
+
+			let closed = false;
+			
+			if (utils.pointsHaveSameCoordinatesXZ(this.nodes[0], this.end)) closed = true;
+
+			
+			if (closed) {
+				// nodes.push(end);
+				const poly = this.createPolygon(this.nodes);
+				this.stage.addObject(poly);
+				this.polys.push(poly);
+				this.nodesList.push(this.nodes);
+				
+				this.start = null;
+				this.walls = [];
+				this.nodes = [];
+			} else {			
+				this.start = this.end;
+			}
+		}
+	}
+	/**
+		Устанавливает сцену, на которой будут перемещаться модели.
+	*/
+	setStage(stage) {
+		this.stage = stage;
+	}
 }

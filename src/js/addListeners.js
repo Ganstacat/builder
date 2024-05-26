@@ -77,13 +77,11 @@ export function addListeners(controller) {
 	// Выбор материала для выбранного объекта
 	const materialSelector = document.querySelector("#materials");
 	materialSelector.onchange = function (e) {
-		if (materialSelector.value === 'reset') return;
+		const selected = controller.getSelectedObject();
+		const texture = materialSelector.value;
+		if (!selected || texture === 'reset') return;
 		
-		if (controller.currentStage.selectedObject && controller.currentStage.selectedObject.isMesh)
-			controller.materialManager.setMeshTexture(controller.currentStage.selectedObject, materialSelector.value);
-		else if (controller.currentStage.selectedObject) {
-			utils.applyToMeshes(controller.currentStage.selectedObject, (o) => { controller.materialManager.setMeshTexture(o, materialSelector.value); });
-		}
+		controller.setObjectTexture(selected, texture)
 		
 		materialSelector.value = 'reset';
 	}
@@ -95,7 +93,12 @@ export function addListeners(controller) {
 	document.querySelector('form').addEventListener('submit', (e)=>{e.preventDefault();});
 	document.querySelector('#file').addEventListener("change", function handleFiles(){
 		const fileList = this.files;
-		controller.exportManager.loadBlobToStage(fileList[0], controller.currentStage);
+		controller.uploadUserFileToStage(fileList[0], controller.getCurrentStage());
 	}, false);
 	
+	document.querySelector('#drawing').addEventListener('change', (e)=>{
+		if(e.target.checked) controller.currentStage.switchToOrthoCamera();
+		controller.drawEngine.setDrawing(e.target.checked);
+		controller.dragEngine.setDragging(!e.target.checked);
+	})
 }

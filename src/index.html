@@ -9,71 +9,20 @@
 	<style>
 		body {
 			margin: 0;
-			background: #333333;
-		}
-
-		body {
-			font-family: monospace;
-			font-size: 11px;
 			overflow: hidden;
 		}
 		html, body {
 			height: 100%;
 		}
-
-		button {
-			margin-top: 4px;
-		}
-		.renderer {
-			background-color: #888888;
+		iframe {
 			width: 100%;
 			height: 100%;
 		}
-		.controls {
-			float:left;
-			width:250px;
-			position: fixed;
-		}
-		button::after {
-			content: '';
-			display:table;
-			clear:both;
-		}
-		button, select {
-			width: 120px;
-		}
-		.hidden {
-			display: none;
-		}
-
 	</style>
 </head>
 
 <body>
-	<div class="controls">
-		<button id="builder">Сборщик</button>
-		<button id="floorPlanner" class="clickme">Планировщик</button>
-		<button id="exportToFloor">Экспорт</button>
-		<button id="addCube">Куб</button>
-		<button id="addWall">Стена</button>
-		<button id="clone">Клонировать</button><br>
-		<button id="delobj">Удалить</button>
-		<button id="clear">Очистить</button>
-		<button id="downloadScene">Скачать</button>
-		<select name="materials" id="materials">
-			<option value="reset">Материал:</option>
-			<option value="none">Без материала</option>
-			<option value="light_brick">Кирпич</option>
-			<option value="tile1">Плитка1</option>
-			<option value="tile2">Плитка2</option>
-			<option value="marbletiles">Мрамор</option>
-		</select>
-		<form action="/api" method="post" enctype="multipart/form-data">
-			<input id="file" name="file" type="file" class="hidden" />
-			<button id="upload">Загрузить</button>
-		</form>
-	</div>
-	<script src="./js/scripts.js" type="module"></script>
+	<iframe src="./app.html" title="Builder"></iframe>
 </body>
 
 </html>

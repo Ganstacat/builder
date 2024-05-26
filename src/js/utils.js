@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {OBB} from 'three/examples/jsm/math/OBB.js';
 
 export function applyToArrayOrValue(maybeArray, cb, args) {
 	if (Array.isArray(maybeArray))
@@ -47,7 +48,7 @@ export function snapPoint(p) {
 	p.z = roundToNearestQuarter(p.z);
 }
 
-export function angleBetweenSegments(A, O, B) {
+export function angleBetweenSegmentsXZ(A, O, B) {
 	// Координаты точек
 	const [x1, y1] = [A.x, A.z];
 	const [x0, y0] = [O.x, O.z];
@@ -88,14 +89,25 @@ export function arePointsNearXZ(p1,p2) {
 	p1.y = y1; p2.y = y2;
 	return areNear;
 }
+export function pointsHaveSameCoordinatesXZ(p1,p2){
+	return (p1.x === p2.x && p1.z === p2.z);
+}
 
 /**
 	Создать модель, используя данные о её геометрии и материале. Созданные модели имеют структуру
 	group(container) -> group(model) -> mesh
 */
 export function createMesh(geometry, material) {
+	const size = new THREE.Vector3( geometry.parameters.width, geometry.parameters.height, geometry.parameters.depth );
+	
+	geometry.userData.obb = new OBB();
+	geometry.userData.obb.halfSize.copy(size).multiplyScalar(0.5);
+	
 	let mesh = new THREE.Mesh(geometry, material);
 	mesh.geometry.computeBoundingBox();
+	mesh.matrixAutoUpdate = false;
+	mesh.userData.obb = new OBB();
+	
 	
 	let modelGroup = new THREE.Group();
 	let containerGroup = new THREE.Group();
@@ -105,6 +117,15 @@ export function createMesh(geometry, material) {
 	containerGroup.add(modelGroup);
 	
 	return containerGroup;
+}
+export function getObjectSize(obj){
+	const clone = obj.clone();
+	clone.rotation.set(0,0,0);
+	let size = new THREE.Vector3();
+	const box3 = new THREE.Box3().setFromObject(clone);
+	box3.getSize(size);
+	return size;
+	
 }
 
 /**

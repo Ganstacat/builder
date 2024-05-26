@@ -2,18 +2,60 @@ import * as THREE from 'three';
 import {FontLoader} from 'three/examples/jsm/loaders/FontLoader.js';
 import {TextGeometry} from 'three/examples/jsm/geometries/TextGeometry.js';
 import {Text} from 'troika-three-text';
+import * as utils from './utils.js';
 
 /**
 	Класс, который управляет размерными линиями.
 */
 export class LabelManager {
-	constructor () {
-		
+	
+	getObjDepth(obj){
+		const geomDepth = obj.geometry.parameters.depth;
+		return geomDepth * obj.scale.z;
 	}
 	/**
 		Добавляет размерные линии к объектам
 	*/
-	addDimensionLines(obj) {
+	addLabelToObject(obj){
+		if(obj.userData.isWall) this.addWallDimensions(obj);
+		else this.addObjectDimensions(obj);
+	}
+	addWallDimensions(obj) {
+		// obj.material.wireframe = true;
+		let box3 = new THREE.Box3().setFromObject(obj);
+		let size = new THREE.Vector3();
+		let size_copy = new THREE.Vector3();
+		box3.getSize(size);
+		size_copy.copy(size);
+		
+		size.x /= obj.scale.x;
+		size.y /= obj.scale.y;
+		size.z /= obj.scale.z;
+		
+		let size_halved = new THREE.Vector3(
+			size.x/2, size.y/2, size.z/2
+		);
+		
+		let mesh;
+		utils.applyToMeshes(obj, (o)=>{
+			mesh = o;
+		});
+		const depth = this.getObjDepth(mesh);
+		let textX = this.createText(
+			Math.floor(depth*1000)+'мм',
+			new THREE.Vector3(
+				0,
+				size_halved.y+0.1,
+				0
+			),
+			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI)
+		);
+		obj.add(textX)
+
+		textX.sync();
+
+	}
+	addObjectDimensions(obj) {
 		// obj.material.wireframe = true;
 		let box3 = new THREE.Box3().setFromObject(obj);
 		let size = new THREE.Vector3();
@@ -71,8 +113,6 @@ export class LabelManager {
 		// obj.add(textX)
 		obj.add(textZ)
 		// obj.add(textY)
-
-		// this.adjustTextScale(textX, size, obj.scale);
 		
 		// let bx = new THREE.Box3().setFromObject(myText);
 		// let s2 = new THREE.Vector3();
@@ -82,6 +122,7 @@ export class LabelManager {
 		textZ.sync();
 		textY.sync();
 	}
+
 	/**
 		Убирает отображение размерных линии и размеры с объекта
 	*/
@@ -123,6 +164,7 @@ export class LabelManager {
 		
 		myText.fontSize = 0.3
 		myText.color = 'white'
+		myText.outlineWidth = '10%'
 		myText.userData.isText = true;
 		myText.textAlign = 'center';
 		myText.anchorX = '50%';
@@ -176,26 +218,5 @@ export class LabelManager {
 		let line = new THREE.Line(geometry, material);
 		line.userData.isLine = true;
 		return line;
-	}
-	
-	/**
-		Корректирует маштаб текста, чтобы он не выглядел сжатым или растянутым после изменения маштаба родительского объекта
-		txt - Text
-		parentSize - THREE.Vector3()
-		parentScale - THREE.Vector3()
-	*/
-	adjustTextScale(txt, parentSize, parentScale){
-		let origSize = new THREE.Vector3(
-			parentSize.x / parentScale.x,
-			parentSize.y / parentScale.y,
-			parentSize.z / parentScale.z,
-		);
-		let textScale = new THREE.Vector3(
-			origSize.x / parentSize.x,
-			origSize.y / parentSize.y,
-			origSize.z / parentSize.z,		
-		);
-		console.log(`adjusted scale: x:${textScale.x}|y:${textScale.y}|z:${textScale.z}`);
-		txt.scale.set(textScale.x, textScale.y, textScale.z);
 	}
 }

@@ -10,10 +10,11 @@ export class MainController {
 	/**
 		Инициализация класса.
 	*/
-	constructor(dragEngine, exportManager, materialManager, labelManager) {
+	constructor(dragEngine, drawEngine, exportManager, materialManager, labelManager) {
 		this.stages = new Map();
 		this.currentStage;
 		this.dragEngine = dragEngine;
+		this.drawEngine = drawEngine;
 		this.exportManager = exportManager;
 		this.materialManager = materialManager;
 		this.labelManager = labelManager;
@@ -26,6 +27,9 @@ export class MainController {
 		this.stages.set(key, stage);
 		this.dragEngine.setStage(stage);
 		this.dragEngine.addEventListenersToStage();
+		
+		this.drawEngine.setStage(stage);
+		this.drawEngine.addEventListenersToStage();
 	}
 	/**
 		Получить какую-то сцену по ключу
@@ -70,6 +74,7 @@ export class MainController {
 		this.hideAllStages();
 		this.currentStage = this.getStage(key);
 		this.dragEngine.setStage(this.currentStage);
+		this.drawEngine.setStage(this.currentStage);
 		this.showCurrentStage();
 	}
 	
@@ -90,7 +95,7 @@ export class MainController {
 	}
 	
 	addLabelToObject(obj){
-		this.labelManager.addDimensionLines(obj);
+		this.labelManager.addLabelToObject(obj);
 	}
 	removeLabelFromObject(obj){
 		this.labelManager.removeLabel(obj);
@@ -99,6 +104,7 @@ export class MainController {
 	
 	clearCurrentStage(){
 		this.currentStage.clearScene();
+		this.drawEngine.clearWalls();
 	}
 
 	disableDraggingLocks(){
@@ -116,16 +122,18 @@ export class MainController {
 	}
 
 	moveObject(obj, axis, amount){
+		const prevpos = obj.position.clone();
 		this.currentStage.moveObject(obj, axis, amount);
-		this.applyCollisionAndRestraint(obj);
+		this.applyCollisionAndRestraint(obj, prevpos);
 	}
 	scaleObject(obj, axis, amount){
+		const prevpos = obj.position.clone();
 		this.currentStage.scaleObjectAxisScalar(obj, axis, amount);
-		this.applyCollisionAndRestraint(obj);
+		this.applyCollisionAndRestraint(obj, prevpos);
 	}
-	applyCollisionAndRestraint(obj){
+	applyCollisionAndRestraint(obj, prevpos){
 		this.dragEngine.applyRestraint(obj);
-		this.dragEngine.applyCollision(obj);
+		this.dragEngine.applyCollision(obj, prevpos, true);
 	}
 	
 	unsetSelection(){
@@ -166,5 +174,19 @@ export class MainController {
 		},this, stage)
 	}
 	
+	setObjectTexture(obj, textureKey){
+		this.materialManager.setMeshTexture(obj,textureKey);
+	}
+	
+	uploadUserFileToStage(file, stage){
+		this.exportManager.loadBlobToStage(file, stage);
+	}
+
+	getRaycaster(){
+		return this.currentStage.raycaster;
+	}
+	getDraggingPlane(){
+		return this.dragEngine.planeDrag;
+	}
 
 }

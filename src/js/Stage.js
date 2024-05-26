@@ -11,10 +11,10 @@ export class Stage {
 	/**
 		Инициализация объекта сцены в конструкторе с помощью методов этого класса.
 	*/
-	constructor(controller) {
+	constructor(controller, canvas) {
 		this.controller = controller;
 		
-		this.setCanvas();
+		this.canvas = canvas;
 		this.renderer = this.setupRenderer(this.canvas);
 		this.scene = this.setupScene();
 		this.height = 1.8;
@@ -38,7 +38,8 @@ export class Stage {
 		this.objectsWithCollision = [];
 		
 		// включается рендер сцены
-		this.animateOrtho();
+		// this.animateOrtho();
+		this.animate3P();
 		
 		this.guiManager = new GuiManager(this);
 		this.selectedObject = null;
@@ -118,6 +119,7 @@ export class Stage {
 	
 		
 		this.renderer.setAnimationLoop(()=>{
+			this.animateAll();
 			const time = performance.now();
 			let height;
 			if(this.crouching) height = this.crouchHeight;
@@ -171,6 +173,7 @@ export class Stage {
 		this.camera = this.camera3P;
 		this.controls = this.controls3P;
 		this.renderer.setAnimationLoop( ()=>{
+			this.animateAll();
 			this.renderer.render(this.scene, this.camera3P);
 		});
 	}
@@ -198,17 +201,22 @@ export class Stage {
 		
 		
 		this.renderer.setAnimationLoop( ()=>{
+			this.animateAll();
 			this.renderer.render(this.scene, this.cameraOrtho);
 		});
 	}
-	/**
-		Вручную устанавливает элемент <canvas>, на котором будет выполняться рендер сцены.
-		Нужно, если рендер будет происходить на заранее созданном canvas.
-		По-моему оно пока ещё не работает, как положено, чтобы заработало надо обновить медоты show и hide
-	*/
-	setCanvas(){
-		// Для переопределения
-		// this.canvas = document.querySelector('#builder');
+
+	animateAll(){
+		for (let obj of this.movableObjects) {
+			
+			utils.applyToMeshes(obj, (o)=>{
+				o.updateMatrix();
+				o.updateMatrixWorld();
+				o.userData.obb.copy(o.geometry.userData.obb);
+				o.userData.obb.applyMatrix4(o.matrixWorld);
+				
+			})
+		}
 	}
 	/**
 		Инициализация THREE.WebGLRenderer, объект из библиотеки, отвечающий за отрисовку всей графики на элементе canvas.
@@ -239,9 +247,9 @@ export class Stage {
 	*/
 	setupOrbitControls(camera, renderer, restrictRotation) {
 		const controls = new OrbitControls(camera, renderer.domElement);
-		if(restrictRotation)
-			controls.maxPolarAngle = 0;
-		controls.enableRotate = false;
+		
+		controls.enableRotate = !restrictRotation;
+		controls.maxPolarAngle = Math.PI/2;
 		controls.update();
 		return controls;
 	}
@@ -347,22 +355,13 @@ export class Stage {
 					self.velocity.y -= 6;
 					break;
 				case 'Digit1':
-					self.controls1P.lock();
-					self.velocity.set(0,0,0);
-					self.animate1P();
-					self.currentCamera = '1P'
+					self.switchTo1PCamera();
 					break;
 				case 'Digit2':
-					self.controls1P.unlock();
-					self.velocity.set(0,0,0);
-					self.animate3P();
-					self.currentCamera = '3P'
+					self.switchTo3PCamera();
 					break;
 				case 'Digit3':
-					self.controls1P.unlock();
-					self.velocity.set(0,0,0);
-					self.animateOrtho();
-					self.currentCamera = 'Ortho'
+					self.switchToOrthoCamera();
 					break;
 				case 'KeyW': self.moveForward = true; break;
 				case 'KeyA': self.moveLeft = true; break;
@@ -389,6 +388,24 @@ export class Stage {
 		document.addEventListener('keydown', onKeyDown);
 		document.addEventListener('keyup', onKeyUp);
 	}
+	switchToOrthoCamera(){
+		this.controls1P.unlock();
+		this.velocity.set(0,0,0);
+		this.animateOrtho();
+		this.currentCamera = 'Ortho';
+	}
+	switchTo3PCamera(){
+		this.controls1P.unlock();
+		this.velocity.set(0,0,0);
+		this.animate3P();
+		this.currentCamera = '3P'
+	}
+	switchTo1PCamera(){
+		this.controls1P.lock();
+		this.velocity.set(0,0,0);
+		this.animate1P();
+		this.currentCamera = '1P'
+	}
 
 	/**
 		Добавляет модель или группу моделей на сцену.
@@ -398,6 +415,7 @@ export class Stage {
 		if(hasCollision) {
 			// this.objectsWithCollision.push(obj);
 			utils.applyToMeshes(obj, (o)=>{
+				o.userData.isWall = obj.userData.isWall;
 				this.objectsWithCollision.push(o);
 			});
 		}
@@ -582,5 +600,9 @@ export class Stage {
 	
 	onObjectUpdate(obj){
 		this.guiManager.updateGui();
+	}
+	
+	getRaycaster(){
+		return this.raycaster;
 	}
 }

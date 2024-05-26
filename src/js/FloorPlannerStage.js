@@ -11,7 +11,7 @@ export class FloorPlannerStage extends Stage {
 	}
 	addStartingObjects() {
 		const gridHelper = new THREE.GridHelper(16, 64);
-		this.scene.add(gridHelper);
+		this.addObject(gridHelper);
 		const plane = utils.createMesh(
 			new THREE.PlaneGeometry(4,4),
 			new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide})

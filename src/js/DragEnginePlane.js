@@ -1,8 +1,14 @@
 import * as THREE from 'three';
-import  {Stage} from './Stage.js';
+import {Stage} from './Stage.js';
+import * as utils from './utils.js'; 
+import {OBB} from 'three/examples/jsm/math/OBB.js';
 
 /**
 	Класс, добавляющий управление моделями с помощью мыши, и так же просчитывающий коллизии между моделями и ограничителями
+	
+	Этот класс надо поделить на коллизии, выбор мышью, перемещение мышью
+	
+	Ещё он дёргает напрямую объекты из stage, хотя должен получать их от контроллера. Наверное.
 */
 export class DragEnginePlane {
 	/**
@@ -25,6 +31,10 @@ export class DragEnginePlane {
 		this.lockZ = false;
 		
 		this.collision = false;
+		this.dragging = true;
+	}
+	setDragging(bool){
+		this.dragging = bool;
 	}
 	/**
 		Добавляет отслеживание мыши на сцене, чтобы пользователь мог перемещать модели с помощью мыши.
@@ -35,18 +45,18 @@ export class DragEnginePlane {
 		// Движение мыши: перемещение выбранный предмет
 		this.stage.renderer.domElement.addEventListener('pointermove', function(e) {
 			self.calculateRayToPointer(e.offsetX, e.offsetY);
-			if (self.dragObject) self.drag();
+			if (self.dragObject && self.dragging) self.drag();
 		});
 
 		// Нажатие любой кнопки мыши: выбрать модель, если курсор находится на ней
 		this.stage.renderer.domElement.addEventListener('pointerdown', function(){
-			self.tryPickup();
+			if(self.dragging) self.tryPickup();
 		});
 		
 		// Нажатие любой кнопки мыши: если мышь выбрала какую-то модель, то информируем объект сцены об этом.
 		// Этот слушатель переедет в другое место, скорее всего, в контроллер.
 		this.stage.renderer.domElement.addEventListener('pointerdown', function(){
-			// self.stage.scene.add(new THREE.ArrowHelper(self.stage.raycaster.ray.direction, self.stage.raycaster.ray.origin, 100, 0xff0000) );
+
 			if(self.dragObject) {
 				self.stage.setSelectedObject(self.dragObject);
 			} else {
@@ -154,11 +164,15 @@ export class DragEnginePlane {
 		let y = this.dragObject.position.y;
 		let z = this.dragObject.position.z;
 		this.dragObject.position.addVectors(this.planeIntersect, this.shift);
+		
+		
 		this.applyAxisLock(x,y,z);
-		this.applyRestraint(this.dragObject);
-		this.applyCollision(this.dragObject);
+		// this.applyRestraint(this.dragObject);
+		this.applyCollision(this.dragObject, oldpos);
+		// utils.snapPoint(this.dragObject.position);
 		
 		if(this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
+		
 	}
 	
 	/**
@@ -181,8 +195,8 @@ export class DragEnginePlane {
 		Применить ограничение на перемещение модели, в случае если коллизии активированы и в объекте модели эти коллизии прописаны.
 		Если какая-то из сторон куба вышла за пределы ограничителя, то позиция корректируется так, чтобы вернуть модель обратно внутрь ограничителя.
 	*/
-	applyRestraint(obj) {
-		if (!this.collision) return;
+	applyRestraint(obj, oldpos) {
+		if (!this.collision || obj.userData.isNotAffectedByCollision) return;
 		let restraint = obj.userData.restraint;
 		if(restraint)
 			obj.position.clamp( restraint.min,restraint.max );
@@ -191,8 +205,8 @@ export class DragEnginePlane {
 	/*
 		Применить коллизию: если перемещаемая модель столкнулась с другой моделью, у которой есть коллизия, то пересчитываем позицию перемещаемой модели так, чтобы коллизионные коробки двух моделей не пересекались.
 	**/
-	applyCollision(obj) {
-		if (!this.collision) return;
+	applyCollision(obj, oldpos, noLimit) {
+		if (!this.collision || obj.userData.isNotAffectedByCollision) return;
 		
 		// вынимаем линии из потомков объекта, чтобы они не учавствовали в коллизии
 		let tempchild1 = [];
@@ -216,50 +230,139 @@ export class DragEnginePlane {
 					colobj.remove(c);
 				}
 			}
+			
+			let objMesh, colObjMesh;
+			utils.applyToMeshes(obj, o=>{
+				if(o.parent.name === 'models') objMesh = o;
+			});
+			utils.applyToMeshes(colobj, o=>{
+				if(o.parent.name === 'models') colObjMesh = o;
+			});
+			
+			const obb = objMesh.userData.obb;
+			const colObb = colObjMesh.userData.obb;
 
-			if (this.hasIntersection(obj, colobj)) {
-				let prevpos = obj.position.clone();
-				let colbbox = colobj.isBox3 ? colobj : new THREE.Box3().setFromObject(colobj);
-				obj.position.clamp(colbbox.min, colbbox.max);
-				
-				// let con_help1 = new THREE.Box3Helper(colbbox, "blue");
-				// this.stage.scene.add(con_help1);
-				
-				/*	
-					после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
-					на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
-					"код" ниже выталкивает таскаемый объект за пределы коллизионного объекта
-				
-					Схема: линии это границы таскаемого объекта, единицы - границы коллизионного.
-					После клемпа			После портянки ниже
-						11111111					11111111
-					|---1---|  1			|-------1	   1
-					|	1   |  1     =>		|		1	   1
-					|___11111111			|_______11111111
-				*/
-				
-				let dragbbox = new THREE.Box3().setFromObject(obj);
-				let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;
-				let halfHeight = (dragbbox.max.y - dragbbox.min.y)/2;
-				let halfWidth  = (dragbbox.max.z - dragbbox.min.z)/2;
-				
-				
-				let dragpos = obj.position;
-				if(prevpos.x < dragpos.x) {
-					dragpos.x -= halfLength;
-				} else if (prevpos.x > dragpos.x) {
-					dragpos.x += halfLength;
+			if (this.hasIntersection(obb, colObb)) {
+				if (colobj.userData.isWall) {
+					// if(obj.position.distanceTo(oldpos) < 0.4)
+					if (noLimit || obj.position.distanceTo(oldpos) < 0.4)
+						obj.position.set(oldpos.x,oldpos.y,oldpos.z);
+					
+				} else {
+					let prevpos = obj.position.clone();
+					let clampPoint = new THREE.Vector3();
+					colObb.clampPoint(obj.position, clampPoint);
+					
+					if(
+						noLimit || 
+
+						clampPoint.distanceTo(colobj.position) > prevpos.distanceTo(colobj.position)
+					){
+						obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
+						// /*	
+							// после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
+							// на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
+							// "код" ниже выталкивает таскаемый объект за пределы коллизионного объекта
+						
+							// Схема: линии это границы таскаемого объекта, единицы - границы коллизионного.
+							// После клемпа			После портянки ниже
+								// 11111111					11111111
+							// |---1---|  1			|-------1	   1
+							// |	1   |  1     =>		|		1	   1
+							// |___11111111			|_______11111111
+						// */
+						
+						let halfSize = obb.halfSize;
+						
+						let dragpos = obj.position;
+						if(prevpos.x < dragpos.x) {
+							dragpos.x -= halfSize.x;
+						} else if (prevpos.x > dragpos.x) {
+							dragpos.x += halfSize.x;
+						}
+						if(prevpos.z < dragpos.z) {
+							dragpos.z -= halfSize.z;
+						} else if (prevpos.z > dragpos.z) {
+							dragpos.z += halfSize.z;
+						}
+						if(prevpos.y < dragpos.y) {
+							dragpos.y -= halfSize.y;
+						} else if (prevpos.y > dragpos.y) {
+							dragpos.y += halfSize.y;
+						}
+					}
+					
 				}
-				if(prevpos.z < dragpos.z) {
-					dragpos.z -= halfWidth;
-				} else if (prevpos.z > dragpos.z) {
-					dragpos.z += halfWidth;
-				}
-				if(prevpos.y < dragpos.y) {
-					dragpos.y -= halfHeight;
-				} else if (prevpos.y > dragpos.y) {
-					dragpos.y += halfHeight;
-				}
+				
+				
+
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				// let colbbox = colobj.isBox3 ? colobj : new THREE.Box3().setFromObject(colobj);
+				// obj.position.clamp(colbbox.min, colbbox.max);
+				
+				// // let con_help1 = new THREE.Box3Helper(colbbox, "blue");
+				// // this.stage.scene.add(con_help1);
+				
+				// /*	
+					// после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
+					// на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
+					// "код" ниже выталкивает таскаемый объект за пределы коллизионного объекта
+				
+					// Схема: линии это границы таскаемого объекта, единицы - границы коллизионного.
+					// После клемпа			После портянки ниже
+						// 11111111					11111111
+					// |---1---|  1			|-------1	   1
+					// |	1   |  1     =>		|		1	   1
+					// |___11111111			|_______11111111
+				// */
+				
+				// let dragbbox = new THREE.Box3().setFromObject(obj);
+				// let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;
+				// let halfHeight = (dragbbox.max.y - dragbbox.min.y)/2;
+				// let halfWidth  = (dragbbox.max.z - dragbbox.min.z)/2;
+				
+				
+				// let dragpos = obj.position;
+				// if(prevpos.x < dragpos.x) {
+					// dragpos.x -= halfLength;
+				// } else if (prevpos.x > dragpos.x) {
+					// dragpos.x += halfLength;
+				// }
+				// if(prevpos.z < dragpos.z) {
+					// dragpos.z -= halfWidth;
+				// } else if (prevpos.z > dragpos.z) {
+					// dragpos.z += halfWidth;
+				// }
+				// if(prevpos.y < dragpos.y) {
+					// dragpos.y -= halfHeight;
+				// } else if (prevpos.y > dragpos.y) {
+					// dragpos.y += halfHeight;
+				// }
+				
+				
+				
+				
+				
+				
+				
 				
 			}
 			for (let c of tempchild2) {
@@ -293,7 +396,21 @@ export class DragEnginePlane {
 	/**
 		Проверяет, пересекаются ли два объекта или нет. Используется при определении коллизии.
 	*/
-	hasIntersection(obj1, obj2) {		
+	hasIntersection(obb1, obb2) {
+		// let obj1Mesh, obj2Mesh;
+		// utils.applyToMeshes(obj1, (obj)=>{
+			// if(obj.parent.name === 'models') obj1Mesh = obj;
+		// });
+		// utils.applyToMeshes(obj2, (obj)=>{
+			// if(obj.parent.name === 'models') obj2Mesh = obj;
+		// });
+		
+		// const obb1 = obj1Mesh.userData.obb;
+		// const obb2 = obj2Mesh.userData.obb;
+		
+		return obb1.intersectsOBB(obb2);
+	}
+	#hasIntersection_copy(obj1, obj2) {		
 		let colbox1 = new THREE.Box3();
 		let colbox2 = new THREE.Box3();
 		
@@ -320,5 +437,8 @@ export class DragEnginePlane {
 	*/
 	setStage(stage) {
 		this.stage = stage;
+	}
+	getDraggingPlane(){
+		return this.planeDrag;
 	}
 }
