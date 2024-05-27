@@ -124,16 +124,16 @@ export class MainController {
 	moveObject(obj, axis, amount){
 		const prevpos = obj.position.clone();
 		this.currentStage.moveObject(obj, axis, amount);
-		this.applyCollisionAndRestraint(obj, prevpos);
+		// this.applyCollisionAndRestraint(obj, prevpos);
 	}
 	scaleObject(obj, axis, amount){
 		const prevpos = obj.position.clone();
 		this.currentStage.scaleObjectAxisScalar(obj, axis, amount);
-		this.applyCollisionAndRestraint(obj, prevpos);
+		// this.applyCollisionAndRestraint(obj, prevpos);
 	}
 	applyCollisionAndRestraint(obj, prevpos){
 		this.dragEngine.applyRestraint(obj);
-		this.dragEngine.applyCollision(obj, prevpos, true);
+		// this.dragEngine.applyCollision(obj, prevpos, true);
 	}
 	
 	unsetSelection(){

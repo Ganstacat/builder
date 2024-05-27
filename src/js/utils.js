@@ -102,6 +102,7 @@ export function createMesh(geometry, material) {
 	
 	geometry.userData.obb = new OBB();
 	geometry.userData.obb.halfSize.copy(size).multiplyScalar(0.5);
+
 	
 	let mesh = new THREE.Mesh(geometry, material);
 	mesh.geometry.computeBoundingBox();
@@ -134,11 +135,17 @@ export function getObjectSize(obj){
 export function cloneObject(obj) {
 	let newobj = obj.clone();
 	this.applyToMeshes(newobj, (o)=>{
+		const size = new THREE.Vector3( o.geometry.parameters.width, o.geometry.parameters.height, o.geometry.parameters.depth );
+		o.geometry.userData.obb = new OBB();
+		o.geometry.userData.obb.halfSize.copy(size).multiplyScalar(0.5);
+		o.userData.obb = new OBB();
+		
 		if (Array.isArray(o.material))
 			o.material = Array.from(o.material, x => x);
 		else
 			o.material = o.material.clone();
 	});
+	
 	return newobj;
 }
 

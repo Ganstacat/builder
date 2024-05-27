@@ -147,6 +147,9 @@ export class DragEnginePlane {
 		Прекратить перемещение модели
 	*/
 	drop() {
+		if (this.dragObject && this.dragObject.userData.phantom){
+			this.stage.removeObject(this.dragObject);
+		}
 		this.dragObject = null;
 		this.stage.controls.enabled = true;
 	}
@@ -171,7 +174,7 @@ export class DragEnginePlane {
 		this.applyCollision(this.dragObject, oldpos);
 		// utils.snapPoint(this.dragObject.position);
 		
-		if(this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
+		if(this.dragObject && this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
 		
 	}
 	
@@ -217,6 +220,7 @@ export class DragEnginePlane {
 				obj.remove(c);
 			}
 		}
+		
 		for(let colobj of this.stage.objectsWithCollision) {
 			if (obj === colobj) continue;
 			if (obj === this.getRootParentGroup(colobj)) continue;
@@ -241,58 +245,167 @@ export class DragEnginePlane {
 			
 			const obb = objMesh.userData.obb;
 			const colObb = colObjMesh.userData.obb;
-
+	
 			if (this.hasIntersection(obb, colObb)) {
-				if (colobj.userData.isWall) {
-					// if(obj.position.distanceTo(oldpos) < 0.4)
-					if (noLimit || obj.position.distanceTo(oldpos) < 0.4)
-						obj.position.set(oldpos.x,oldpos.y,oldpos.z);
+				let prevpos = obj.position.clone();
+				let clampPoint = new THREE.Vector3();
+				let halfSize = obb.halfSize;
+				
+				colObb.clampPoint(obj.position, clampPoint);
+				
+				const clampDist = prevpos.distanceTo(clampPoint);
+			
+				if(clampDist > 0.01 && clampDist < halfSize.x+halfSize.z){
+					obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
 					
-				} else {
-					let prevpos = obj.position.clone();
-					let clampPoint = new THREE.Vector3();
-					colObb.clampPoint(obj.position, clampPoint);
 					
-					if(
-						noLimit || 
-
-						clampPoint.distanceTo(colobj.position) > prevpos.distanceTo(colobj.position)
-					){
-						obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
-						// /*	
-							// после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
-							// на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
-							// "код" ниже выталкивает таскаемый объект за пределы коллизионного объекта
-						
-							// Схема: линии это границы таскаемого объекта, единицы - границы коллизионного.
-							// После клемпа			После портянки ниже
-								// 11111111					11111111
-							// |---1---|  1			|-------1	   1
-							// |	1   |  1     =>		|		1	   1
-							// |___11111111			|_______11111111
-						// */
-						
-						let halfSize = obb.halfSize;
-						
-						let dragpos = obj.position;
-						if(prevpos.x < dragpos.x) {
-							dragpos.x -= halfSize.x;
-						} else if (prevpos.x > dragpos.x) {
-							dragpos.x += halfSize.x;
-						}
-						if(prevpos.z < dragpos.z) {
-							dragpos.z -= halfSize.z;
-						} else if (prevpos.z > dragpos.z) {
-							dragpos.z += halfSize.z;
-						}
-						if(prevpos.y < dragpos.y) {
-							dragpos.y -= halfSize.y;
-						} else if (prevpos.y > dragpos.y) {
-							dragpos.y += halfSize.y;
-						}
+					let dragbbox = new THREE.Box3().setFromObject(obj);
+					let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;
+					let halfHeight = (dragbbox.max.y - dragbbox.min.y)/2;
+					let halfWidth  = (dragbbox.max.z - dragbbox.min.z)/2;
+					
+					
+					let dragpos = obj.position;
+					if(prevpos.x < dragpos.x) {
+						dragpos.x -= halfLength;
+					} else if (prevpos.x > dragpos.x) {
+						dragpos.x += halfLength;
 					}
-					
+					if(prevpos.z < dragpos.z) {
+						dragpos.z -= halfWidth;
+					} else if (prevpos.z > dragpos.z) {
+						dragpos.z += halfWidth;
+					}
+					// if(prevpos.y < dragpos.y) {
+						// dragpos.y -= halfHeight;
+					// } else if (prevpos.y > dragpos.y) {
+						// dragpos.y += halfHeight;
+					// }
+				
+					// let dragpos = obj.position;
+					// if(prevpos.x < dragpos.x) {
+						// dragpos.x -= halfSize.x;
+					// } else if (prevpos.x > dragpos.x) {
+						// dragpos.x += halfSize.x;
+					// }
+					// if(prevpos.z < dragpos.z) {
+						// dragpos.z -= halfSize.z;
+					// } else if (prevpos.z > dragpos.z) {
+						// dragpos.z += halfSize.z;
+					// }
+					// if(prevpos.y < dragpos.y) {
+						// dragpos.y -= halfSize.y;
+					// } else if (prevpos.y > dragpos.y) {
+						// dragpos.y += halfSize.y;
+					// }
 				}
+			}	
+			for (let c of tempchild2) {
+				colobj.add(c);
+			}
+		}
+		for (let c of tempchild1) {
+			obj.add(c);
+		}
+	}
+
+	applyCollision_old(obj, oldpos, noLimit) {
+		
+		if (!this.collision || obj.userData.isNotAffectedByCollision) return;
+		if (!obj.userData.collisionDelay) {obj.userData.collisionDelay = 0}
+		if (obj.userData.collisionDelay > 0) {
+			obj.userData.collisionDelay--;
+			return;
+		}
+		
+		// вынимаем линии из потомков объекта, чтобы они не учавствовали в коллизии
+		let tempchild1 = [];
+		let chiCopy1 = [...obj.children];
+		for (let c of chiCopy1) {
+			if (c.isLine || c.userData.isText) {
+				tempchild1.push(c);
+				obj.remove(c);
+			}
+		}
+		
+		let collisions = 0;
+		for(let colobj of this.stage.objectsWithCollision) {
+			if (obj === colobj) continue;
+			if (obj === this.getRootParentGroup(colobj)) continue;
+			
+			
+			let tempchild2 = [];
+			let chiCopy2 = [...colobj.children]
+			for (let c of chiCopy2) {
+				if (c.isLine || c.userData.isText) {
+					tempchild2.push(c);
+					colobj.remove(c);
+				}
+			}
+			
+			let objMesh, colObjMesh;
+			utils.applyToMeshes(obj, o=>{
+				if(o.parent.name === 'models') objMesh = o;
+			});
+			utils.applyToMeshes(colobj, o=>{
+				if(o.parent.name === 'models') colObjMesh = o;
+			});
+			
+			const obb = objMesh.userData.obb;
+			const colObb = colObjMesh.userData.obb;
+	
+			if (this.hasIntersection(obb, colObb)) {
+				// if (!obj.userData.phantom){
+					
+					// this.dragObject = utils.cloneObject(obj);
+					
+					// utils.applyToMeshes(this.dragObject,(o)=>{
+						// o.material.emissive.set('red');
+					// });
+					
+					// this.dragObject.userData.phantom = true;
+					// this.dragObject.userData.origObj = obj;
+					// this.dragObject.stuckObject = colobj;
+					// this.stage.addObject(this.dragObject,true);
+				// } else {
+					// collisions++;
+				// }
+				
+				let prevpos = obj.position.clone();
+				let clampPoint = new THREE.Vector3();
+				let halfSize = obb.halfSize;
+				
+				colObb.clampPoint(obj.position, clampPoint);
+				
+				const clampDist = prevpos.distanceTo(clampPoint);
+			
+				if(clampDist > 0.01 && clampDist < halfSize.x+halfSize.z){
+					obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
+				
+					console.log(obj.rotation);
+				
+					let dragpos = obj.position;
+					if(prevpos.x < dragpos.x) {
+						dragpos.x -= halfSize.x;
+					} else if (prevpos.x > dragpos.x) {
+						dragpos.x += halfSize.x;
+					}
+					if(prevpos.z < dragpos.z) {
+						dragpos.z -= halfSize.z;
+					} else if (prevpos.z > dragpos.z) {
+						dragpos.z += halfSize.z;
+					}
+					if(prevpos.y < dragpos.y) {
+						dragpos.y -= halfSize.y;
+					} else if (prevpos.y > dragpos.y) {
+						dragpos.y += halfSize.y;
+					}
+				}
+				
+				
+				
+			}	
+			
 				
 				
 
@@ -356,21 +469,23 @@ export class DragEnginePlane {
 				// } else if (prevpos.y > dragpos.y) {
 					// dragpos.y += halfHeight;
 				// }
-				
-				
-				
-				
-				
-				
-				
-				
-			}
+
 			for (let c of tempchild2) {
 				colobj.add(c);
 			}
 		}
 		for (let c of tempchild1) {
 			obj.add(c);
+		}
+		
+		if (obj.userData.phantom && collisions === 0) {
+			obj.userData.collisionTicks = obj.userData.collisionTicks ? obj.userData.collisionTicks-1 : 2;
+		}
+		if (obj.userData.phantom && obj.userData.collisionTicks <= 0) {
+			this.dragObject = obj.userData.origObj;
+			this.dragObject.position.set(obj.position.x,obj.position.y,obj.position.z);
+			this.dragObject.userData.collisionDelay = 10;
+			this.stage.removeObject(obj);
 		}
 	}
 	
