@@ -10,6 +10,11 @@ const box3sTrees = [];
 export function addNewBox3Tree(box){
     box3sTrees.push(new BoxesTree(box));
 }
+function findBoxTree(box){
+    for(let tree of box3sTrees)
+        if(tree.find(box)) return tree
+    return undefined;
+}
 
 function addToBoxesTreesList(parentBox, boxes){
     let parentNode;
@@ -30,7 +35,7 @@ function addToBoxesTreesList(parentBox, boxes){
     for(let b of boxes){
         parentTree.insert(parentBox, b);
     }
-    return parentNode;
+    return {parentNode:parentNode, parentTree: parentTree};
 }
 
 function getBox3Slice(b){
@@ -87,6 +92,9 @@ function divideBox3BySlice(box, slice){
 function onPickup(obj, dragEngine){
     if(obj.userData.parentNode) {
 
+        const tree = findBoxTree(obj.userData.parentNode.key);
+        tree.unbindObj(obj);
+
         obj.userData.parentNode.children = [];
         renderBoxes3(dragEngine);
         
@@ -103,11 +111,12 @@ function onDrop(obj, dragEngine){
         const parentBox = model.userData.scaleBox;
         const boxes = divideBox3BySlice(parentBox, slice);
 
-        const parentNode = addToBoxesTreesList(parentBox, boxes);
+        const pNodeAndTree = addToBoxesTreesList(parentBox, boxes);
 
         renderBoxes3(dragEngine);
 
-        obj.userData.parentNode = parentNode;
+        obj.userData.parentNode = pNodeAndTree.parentNode;
+        pNodeAndTree.parentTree.bindObject(obj)
 
     }
 }
@@ -143,4 +152,23 @@ export function addListenersToPackableObject(obj, dragEngine){
     obj.userData.onDrop = ()=>{onDrop(obj, dragEngine)};
     obj.userData.onMove = ()=>{onMove(obj,dragEngine)}
     obj.userData.isPackable = true;
+}
+export function addListenersToContainerObject(obj, dragEngine, box3){
+    obj.userData.onMove = (oldpos, newpos)=>{
+        const moved = new THREE.Vector3().subVectors(newpos,oldpos);
+        
+        const tree = findBoxTree(box3);
+        const parentNode = tree.find(box3);
+        
+        utils.moveBox3(box3, moved);
+        parentNode.children = [];
+        renderBoxes3(dragEngine)
+        try {
+            for(let o of tree.bindedObjects){
+                utils.moveObj(o, moved);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
 }

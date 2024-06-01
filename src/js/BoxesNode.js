@@ -11,4 +11,12 @@ export class BoxesNode {
     get hasChildren(){
         return !this.isLeaf;
     }
+
+    // applyToAllChildren(node, cb,args){
+    //     cb(node, args);
+    //     for(let c of node.children){
+    //         console.log(c);
+    //         this.applyToAllChildren(c,cb,args);
+    //     }
+    // }
 }

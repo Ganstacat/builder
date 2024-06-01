@@ -3,7 +3,7 @@ import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import {GuiManager} from './GuiManager.js';
 import * as utils from './utils.js';
-import {addListenersToPackableObject, addNewBox3Tree} from './packableObjectListeners.js';
+import {addListenersToPackableObject, addNewBox3Tree, addListenersToContainerObject} from './packableObjectListeners.js';
 import {BoxesTree} from './BoxesTree.js';
 
 /**
@@ -360,7 +360,7 @@ export class Stage {
 		box2.position.x += 1;
 		box2_cop.position.x += 2;
 		
-		this.addObject(box,true,true,true,true);
+		this.addObject(box,true,false,true,false);
 		this.addObject(box_cop,true,true,true,true);
 		this.addObject(box2,true,true,true,true);
 		this.addObject(box2_cop,true,true,true,true);
@@ -369,9 +369,16 @@ export class Stage {
 		box_cop.userData.lockScale = 'x'
 		box2.userData.lockScale = 'y'
 		box2_cop.userData.lockScale = 'y'
+
+		// box.userData.onMove = ()=>{
+		// 	utils.moveBox3(box3, box.position);
+		// }
+		addListenersToContainerObject(box, this.controller.dragEngine, box3);
 		// this.setRestraint(box, box3);
 		// this.setRestraint(box2, this.constraintBox);
 		
+
+		// utils.moveBox3(box3, new THREE.Vector3(1,0,2));
 	}
 
 	/**

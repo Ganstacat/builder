@@ -209,6 +209,13 @@ export function createMesh(geometry, material) {
 // 	return size;
 	
 // }
+export function moveBox3(box3, moved){
+	box3.min.addVectors(box3.min, moved);
+	box3.max.addVectors(box3.max, moved);
+}
+export function moveObj(obj, moved){
+	obj.position.addVectors(obj.position, moved);
+}
 export function doWithoutLabels(obj, cb, args){
 	let temp = [...obj.children];
 	for (let c of temp)

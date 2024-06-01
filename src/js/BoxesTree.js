@@ -2,6 +2,7 @@ import {BoxesNode} from './BoxesNode.js';
 export class BoxesTree {
     constructor(key, value = key){
         this.root = new BoxesNode(key, value);
+        this.bindedObjects = [];
     }
     *preOrderTraversal(node = this.root){
         yield node;
@@ -43,10 +44,14 @@ export class BoxesTree {
         return undefined;
     }
 
-
-
-
     getRoot(){
         return this.root;
+    }
+
+    bindObject(obj){
+        this.bindedObjects.push(obj);
+    }
+    unbindObj(obj){
+        this.bindedObjects = this.bindedObjects.filter(o=> { return o !== obj });
     }
 }
