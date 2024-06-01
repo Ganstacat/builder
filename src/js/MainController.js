@@ -1,4 +1,5 @@
 import {DragEnginePlane} from './DragEnginePlane.js' 
+import * as utils from './utils.js';
 
 /**
 	Класс - контроллер для управления сценами.
@@ -87,8 +88,8 @@ export class MainController {
 	
 	
 	
-	addObjectToCurrentStage(obj, isMovable, hasCollision, hasDimensions){
-		this.currentStage.addObject(obj, isMovable, hasCollision, hasDimensions);
+	addObjectToCurrentStage(obj, isMovable, hasCollision, hasDimensions, isPackable){
+		this.currentStage.addObject(obj, isMovable, hasCollision, hasDimensions, isPackable);
 	}
 	removeObjectFromCurrentStage(obj){
 		this.currentStage.removeObject(obj);
@@ -163,6 +164,9 @@ export class MainController {
 		this.#doExporting(objects, ()=>{
 			this.exportManager.exportToStage(objects, stageTo);
 		});
+		// utils.doWithoutLabels(objects, (o)=>{
+		// 	this.exportManager.exportToStage(o, stageTo);
+		// });
 	}
 	downloadStageToUserPc(stage){
 		let exportable = stage.scene.children.filter((o) =>{

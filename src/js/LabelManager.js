@@ -122,6 +122,7 @@ export class LabelManager {
 		textZ.sync();
 		textY.sync();
 	}
+	
 
 	/**
 		Убирает отображение размерных линии и размеры с объекта
@@ -137,6 +138,8 @@ export class LabelManager {
 			}
 		}
 	}
+	
+
 	
 	/**
 		Создаёт надпись по указанным координатам

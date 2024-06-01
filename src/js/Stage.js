@@ -3,6 +3,8 @@ import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import {GuiManager} from './GuiManager.js';
 import * as utils from './utils.js';
+import {addListenersToPackableObject, addNewBox3Tree} from './packableObjectListeners.js';
+import {BoxesTree} from './BoxesTree.js';
 
 /**
 	Класс, производящий инициализацию сцены, хранящий её состояние и имеющий методы для манипуляции над сценой.
@@ -13,7 +15,7 @@ export class Stage {
 	*/
 	constructor(controller, canvas) {
 		this.controller = controller;
-		
+
 		this.canvas = canvas;
 		this.renderer = this.setupRenderer(this.canvas);
 		this.scene = this.setupScene();
@@ -37,6 +39,9 @@ export class Stage {
 		this.movableObjects = [];
 		this.objectsWithCollision = [];
 		
+		this.box3s = [];
+		this.slices = [];
+
 		// включается рендер сцены
 		// this.animateOrtho();
 		this.animate3P();
@@ -46,6 +51,37 @@ export class Stage {
 		
 		this.addStartingObjects();
 		this.addEventListeners();
+	}
+	
+	addBox3(box, withHelper){
+		this.box3s.push(box);
+
+		if (withHelper){
+			const helper = new THREE.Box3Helper(box, 0xFFFFFF-this.box3s.length * 50);
+			this.scene.add(helper);
+			box.helper = helper;
+		}
+		return box;
+	}
+	clearBox3s(){
+		for(let b of this.box3s){
+			if(b.helper) this.scene.remove(b.helper);
+		}
+		this.box3s = [];
+	}
+	removeBox3(box){
+		console.log(this.box3s);
+		const lBefore = this.box3s.length;
+		this.box3s = this.box3s.filter((o)=>{return !utils.box3sAreSame(o,box)});
+		const lAfter = this.box3s.length;
+		if(lBefore === lAfter) {
+			console.log('Not deleted!');
+			console.log(box);
+			console.log(this.box3s);
+		}
+
+		if(box.helper)
+			this.scene.remove(box.helper)
 	}
 	/**
 		Инициализурет камеру, из которой пользователь наблюдает за сценой.
@@ -181,25 +217,7 @@ export class Stage {
 	animateOrtho() {
 		this.camera = this.cameraOrtho;
 		this.controls = this.controlsOrtho;
-		
-		// эксперименты с поворотом размеров в камеру. Так себе получилось.
-		// let self = this;
-		// function fixOritentation(mesh) {
-			// const quaternion = self.camera.quaternion;
-			// mesh.setRotationFromQuaternion(quaternion);
-			// mesh.updateMatrix();
-		// }
-		// for(let o of this.movableObjects) {
-			// if (o.name === 'container') {
-				// for(let c of o.children){
-					// if (c.userData.isText) {
-						// fixOritentation(c);
-					// }
-				// }
-			// }
-		// }
-		
-		
+
 		this.renderer.setAnimationLoop( ()=>{
 			this.animateAll();
 			this.renderer.render(this.scene, this.cameraOrtho);
@@ -214,7 +232,6 @@ export class Stage {
 				o.updateMatrixWorld();
 				o.userData.obb.copy(o.geometry.userData.obb);
 				o.userData.obb.applyMatrix4(o.matrixWorld);
-				
 			})
 		}
 	}
@@ -298,34 +315,65 @@ export class Stage {
 		// для переопределения
 		const gridHelper = new THREE.GridHelper(16, 64);
 		this.scene.add(gridHelper);
-		this.constraintBox = new THREE.Box3(
-			new THREE.Vector3(-1.5, 0,-2),
-			new THREE.Vector3( 1.5, 1.5, 2)
-		);
-		const helperbox = new THREE.Box3Helper(this.constraintBox, "orange");
-		this.scene.add(helperbox);
+		// this.constraintBox = new THREE.Box3(
+			// new THREE.Vector3(-1.5, 0,-2),
+			// new THREE.Vector3( 1.5, 1.5, 2)
+		// );
+		const box3 = this.addBox3(new THREE.Box3(
+			new THREE.Vector3(-1.5, 0, -2),
+			new THREE.Vector3(1.5, 1.5, 2)
+		), true);
 		
+		const box4 = this.addBox3(new THREE.Box3(
+			new THREE.Vector3(-4.5, 0, -2),
+			new THREE.Vector3(-3.5, 2, 1)
+		), true);
+		
+		addNewBox3Tree(box3);
+		addNewBox3Tree(box4);
+
 		const box = utils.createMesh(
-			new THREE.BoxGeometry(0.5,0.5,0.5),
+			new THREE.BoxGeometry(0.7,0.5,0.5),
+			new THREE.MeshStandardMaterial()
+		);
+		const box_cop = utils.createMesh(
+			new THREE.BoxGeometry(0.7,0.5,0.5),
 			new THREE.MeshStandardMaterial()
 		);
 		// box.position.y -= box.geometry.boundingBox.min.y;
-		box.position.x -= 1;
-		this.addObject(box,true,true,true);
+		box.position.x -= 0;
+		box_cop.position.x -= 1;
+		
 		
 		const box2 = utils.createMesh(
-			new THREE.BoxGeometry(0.5,0.5,0.5),
+			new THREE.BoxGeometry(1,0.2,0.5),
+			new THREE.MeshStandardMaterial(),
+			this.constraintBox
+		);
+
+		const box2_cop = utils.createMesh(
+			new THREE.BoxGeometry(0.5,0.2,0.5),
 			new THREE.MeshStandardMaterial(),
 			this.constraintBox
 		);
 		// box2.position.y -= box.geometry.boundingBox.min.y;
 		box2.position.x += 1;
-		this.addObject(box2,true,true,true);
+		box2_cop.position.x += 2;
 		
-		this.setRestraint(box, this.constraintBox);
-		this.setRestraint(box2, this.constraintBox);
+		this.addObject(box,true,true,true,true);
+		this.addObject(box_cop,true,true,true,true);
+		this.addObject(box2,true,true,true,true);
+		this.addObject(box2_cop,true,true,true,true);
+		
+		box.userData.lockScale = 'x'
+		box_cop.userData.lockScale = 'x'
+		box2.userData.lockScale = 'y'
+		box2_cop.userData.lockScale = 'y'
+		// this.setRestraint(box, box3);
+		// this.setRestraint(box2, this.constraintBox);
 		
 	}
+
 	/**
 		Добавляет слушатели событий, необходимые для работы этого класса
 	*/
@@ -410,10 +458,9 @@ export class Stage {
 	/**
 		Добавляет модель или группу моделей на сцену.
 	*/
-	addObject(obj, isMovable, hasCollision, hasDimensions) {
+	addObject(obj, isMovable, hasCollision, hasDimensions, isPackable) {
 		if(isMovable) {this.movableObjects.push(obj);}
 		if(hasCollision) {
-			// this.objectsWithCollision.push(obj);
 			utils.applyToMeshes(obj, (o)=>{
 				o.userData.isWall = obj.userData.isWall;
 				this.objectsWithCollision.push(o);
@@ -422,25 +469,27 @@ export class Stage {
 		
 		obj.userData.isMovable = isMovable;
 		obj.userData.hasCollision = hasCollision;
-		if (hasDimensions) this.controller.addLabelToObject(obj);
+		if (hasDimensions) {
+			this.controller.addLabelToObject(obj);
+			obj.userData.hasDimensions = true;
+		}
+		if (isPackable) {
+			addListenersToPackableObject(obj, this.controller.dragEngine);
+		}
+
 		this.scene.add(obj);
 		
-		// this.objectsWithCollision.push(obj);
-		// obj.position.set(0,0,0);
-		// const box = new THREE.BoxHelper( obj, 0xffff00 );
-		// this.scene.add( box );
-		// this.placeObjectOnPlane(obj);
 	}
 
 	/**
 		Не используется. 
 		Назначение - установить позицию модели по высоте на значение "0 + высота", чтобы модель встала "на пол".
 	*/
-	placeObjectOnPlane(obj) {
-		const box3 = new THREE.Box3().setFromObject(obj);
-		let halfHeight = (box3.max.y - box3.min.y)/2;
-		obj.position.y = halfHeight;
-	}
+	// placeObjectOnPlane(obj) {
+	// 	const box3 = new THREE.Box3().setFromObject(obj);
+	// 	let halfHeight = (box3.max.y - box3.min.y)/2;
+	// 	obj.position.y = halfHeight;
+	// }
 
 	/**
 		Изменить размер модели
@@ -448,28 +497,92 @@ export class Stage {
 	setScale(obj,x,y,z){
 		if(!obj) return;
 		
-		this.controller.removeLabelFromObject(obj);
-		for(let grp of obj.children){
-			if (grp.name === 'models') {
-				grp.scale.set(x,y,z);
-				if (obj.userData.isRestrained) {
-					this.adjustRestraintForScale(obj);
-				}
-			}
-		}
-		
-		this.controller.addLabelToObject(obj);
+		if(obj.userData.hasDimensions) this.controller.removeLabelFromObject(obj);
+
+		const model = utils.getModelsGroup(obj);
+		model.scale.set(x,y,z);
+		if(obj.userData.isRestrained) this.adjustRestraintForScale(obj);
+
+		if(obj.userData.hasDimensions) this.controller.addLabelToObject(obj);
 		this.onObjectUpdate();
 	}
+	scaleObjToBox3(obj,box3){
+		const b3size = utils.getBox3Size(box3);
+		const model = utils.getModelsGroup(obj);
+		if(model.userData.scaled) return;
+
+		model.userData.origScale = model.scale.clone();
+		model.userData.scaleBox = box3;
+		model.userData.scaled = true;
+		
+		this.setScale(obj,1,1,1);
+		const modelSize = utils.getBox3Size(new THREE.Box3().setFromObject(model));
+		
+		const scales = new THREE.Vector3(
+			b3size.x / modelSize.x,
+			b3size.y / modelSize.y,
+			b3size.z / modelSize.z
+		);
+		
+		if (obj.userData.lockScale === 'x') {
+			scales.x = model.userData.origScale.x;
+		} else if (obj.userData.lockScale === 'y') {
+			scales.y = model.userData.origScale.y;
+		}
+		
+		this.setScale(obj, scales.x, scales.y, scales.z);
+	}
+	returnObjOriginalScale(obj){
+		const model = utils.getModelsGroup(obj);
+		if(!model.userData.scaled) return;
+		model.userData.scaled = false;
+		model.userData.scaleBox = null;
+		
+		const os = model.userData.origScale;
+		this.setScale(obj, os.x, os.y, os.z);
+		this.removeRestraint(obj);
+		
+	}
+	// findBoxes3AdjacentToSlice(slice){
+	// 	const boxes = [];
+	// 	for (let b of this.box3s) {
+	// 		if(b.intersectsBox(slice)) {
+	// 			boxes.push(b);
+	// 		}
+	// 	}
+	// 	return boxes;
+	// }
+	// findSlicesInsideBox(box){
+	// 	const slices = [];
+	// 	let center = new THREE.Vector3();
+	// 	for (let s of this.slices){
+	// 		if(utils.sliceRestsAgainstBox(box, s)) continue;
+
+	// 		s.getCenter(center);
+	// 		if(box.containsPoint(center)){
+	// 			slices.push(s);
+	// 			// console.log(center);
+	// 			const arrow = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), center, 1);
+	// 			this.scene.add(arrow);
+	// 		}
+	// 	}
+	// 	return slices;
+	// }
+	addSlice(slice){
+		this.slices.push(slice);
+	}
+	removeSlice(slice){
+		this.slices = this.slices.filter((o)=>{return !utils.box3sAreSame(o,slice)});
+	}
+	
 	scaleObjectAxisScalar(obj, axis, amount){
 		if(!obj) return;
+		const model = utils.getModelsGroup(obj);
 		
-		for(let grp of obj.children)
-			if(grp.name === 'models'){
-				const scale = grp.scale;
-				scale[axis] += amount;
-				this.setScale(obj, scale.x,scale.y,scale.z);
-			}
+		const scale = model.scale;
+		scale[axis] += amount;
+		this.setScale(obj, scale.x, scale.y, scale.z);
+
 	}
 	/**
 		Установить поворт модели*
@@ -478,6 +591,28 @@ export class Stage {
 		if(!obj) return;
 		obj.rotation.set(x,y,z);
 		this.onObjectUpdate();
+		
+		// const self = this;
+		// utils.applyToMeshes(obj, (o)=>{
+			// const points = utils.getOBBPoints(o.userData.obb)
+			// console.log(utils.getOBBPoints(o.userData.obb));
+			
+			// const dir = new THREE.Vector3(0,1,0);
+			// const length = 1;
+			// const hex = 0xffff00;
+			
+			
+			// if (this.arrows)
+				// for (let a of this.arrows)
+					// this.scene.remove(a);
+				
+			// this.arrows = [];
+			// for (let p of points){
+				// const ah = new THREE.ArrowHelper(dir, p, length, hex);
+				// this.scene.add(ah);
+				// this.arrows.push(ah);
+			// }
+		// });
 	}
 	/**
 		Установить цвет модели
@@ -591,10 +726,16 @@ export class Stage {
 	/**
 		Установить ограничение для модели.
 	*/
-	setRestraint(obj, restraint) {
-		obj.userData.baserestraint = restraint;
+	setRestraint(obj, box3) {
+		obj.userData.baserestraint = box3;
 		obj.userData.isRestrained = true;
 		this.adjustRestraintForScale(obj);
+	}
+	removeRestraint(obj){
+		obj.userData.baserestraint = null;
+		obj.userData.restraint = null;
+		obj.userData.isRestrained = false;
+		
 	}
 
 	

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'; 
 import {GLTFExporter} from 'three/examples/jsm/exporters/GLTFExporter.js';
 import * as utils from './utils.js';
+import {OBB} from 'three/examples/jsm/math/OBB.js';
 
 /**
 	Класс, управляющий загрузкой моделей из сцены и на сцену, а так же перемещением моделей между сценами.
@@ -117,28 +118,40 @@ export class ExportManager {
 			}
 			
 			// добавить модельки в сцену. Сделать поправку на их положение в текущей сцене.
+			console.log('Adding groups');
 			for (let g of groups) {
 				if(!g) continue;
 				
-				let group = new THREE.Group();
-				for (let m of g) {
-					group.add(m);
-				}
-				let pos = new THREE.Vector3();
-				new THREE.Box3().setFromObject(group).getCenter(pos);
+				// let group = new THREE.Group();
+				// for (let m of g) {
+				// 	group.add(m);
+				// }
+				// let pos = new THREE.Vector3();
+				// new THREE.Box3().setFromObject(group).getCenter(pos);
 				
-				for (let m of group.children) {
-					m.position.x -= pos.x;
-					m.position.y -= pos.y;
-					m.position.z -= pos.z;
-				}
-				let container = new THREE.Group();
-				container.name = 'container';
-				group.name = 'models';
-				container.add(group);
+				// for (let m of group.children) {
+				// 	m.position.x -= pos.x;
+				// 	m.position.y -= pos.y;
+				// 	m.position.z -= pos.z;
+				// }
+				// let container = new THREE.Group();
+				// container.name = 'container';
+				// group.name = 'models';
+				// container.add(group);
 				
-				stage.addObject(container, true, true, true);
-				container.position.copy(pos);
+				// stage.addObject(container, true, true, true);
+				// container.position.copy(pos);
+				// console.log(g);
+				// console.log(container);
+
+				utils.applyToMeshes(g[0], (o)=>{
+					const badObb = o.geometry.userData.obb;
+					console.log(o.geometry);
+					o.geometry.userData.obb = new OBB(badObb.center, badObb.halfSize, badObb.rotation);
+					o.userData.obb = new OBB();
+				});
+				stage.addObject(g[0], true, true, true);
+				
 			}
 		})
 	}

@@ -61,16 +61,34 @@ export function addListeners(controller) {
 	
 	// Клонировать выбранный объект.
 	document.querySelector("#clone").onclick = function(){
+
 		const selected = controller.getSelectedObject();
 		if(!selected) return;
-		
-		controller.removeSelectionColor(selected);
+		console.log(selected);
+		utils.doWithoutLabels(selected, (obj)=>{
+			const parentNode = obj.userData.parentNode;
+			obj.userData.parentNode = null;
+			controller.removeSelectionColor(obj);
 
-		const newObject = utils.cloneObject(controller.currentStage.selectedObject);
+			const newObject = utils.cloneObject(obj);
 
-		controller.addObjectToCurrentStage(newObject, newObject.userData.isMovable, newObject.userData.hasCollision);
+			obj.userData.parentNode = parentNode;
+			
+			newObject.userData.baserestraint = null;
+			
+			// controller.currentStage.scene.add(newObject);
+			controller.addObjectToCurrentStage(
+				newObject, 
+				newObject.userData.isMovable,
+				newObject.userData.hasCollision,
+				newObject.userData.hasDimensions,
+				newObject.userData.isPackable
+				// false
+			);
+
+		});
 		
-		controller.applySelectionColor(selected);
+		// controller.applySelectionColor(selected);
 		
 	}
 	

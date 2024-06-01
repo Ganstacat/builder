@@ -30,7 +30,7 @@ export class DragEnginePlane {
 		this.lockY = false;
 		this.lockZ = false;
 		
-		this.collision = false;
+		this.collision = true;
 		this.dragging = true;
 	}
 	setDragging(bool){
@@ -103,6 +103,7 @@ export class DragEnginePlane {
 		Проверяет, находится ли курсор на какой-то модели, которую можно выбрать, и вызывает this.pickup(), если это так.
 	*/
 	tryPickup() {
+
 		let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
 		
 		if(intersects.length >0) {
@@ -129,6 +130,13 @@ export class DragEnginePlane {
 		else
 			return null;
 	}
+	setPlaneNormal(normal){
+		this.pNormal = normal;
+		this.planeDrag.setFromNormalAndCoplanarPoint(this.pNormal, this.pIntersect);
+		// может быть ещё надо тащить dragObject и пересчитывать shift?
+		
+		// this.shift.subVectors(this.dragObject.position, this.pIntersect);
+	}
 	
 	/**
 		Начать перемещение модели
@@ -136,10 +144,14 @@ export class DragEnginePlane {
 	pickup(intersectionPoint, obj) {
 		this.stage.controls.enabled = false;
 		this.dragObject = obj;
+
+
+		if(this.dragObject.userData.onPickup) this.dragObject.userData.onPickup(); 
+
+	
 		this.pIntersect.copy(intersectionPoint);
 		
 		this.planeDrag.setFromNormalAndCoplanarPoint(this.pNormal, this.pIntersect);
-		
 		
 		this.shift.subVectors(obj.position, intersectionPoint);
 	}
@@ -147,50 +159,58 @@ export class DragEnginePlane {
 		Прекратить перемещение модели
 	*/
 	drop() {
-		if (this.dragObject && this.dragObject.userData.phantom){
-			this.stage.removeObject(this.dragObject);
-		}
+		if (!this.dragObject) return;
+
+		if(this.dragObject.userData.onDrop) this.dragObject.userData.onDrop(); 
+
 		this.dragObject = null;
 		this.stage.controls.enabled = true;
 	}
+
 	
 	/**
 		Перемещать выбранную модель к курсору мыши с учётом блокировки по осям, ограничений и коллизий.
 	*/
 	drag() {
 		this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
-		
 		this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
-	
+		
 		const oldpos = this.dragObject.position.clone();
-		let x = this.dragObject.position.x;
-		let y = this.dragObject.position.y;
-		let z = this.dragObject.position.z;
+		
 		this.dragObject.position.addVectors(this.planeIntersect, this.shift);
 		
+
 		
-		this.applyAxisLock(x,y,z);
-		// this.applyRestraint(this.dragObject);
-		this.applyCollision(this.dragObject, oldpos);
-		// utils.snapPoint(this.dragObject.position);
+		utils.doWithoutLabels(this.dragObject, (o)=>{
+			this.applyCollision(o, oldpos);
+			this.applyAxisLock(o, oldpos);
+			this.applyRestraint(o);
+		});
+			
+
 		
 		if(this.dragObject && this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
 		
 	}
 	
+	snapObjectToBox3(obj, box3){
+		this.stage.scaleObjToBox3(obj, box3);
+		this.stage.setRestraint(obj, box3);
+	}
+	
 	/**
 		Ограничить перемещение модели в случае, если включена блокировка какой-то из осей.
 	*/
-	applyAxisLock(x,y,z) {
+	applyAxisLock(obj, pos) {
 		if (this.lockX) {
-			this.dragObject.position.y = y;
-			this.dragObject.position.z = z;
+			obj.position.y = pos.y;
+			obj.position.z = pos.z;
 		} else if (this.lockY) {
-			this.dragObject.position.x = x;
-			this.dragObject.position.z = z;
+			obj.position.x = pos.x;
+			obj.position.z = pos.z;
 		} else if (this.lockZ) {
-			this.dragObject.position.y = y;
-			this.dragObject.position.x = x;
+			obj.position.y = pos.y;
+			obj.position.x = pos.x;
 		}
 	}
 	
@@ -198,7 +218,7 @@ export class DragEnginePlane {
 		Применить ограничение на перемещение модели, в случае если коллизии активированы и в объекте модели эти коллизии прописаны.
 		Если какая-то из сторон куба вышла за пределы ограничителя, то позиция корректируется так, чтобы вернуть модель обратно внутрь ограничителя.
 	*/
-	applyRestraint(obj, oldpos) {
+	applyRestraint(obj) {
 		if (!this.collision || obj.userData.isNotAffectedByCollision) return;
 		let restraint = obj.userData.restraint;
 		if(restraint)
@@ -211,40 +231,24 @@ export class DragEnginePlane {
 	applyCollision(obj, oldpos, noLimit) {
 		if (!this.collision || obj.userData.isNotAffectedByCollision) return;
 		
-		// вынимаем линии из потомков объекта, чтобы они не учавствовали в коллизии
-		let tempchild1 = [];
-		let chiCopy1 = [...obj.children];
-		for (let c of chiCopy1) {
-			if (c.isLine || c.userData.isText) {
-				tempchild1.push(c);
-				obj.remove(c);
-			}
-		}
 		
 		for(let colobj of this.stage.objectsWithCollision) {
 			if (obj === colobj) continue;
 			if (obj === this.getRootParentGroup(colobj)) continue;
 			
 			
-			let tempchild2 = [];
-			let chiCopy2 = [...colobj.children]
-			for (let c of chiCopy2) {
-				if (c.isLine || c.userData.isText) {
-					tempchild2.push(c);
-					colobj.remove(c);
-				}
-			}
+			const objGroup = utils.getModelsGroup(obj);
+			let objMesh;
 			
-			let objMesh, colObjMesh;
-			utils.applyToMeshes(obj, o=>{
-				if(o.parent.name === 'models') objMesh = o;
+			utils.applyToMeshes(objGroup, o=>{
+				objMesh = o;
 			});
-			utils.applyToMeshes(colobj, o=>{
-				if(o.parent.name === 'models') colObjMesh = o;
-			});
+			// utils.applyToMeshes(colobj, o=>{
+			// 	if(o.parent.name === 'models') colObjMesh = o;
+			// });
 			
 			const obb = objMesh.userData.obb;
-			const colObb = colObjMesh.userData.obb;
+			const colObb = colobj.userData.obb;
 	
 			if (this.hasIntersection(obb, colObb)) {
 				let prevpos = obj.position.clone();
@@ -299,13 +303,7 @@ export class DragEnginePlane {
 						// dragpos.y += halfSize.y;
 					// }
 				}
-			}	
-			for (let c of tempchild2) {
-				colobj.add(c);
 			}
-		}
-		for (let c of tempchild1) {
-			obj.add(c);
 		}
 	}
 
@@ -533,6 +531,42 @@ export class DragEnginePlane {
 		colbox2 = obj2.isBox3 ? obj2 : colbox2.setFromObject(obj2);
 
 		return colbox1.intersectsBox(colbox2);
+	}
+	objIntersectsWithBox3(obj){
+		const objbox = new THREE.Box3().setFromObject(obj);
+		for (let b of this.stage.box3s){
+			if (objbox.intersectsBox(b)) return b;
+		}
+		return false;
+	}
+	// pointIntersectsWithBox3(point){
+	// 	for (let b of this.stage.box3s){
+	// 		if (b.containsPoint(point)) return b;
+	// 	}
+	// 	return false;
+	// }
+	cursorIntersectsBox3s(){
+		this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+		let resultBox;
+		let prevDist;
+		for (let b of this.stage.box3s){
+			const intersectionPoint = new THREE.Vector3(); 
+			const doIntersect = this.stage.raycaster.ray.intersectBox(b, intersectionPoint);
+			if(doIntersect) {
+				if(!resultBox) {
+					resultBox = b;
+					prevDist = this.stage.camera.position.distanceTo(intersectionPoint);
+				}
+
+				const currDist = this.stage.camera.position.distanceTo(intersectionPoint);
+				if (prevDist > currDist) {
+					resultBox = b;
+					prevDist = currDist;
+				}
+			}
+		}
+
+		return resultBox;
 	}
 
 	/**
