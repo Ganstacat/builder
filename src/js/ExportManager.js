@@ -122,35 +122,35 @@ export class ExportManager {
 			for (let g of groups) {
 				if(!g) continue;
 				
-				// let group = new THREE.Group();
-				// for (let m of g) {
-				// 	group.add(m);
-				// }
-				// let pos = new THREE.Vector3();
-				// new THREE.Box3().setFromObject(group).getCenter(pos);
-				
-				// for (let m of group.children) {
-				// 	m.position.x -= pos.x;
-				// 	m.position.y -= pos.y;
-				// 	m.position.z -= pos.z;
-				// }
-				// let container = new THREE.Group();
-				// container.name = 'container';
-				// group.name = 'models';
-				// container.add(group);
-				
-				// stage.addObject(container, true, true, true);
-				// container.position.copy(pos);
-				// console.log(g);
-				// console.log(container);
 
-				utils.applyToMeshes(g[0], (o)=>{
-					const badObb = o.geometry.userData.obb;
-					console.log(o.geometry);
-					o.geometry.userData.obb = new OBB(badObb.center, badObb.halfSize, badObb.rotation);
-					o.userData.obb = new OBB();
-				});
-				stage.addObject(g[0], true, true, true);
+				let group = new THREE.Group();
+				for (let m of g) {
+
+					utils.applyToMeshes(m, (o)=>{
+						const badObb = o.geometry.userData.obb;
+						o.geometry.userData.obb = new OBB(badObb.center, badObb.halfSize, badObb.rotation);
+						o.userData.obb = new OBB();
+					});
+
+					group.add(m);
+				}
+				let pos = new THREE.Vector3();
+				new THREE.Box3().setFromObject(group).getCenter(pos);
+				
+				for (let m of group.children) {
+					m.position.x -= pos.x;
+					m.position.y -= pos.y;
+					m.position.z -= pos.z;
+				}
+				let container = new THREE.Group();
+				container.name = 'container';
+				group.name = 'models';
+				container.add(group);
+				
+				stage.addObject(container, true, true, true);
+				container.position.copy(pos);
+				console.log(g);
+				console.log(container);
 				
 			}
 		})
