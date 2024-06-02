@@ -80,23 +80,39 @@ export class DrawEngine {
 		this.#removeCorners();
 		this.#initialize();
 	}
-	movePoint(p, newPos) {
-		const p_copy = p.clone();
-		p.addVectors(p, newPos);
+	moveWallPoint(p, moved) {
+		const oldpos = p.clone();
+		p.addVectors(p, moved);
+		const newpos = p;		
 		
+		this.moveCorners(oldpos, newpos)
+		
+		this.moveWalls(oldpos, newpos);
+
+		this.#changeFloor(oldpos, newpos);
+		this.redrawFloor();
+	}
+	moveCornerPoint(oldpos, newpos){
+		this.moveWalls(oldpos, newpos);
+		this.#changeFloor(oldpos, newpos);
+		this.redrawFloor();
+	}
+	moveCorners(oldpos, newpos){
 		for(let c of this.corners){
 			const pos = c.position;
-			if (utils.pointsHaveSameCoordinatesXZ(p_copy,pos)) {
-				c.position.set(p.x, p.y, p.z);
+			if (utils.pointsHaveSameCoordinatesXZ(oldpos,pos)) {
+				c.position.copy(newpos);
 			}
 		}
-		
-		const connectedWalls = this.wallGraph.getWallsByPoint(p_copy);
+	}
+	moveWalls(oldpos, newpos){
+		const connectedWalls = this.wallGraph.getWallsByPoint(oldpos);
+
 		const startPoints = [];
 		const endPoints = [];
 		for(let w of connectedWalls) {
-			endPoints.push(p);
-			if(utils.pointsHaveSameCoordinatesXZ(w.userData.startPoint, p_copy)) {
+			endPoints.push(newpos);
+			if(utils.pointsHaveSameCoordinatesXZ(w.userData.startPoint, oldpos)) {
 				startPoints.push(w.userData.endPoint);
 			} else {
 				startPoints.push(w.userData.startPoint);
@@ -104,6 +120,14 @@ export class DrawEngine {
 			this.stage.removeObject(w);
 			this.wallGraph.deleteRaw(w);
 		}
+		if(connectedWalls.length < 1){
+
+			console.log(`Faild to move: oldpos: ${oldpos.x}:${oldpos.y}, newpos: ${newpos.x}${newpos.y}`)
+			for(let w of this.wallGraph.walls.values()){
+				console.log(`sp: ${w.userData.startPoint.x}-${w.userData.startPoint.y} ep: ${w.userData.endPoint.x}-${w.userData.endPoint.y}`)
+			}
+		}
+
 		
 		for (let i = 0; i < startPoints.length; i++) {
 			const wall = this.makeWallBetweenTwoPoints(startPoints[i], endPoints[i], this.wallMaterial);
@@ -112,9 +136,6 @@ export class DrawEngine {
 			if(added)
 				this.stage.addObject(wall,true,true,true);
 		}
-		
-		this.#changeFloor(p_copy, p);
-		this.redrawFloor();
 	}
 	
 	makeWallBetweenTwoPoints(start, end, material) {
@@ -133,6 +154,7 @@ export class DrawEngine {
 			(start.z + end.z)/2
 		);
 		
+
 		mesh.userData.startPoint = start;
 		mesh.userData.endPoint = end
 		mesh.userData.isWall = true;
@@ -148,8 +170,9 @@ export class DrawEngine {
 			const ep2 = new THREE.Vector3().addVectors(mesh.userData.endPoint, moved);
 			
 			// вызвать movePoint(startPoint, sp2), movePoint(endPoint.ep2)
-			self.movePoint(mesh.userData.startPoint, moved);
-			self.movePoint(mesh.userData.endPoint, moved);
+			self.moveWallPoint(mesh.userData.startPoint, moved);
+			self.moveWallPoint(mesh.userData.endPoint, moved);
+			
 			
 			// обновить startPoint = sp2 и endPoint = ep2
 			mesh.userData.startPoint = sp2;
@@ -180,6 +203,13 @@ export class DrawEngine {
 		mesh.userData.isNotAffectedByCollision = true;
 		
 		mesh.position.set(point.x, 1, point.z);
+		const self = this;
+		mesh.userData.onMove = (startPoint, endPoint)=>{
+			// self.moveCornerPoint(startPoint, endPoint);
+			const moved = new THREE.Vector3().subVectors(endPoint, startPoint);
+			
+			self.moveWallPoint(startPoint, moved);
+		}
 		return mesh;
 	}
 	

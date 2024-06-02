@@ -91,7 +91,9 @@ export function arePointsNearXZ(p1,p2) {
 	return areNear;
 }
 export function pointsHaveSameCoordinatesXZ(p1,p2){
-	return (p1.x === p2.x && p1.z === p2.z);
+	const dx = (Math.abs(p1.x-p2.x));
+	const dz = (Math.abs(p1.z-p2.z));
+	return (dx < 0.01 && dz < 0.01);
 }
 export function pointsEquals(p1,p2){
 	return (p1.x === p2.x && p1.y === p2.y && p1.z === p2.z);
