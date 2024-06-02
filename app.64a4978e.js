@@ -618,12 +618,15 @@ controller.registerStage("builder", builderStage);
 controller.registerStage("floorPlanner", floorStage);
 controller.setCurrentStage("builder");
 (0, _addListenersJs.addListeners)(controller);
-(0, _addKeyboardControlsJs.addKeyboardControls)(controller); // TODO: сделать таскание за ноды, а не только за стены
+(0, _addKeyboardControlsJs.addKeyboardControls)(controller); // TODO: стакающиеся блоки работают кривовато, посмотреть что не так и отладидть
+ // TOOD: Оформить фичу с таскаемыми блоками покрасивее
+ // TODO: Посмотреть как можно накрутить графон
+ // TODO: Посмотреть как динамически менять UV Развёрстку текстур при изменении размеров
+ // TODO: сделать таскание за ноды, а не только за стены
  // TODO: сделать методы для постройки стены и предоставить их через контроллер
  // TODO: заменить начальные стенки в floorPlaner на те из drawEngine
- // TODO: приклеивать слушателей drawEngine к дом элементу рендера, дом элемент получать из контроллера, и контроллер же должен точно так же как и с dragEngine регистрировать эти слушатели
 
-},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","dat.gui":"k3xQk","three/examples/jsm/utils/BufferGeometryUtils.js":"5o7x9","troika-three-text":"7YS8r","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./ExportManager.js":"8hs9t","./LabelManager.js":"aEsVy","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ","./utils.js":"72Dku","./DrawEngine.js":"KIqcM"}],"ktPTu":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","dat.gui":"k3xQk","three/examples/jsm/utils/BufferGeometryUtils.js":"5o7x9","troika-three-text":"7YS8r","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./ExportManager.js":"8hs9t","./LabelManager.js":"aEsVy","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ","./DrawEngine.js":"KIqcM","./utils.js":"72Dku"}],"ktPTu":[function(require,module,exports) {
 /**
  * @license
  * Copyright 2010-2024 Three.js Authors
@@ -46418,6 +46421,8 @@ var _orbitControlsJs = require("three/examples/jsm/controls/OrbitControls.js");
 var _pointerLockControlsJs = require("three/examples/jsm/controls/PointerLockControls.js");
 var _guiManagerJs = require("./GuiManager.js");
 var _utilsJs = require("./utils.js");
+var _packableObjectListenersJs = require("./packableObjectListeners.js");
+var _boxesTreeJs = require("./BoxesTree.js");
 class Stage {
     /**
 		Инициализация объекта сцены в конструкторе с помощью методов этого класса.
@@ -46441,12 +46446,42 @@ class Stage {
         // инициализация массивов, хранящих перемещаемые модели (группы моделей) и модели с коллизией
         this.movableObjects = [];
         this.objectsWithCollision = [];
+        this.box3s = [];
+        this.slices = [];
         // включается рендер сцены
-        this.animateOrtho();
+        // this.animateOrtho();
+        this.animate3P();
         this.guiManager = new (0, _guiManagerJs.GuiManager)(this);
         this.selectedObject = null;
         this.addStartingObjects();
         this.addEventListeners();
+    }
+    addBox3(box, withHelper) {
+        this.box3s.push(box);
+        if (withHelper) {
+            const helper = new _three.Box3Helper(box, 0xFFFFFF - this.box3s.length * 50);
+            this.scene.add(helper);
+            box.helper = helper;
+        }
+        return box;
+    }
+    clearBox3s() {
+        for (let b of this.box3s)if (b.helper) this.scene.remove(b.helper);
+        this.box3s = [];
+    }
+    removeBox3(box) {
+        console.log(this.box3s);
+        const lBefore = this.box3s.length;
+        this.box3s = this.box3s.filter((o)=>{
+            return !_utilsJs.box3sAreSame(o, box);
+        });
+        const lAfter = this.box3s.length;
+        if (lBefore === lAfter) {
+            console.log("Not deleted!");
+            console.log(box);
+            console.log(this.box3s);
+        }
+        if (box.helper) this.scene.remove(box.helper);
     }
     /**
 		Инициализурет камеру, из которой пользователь наблюдает за сценой.
@@ -46494,6 +46529,7 @@ class Stage {
         this.camera = this.camera1P;
         this.controls = this.controls1P;
         this.renderer.setAnimationLoop(()=>{
+            this.animateAll();
             const time = performance.now();
             let height;
             if (this.crouching) height = this.crouchHeight;
@@ -46533,30 +46569,24 @@ class Stage {
         this.camera = this.camera3P;
         this.controls = this.controls3P;
         this.renderer.setAnimationLoop(()=>{
+            this.animateAll();
             this.renderer.render(this.scene, this.camera3P);
         });
     }
     animateOrtho() {
         this.camera = this.cameraOrtho;
         this.controls = this.controlsOrtho;
-        // эксперименты с поворотом размеров в камеру. Так себе получилось.
-        // let self = this;
-        // function fixOritentation(mesh) {
-        // const quaternion = self.camera.quaternion;
-        // mesh.setRotationFromQuaternion(quaternion);
-        // mesh.updateMatrix();
-        // }
-        // for(let o of this.movableObjects) {
-        // if (o.name === 'container') {
-        // for(let c of o.children){
-        // if (c.userData.isText) {
-        // fixOritentation(c);
-        // }
-        // }
-        // }
-        // }
         this.renderer.setAnimationLoop(()=>{
+            this.animateAll();
             this.renderer.render(this.scene, this.cameraOrtho);
+        });
+    }
+    animateAll() {
+        for (let obj of this.movableObjects)_utilsJs.applyToMeshes(obj, (o)=>{
+            o.updateMatrix();
+            o.updateMatrixWorld();
+            o.userData.obb.copy(o.geometry.userData.obb);
+            o.userData.obb.applyMatrix4(o.matrixWorld);
         });
     }
     /**
@@ -46632,19 +46662,39 @@ class Stage {
         // для переопределения
         const gridHelper = new _three.GridHelper(16, 64);
         this.scene.add(gridHelper);
-        this.constraintBox = new _three.Box3(new _three.Vector3(-1.5, 0, -2), new _three.Vector3(1.5, 1.5, 2));
-        const helperbox = new _three.Box3Helper(this.constraintBox, "orange");
-        this.scene.add(helperbox);
-        const box = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial());
+        // this.constraintBox = new THREE.Box3(
+        // new THREE.Vector3(-1.5, 0,-2),
+        // new THREE.Vector3( 1.5, 1.5, 2)
+        // );
+        const box3 = this.addBox3(new _three.Box3(new _three.Vector3(-1.5, 0, -2), new _three.Vector3(1.5, 1.5, 2)), true);
+        const box4 = this.addBox3(new _three.Box3(new _three.Vector3(-4.5, 0, -2), new _three.Vector3(-3.5, 2, 1)), true);
+        (0, _packableObjectListenersJs.addNewBox3Tree)(box3);
+        (0, _packableObjectListenersJs.addNewBox3Tree)(box4);
+        const box = _utilsJs.createMesh(new _three.BoxGeometry(0.7, 0.5, 0.5), new _three.MeshStandardMaterial());
+        const box_cop = _utilsJs.createMesh(new _three.BoxGeometry(0.7, 0.5, 0.5), new _three.MeshStandardMaterial());
         // box.position.y -= box.geometry.boundingBox.min.y;
-        box.position.x -= 1;
-        this.addObject(box, true, true, true);
-        const box2 = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial(), this.constraintBox);
+        box.position.x -= 0;
+        box_cop.position.x -= 1;
+        const box2 = _utilsJs.createMesh(new _three.BoxGeometry(1, 0.2, 0.5), new _three.MeshStandardMaterial(), this.constraintBox);
+        const box2_cop = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.2, 0.5), new _three.MeshStandardMaterial(), this.constraintBox);
         // box2.position.y -= box.geometry.boundingBox.min.y;
         box2.position.x += 1;
-        this.addObject(box2, true, true, true);
-        this.setRestraint(box, this.constraintBox);
-        this.setRestraint(box2, this.constraintBox);
+        box2_cop.position.x += 2;
+        this.addObject(box, true, false, true, false);
+        this.addObject(box_cop, true, true, true, true);
+        this.addObject(box2, true, true, true, true);
+        this.addObject(box2_cop, true, true, true, true);
+        box.userData.lockScale = "x";
+        box_cop.userData.lockScale = "x";
+        box2.userData.lockScale = "y";
+        box2_cop.userData.lockScale = "y";
+        // box.userData.onMove = ()=>{
+        // 	utils.moveBox3(box3, box.position);
+        // }
+        (0, _packableObjectListenersJs.addListenersToContainerObject)(box, this.controller.dragEngine, box3);
+    // this.setRestraint(box, box3);
+    // this.setRestraint(box2, this.constraintBox);
+    // utils.moveBox3(box3, new THREE.Vector3(1,0,2));
     }
     /**
 		Добавляет слушатели событий, необходимые для работы этого класса
@@ -46738,49 +46788,101 @@ class Stage {
     }
     /**
 		Добавляет модель или группу моделей на сцену.
-	*/ addObject(obj, isMovable, hasCollision, hasDimensions) {
+	*/ addObject(obj, isMovable, hasCollision, hasDimensions, isPackable) {
         if (isMovable) this.movableObjects.push(obj);
-        if (hasCollision) // this.objectsWithCollision.push(obj);
-        _utilsJs.applyToMeshes(obj, (o)=>{
+        if (hasCollision) _utilsJs.applyToMeshes(obj, (o)=>{
+            o.userData.isWall = obj.userData.isWall;
             this.objectsWithCollision.push(o);
         });
         obj.userData.isMovable = isMovable;
         obj.userData.hasCollision = hasCollision;
-        if (hasDimensions) this.controller.addLabelToObject(obj);
+        if (hasDimensions) {
+            this.controller.addLabelToObject(obj);
+            obj.userData.hasDimensions = true;
+        }
+        if (isPackable) (0, _packableObjectListenersJs.addListenersToPackableObject)(obj, this.controller.dragEngine);
         this.scene.add(obj);
-    // this.objectsWithCollision.push(obj);
-    // obj.position.set(0,0,0);
-    // const box = new THREE.BoxHelper( obj, 0xffff00 );
-    // this.scene.add( box );
-    // this.placeObjectOnPlane(obj);
     }
     /**
 		Не используется. 
 		Назначение - установить позицию модели по высоте на значение "0 + высота", чтобы модель встала "на пол".
-	*/ placeObjectOnPlane(obj) {
-        const box3 = new _three.Box3().setFromObject(obj);
-        let halfHeight = (box3.max.y - box3.min.y) / 2;
-        obj.position.y = halfHeight;
-    }
+	*/ // placeObjectOnPlane(obj) {
+    // 	const box3 = new THREE.Box3().setFromObject(obj);
+    // 	let halfHeight = (box3.max.y - box3.min.y)/2;
+    // 	obj.position.y = halfHeight;
+    // }
     /**
 		Изменить размер модели
 	*/ setScale(obj, x, y, z) {
         if (!obj) return;
-        this.controller.removeLabelFromObject(obj);
-        for (let grp of obj.children)if (grp.name === "models") {
-            grp.scale.set(x, y, z);
-            if (obj.userData.isRestrained) this.adjustRestraintForScale(obj);
-        }
-        this.controller.addLabelToObject(obj);
+        if (obj.userData.hasDimensions) this.controller.removeLabelFromObject(obj);
+        const model = _utilsJs.getModelsGroup(obj);
+        model.scale.set(x, y, z);
+        if (obj.userData.isRestrained) this.adjustRestraintForScale(obj);
+        if (obj.userData.hasDimensions) this.controller.addLabelToObject(obj);
         this.onObjectUpdate();
+    }
+    scaleObjToBox3(obj, box3) {
+        const b3size = _utilsJs.getBox3Size(box3);
+        const model = _utilsJs.getModelsGroup(obj);
+        if (model.userData.scaled) return;
+        model.userData.origScale = model.scale.clone();
+        model.userData.scaleBox = box3;
+        model.userData.scaled = true;
+        this.setScale(obj, 1, 1, 1);
+        const modelSize = _utilsJs.getBox3Size(new _three.Box3().setFromObject(model));
+        const scales = new _three.Vector3(b3size.x / modelSize.x, b3size.y / modelSize.y, b3size.z / modelSize.z);
+        if (obj.userData.lockScale === "x") scales.x = model.userData.origScale.x;
+        else if (obj.userData.lockScale === "y") scales.y = model.userData.origScale.y;
+        this.setScale(obj, scales.x, scales.y, scales.z);
+    }
+    returnObjOriginalScale(obj) {
+        const model = _utilsJs.getModelsGroup(obj);
+        if (!model.userData.scaled) return;
+        model.userData.scaled = false;
+        model.userData.scaleBox = null;
+        const os = model.userData.origScale;
+        this.setScale(obj, os.x, os.y, os.z);
+        this.removeRestraint(obj);
+    }
+    // findBoxes3AdjacentToSlice(slice){
+    // 	const boxes = [];
+    // 	for (let b of this.box3s) {
+    // 		if(b.intersectsBox(slice)) {
+    // 			boxes.push(b);
+    // 		}
+    // 	}
+    // 	return boxes;
+    // }
+    // findSlicesInsideBox(box){
+    // 	const slices = [];
+    // 	let center = new THREE.Vector3();
+    // 	for (let s of this.slices){
+    // 		if(utils.sliceRestsAgainstBox(box, s)) continue;
+    // 		s.getCenter(center);
+    // 		if(box.containsPoint(center)){
+    // 			slices.push(s);
+    // 			// console.log(center);
+    // 			const arrow = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), center, 1);
+    // 			this.scene.add(arrow);
+    // 		}
+    // 	}
+    // 	return slices;
+    // }
+    addSlice(slice) {
+        this.slices.push(slice);
+    }
+    removeSlice(slice) {
+        this.slices = this.slices.filter((o)=>{
+            return !_utilsJs.box3sAreSame(o, slice);
+        });
     }
     scaleObjectAxisScalar(obj, axis, amount) {
         if (!obj) return;
-        for (let grp of obj.children)if (grp.name === "models") {
-            const scale = grp.scale;
-            scale[axis] += amount;
-            this.setScale(obj, scale.x, scale.y, scale.z);
-        }
+        const model = _utilsJs.getModelsGroup(obj);
+        const scale = model.scale;
+        scale[axis] += amount;
+        this.setScale(obj, scale.x, scale.y, scale.z);
     }
     /**
 		Установить поворт модели*
@@ -46788,6 +46890,23 @@ class Stage {
         if (!obj) return;
         obj.rotation.set(x, y, z);
         this.onObjectUpdate();
+    // const self = this;
+    // utils.applyToMeshes(obj, (o)=>{
+    // const points = utils.getOBBPoints(o.userData.obb)
+    // console.log(utils.getOBBPoints(o.userData.obb));
+    // const dir = new THREE.Vector3(0,1,0);
+    // const length = 1;
+    // const hex = 0xffff00;
+    // if (this.arrows)
+    // for (let a of this.arrows)
+    // this.scene.remove(a);
+    // this.arrows = [];
+    // for (let p of points){
+    // const ah = new THREE.ArrowHelper(dir, p, length, hex);
+    // this.scene.add(ah);
+    // this.arrows.push(ah);
+    // }
+    // });
     }
     /**
 		Установить цвет модели
@@ -46874,10 +46993,15 @@ class Stage {
     }
     /**
 		Установить ограничение для модели.
-	*/ setRestraint(obj, restraint) {
-        obj.userData.baserestraint = restraint;
+	*/ setRestraint(obj, box3) {
+        obj.userData.baserestraint = box3;
         obj.userData.isRestrained = true;
         this.adjustRestraintForScale(obj);
+    }
+    removeRestraint(obj) {
+        obj.userData.baserestraint = null;
+        obj.userData.restraint = null;
+        obj.userData.isRestrained = false;
     }
     onObjectUpdate(obj) {
         this.guiManager.updateGui();
@@ -46887,7 +47011,7 @@ class Stage {
     }
 }
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","three/examples/jsm/controls/PointerLockControls.js":"fjBcw","./GuiManager.js":"eEqGm","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"7mqRv":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","three/examples/jsm/controls/PointerLockControls.js":"fjBcw","./GuiManager.js":"eEqGm","./utils.js":"72Dku","./packableObjectListeners.js":"5N5lS","./BoxesTree.js":"e5frl","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7mqRv":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "OrbitControls", ()=>OrbitControls);
@@ -47926,7 +48050,7 @@ class GuiManager {
     }
 }
 
-},{"dat.gui":"k3xQk","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"72Dku":[function(require,module,exports) {
+},{"dat.gui":"k3xQk","./Stage.js":"5MQQY","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"72Dku":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "applyToArrayOrValue", ()=>applyToArrayOrValue);
@@ -47937,16 +48061,75 @@ parcelHelpers.export(exports, "snapPoint", ()=>snapPoint);
 parcelHelpers.export(exports, "angleBetweenSegmentsXZ", ()=>angleBetweenSegmentsXZ);
 parcelHelpers.export(exports, "arePointsNearXZ", ()=>arePointsNearXZ);
 parcelHelpers.export(exports, "pointsHaveSameCoordinatesXZ", ()=>pointsHaveSameCoordinatesXZ);
+parcelHelpers.export(exports, "pointsEquals", ()=>pointsEquals);
+/**
+ * rounding float  to 4 decimals
+ */ parcelHelpers.export(exports, "round", ()=>round);
+// export function extendSliceToBoxSide(box, sliceRemoved, sliceExtended ){
+// 	const rmin = this.round(sliceRemoved.min.x) ;
+// 	const rmax = this.round(sliceRemoved.max.x);
+// 	const smin = this.round(sliceExtended.min.x);
+// 	const smax = this.round(sliceExtended.max.x);
+// 	if(rmin !== smin && rmax !== smax) {
+// 		// по вертикали увеличение
+// 		console.log('extending vertically');
+// 		sliceExtended.min.y = box.min.y;
+// 		sliceExtended.max.y = box.max.y;
+// 	} else {
+// 		// по горизонтали (ось x)
+// 		console.log('extending horizontally');
+// 		sliceExtended.min.x = box.min.x;
+// 		sliceExtended.max.x = box.max.x;
+// 	}
+// }
+// export function sliceRestsAgainstBox(box,slice){
+// 	if(box.min.x === slice.min.x && box.max.x === slice.max.x) return true;
+// 	if(box.min.y === slice.min.y && box.max.y === slice.max.y) return true;
+// 	return false;
+// }
+parcelHelpers.export(exports, "getBox3Size", ()=>getBox3Size);
+parcelHelpers.export(exports, "getModelsGroup", ()=>getModelsGroup);
+// export function divideBox3ByObject(box,obj){
+// 	const slice = this.getObjSlice(obj);
+// 	return this.divideBox3BySlice(box,slice);
+// }
+// export function uniteBoxes3(box1, box2){
+// 	let min;
+// 	let max;
+// 	if(box1.min.x < box2.min.x || box1.min.y < box2.min.y || box1.min.z < box2.min.z) {
+// 		min = box1.min;
+// 		max = box2.max;
+// 	} else {
+// 		min = box2.min;
+// 		max = box1.max;
+// 	}
+// 	return new THREE.Box3(min, max);
+// }
+parcelHelpers.export(exports, "box3sAreSame", ()=>box3sAreSame);
 /**
 	Создать модель, используя данные о её геометрии и материале. Созданные модели имеют структуру
 	group(container) -> group(model) -> mesh
 */ parcelHelpers.export(exports, "createMesh", ()=>createMesh);
+// export function getObjectSize(obj){
+// 	const clone = obj.clone();
+// 	clone.rotation.set(0,0,0);
+// 	let size = new THREE.Vector3();
+// 	const box3 = new THREE.Box3().setFromObject(clone);
+// 	box3.getSize(size);
+// 	return size;
+// }
+parcelHelpers.export(exports, "moveBox3", ()=>moveBox3);
+parcelHelpers.export(exports, "moveObj", ()=>moveObj);
+parcelHelpers.export(exports, "doWithoutLabels", ()=>doWithoutLabels);
 /**
 	Создать дубликат какого-то объекта - либо модели, либо группы моделей. Материалы у объектов клонируются.
 */ parcelHelpers.export(exports, "cloneObject", ()=>cloneObject);
+parcelHelpers.export(exports, "generateRamdomId", ()=>generateRamdomId);
 /**
 	Получает координаты всех 8 точек, определяющих box3 в пространстве
-*/ parcelHelpers.export(exports, "getBox3Points", ()=>getBox3Points) /*
+*/ parcelHelpers.export(exports, "getBox3Points", ()=>getBox3Points);
+parcelHelpers.export(exports, "getOBBPoints", ()=>getOBBPoints);
+parcelHelpers.export(exports, "rotatePoint", ()=>rotatePoint) /*
 
 function makeParallelLine(point,point1,offset) {
 	let x1 = point1.x;
@@ -47975,6 +48158,8 @@ function makeParallelLine(point,point1,offset) {
 
 */ ;
 var _three = require("three");
+var _obbJs = require("three/examples/jsm/math/OBB.js");
+var _packableObjectListenersJs = require("./packableObjectListeners.js");
 function applyToArrayOrValue(maybeArray, cb, args) {
     if (Array.isArray(maybeArray)) for (let m of maybeArray)cb(m, args);
     else cb(maybeArray, args);
@@ -48047,11 +48232,41 @@ function arePointsNearXZ(p1, p2) {
     return areNear;
 }
 function pointsHaveSameCoordinatesXZ(p1, p2) {
-    return p1.x === p2.x && p1.z === p2.z;
+    const dx = Math.abs(p1.x - p2.x);
+    const dz = Math.abs(p1.z - p2.z);
+    return dx < 0.01 && dz < 0.01;
+}
+function pointsEquals(p1, p2) {
+    return p1.x === p2.x && p1.y === p2.y && p1.z === p2.z;
+}
+function round(f) {
+    return Math.round((f + Number.EPSILON) * 100) / 100;
+}
+function getBox3Size(box3) {
+    const length = box3.max.x - box3.min.x;
+    const height = box3.max.y - box3.min.y;
+    const width = box3.max.z - box3.min.z;
+    return new _three.Vector3(length, height, width);
+}
+function getModelsGroup(obj) {
+    if (obj.name.startsWith("models")) return obj;
+    else for (let c of obj.children)return this.getModelsGroup(c);
+}
+function box3sAreSame(box1, box2) {
+    const min1 = box1.min;
+    const max1 = box1.max;
+    const min2 = box2.min;
+    const max2 = box2.max;
+    return min1.x === min2.x && min1.y === min2.y && min1.z === min2.z && max1.x === max2.x && max1.y === max2.y && max1.z === max2.z;
 }
 function createMesh(geometry, material) {
+    const size = new _three.Vector3(geometry.parameters.width, geometry.parameters.height, geometry.parameters.depth);
+    geometry.userData.obb = new (0, _obbJs.OBB)();
+    geometry.userData.obb.halfSize.copy(size).multiplyScalar(0.5);
     let mesh = new _three.Mesh(geometry, material);
     mesh.geometry.computeBoundingBox();
+    mesh.matrixAutoUpdate = false;
+    mesh.userData.obb = new (0, _obbJs.OBB)();
     let modelGroup = new _three.Group();
     let containerGroup = new _three.Group();
     modelGroup.name = "models";
@@ -48060,16 +48275,107 @@ function createMesh(geometry, material) {
     containerGroup.add(modelGroup);
     return containerGroup;
 }
+function moveBox3(box3, moved) {
+    box3.min.addVectors(box3.min, moved);
+    box3.max.addVectors(box3.max, moved);
+}
+function moveObj(obj, moved) {
+    obj.position.addVectors(obj.position, moved);
+}
+function doWithoutLabels(obj, cb, args) {
+    let temp = [
+        ...obj.children
+    ];
+    for (let c of temp)if (c.userData.isText || c.isLine) obj.remove(c);
+    cb(obj, args);
+    for (let c of temp)obj.add(c);
+}
 function cloneObject(obj) {
     let newobj = obj.clone();
     this.applyToMeshes(newobj, (o)=>{
+        const oldObb = o.geometry.userData.obb;
+        o.geometry.userData.obb = new (0, _obbJs.OBB)(oldObb.center, oldObb.halfSize, oldObb.rotation);
+        o.userData.obb = new (0, _obbJs.OBB)();
         if (Array.isArray(o.material)) o.material = Array.from(o.material, (x)=>x);
         else o.material = o.material.clone();
     });
     return newobj;
 }
+function generateRamdomId() {
+    let length = 20;
+    const symbols = [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "g",
+        "h",
+        "i",
+        "j",
+        "k",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p",
+        "q",
+        "r",
+        "s",
+        "t",
+        "u",
+        "v",
+        "w",
+        "x",
+        "y",
+        "z",
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J",
+        "K",
+        "L",
+        "M",
+        "N",
+        "O",
+        "P",
+        "Q",
+        "R",
+        "S",
+        "T",
+        "U",
+        "V",
+        "W",
+        "X",
+        "Y",
+        "Z",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+    ];
+    let result = "";
+    for(let i = 0; i < length; i++){
+        const index = Math.floor(Math.random() * symbols.length);
+        result += symbols[index];
+    }
+    return result;
+}
 function getBox3Points(box3) {
-    let points = [];
+    const points = [];
     points.push(new _three.Vector3(box3.max.x, box3.max.y, box3.max.z));
     points.push(new _three.Vector3(box3.min.x, box3.max.y, box3.max.z));
     points.push(new _three.Vector3(box3.min.x, box3.max.y, box3.min.z));
@@ -48080,8 +48386,503 @@ function getBox3Points(box3) {
     points.push(new _three.Vector3(box3.max.x, box3.min.y, box3.min.z));
     return points;
 }
+function getOBBPoints(obb) {
+    const rotated = [];
+    const result = [];
+    const r = obb.rotation;
+    const c = obb.center;
+    const s = obb.halfSize;
+    rotated.push(this.rotatePoint(new _three.Vector3(0 - s.x, 0 + s.y, 0 - s.z), r));
+    rotated.push(this.rotatePoint(new _three.Vector3(0 - s.x, 0 + s.y, 0 + s.z), r));
+    rotated.push(this.rotatePoint(new _three.Vector3(0 - s.x, 0 - s.y, 0 - s.z), r));
+    rotated.push(this.rotatePoint(new _three.Vector3(0 - s.x, 0 - s.y, 0 + s.z), r));
+    rotated.push(this.rotatePoint(new _three.Vector3(0 + s.x, 0 + s.y, 0 - s.z), r));
+    rotated.push(this.rotatePoint(new _three.Vector3(0 + s.x, 0 + s.y, 0 + s.z), r));
+    rotated.push(this.rotatePoint(new _three.Vector3(0 + s.x, 0 - s.y, 0 - s.z), r));
+    rotated.push(this.rotatePoint(new _three.Vector3(0 + s.x, 0 - s.y, 0 + s.z), r));
+    for (let p of rotated)result.push(new _three.Vector3(c.x + p.x, c.y + p.y, c.z + p.z));
+    return result;
+}
+function rotatePoint(p, r) {
+    // return p;
+    //r - rotation matrix
+    const rm = r.toArray();
+    return new _three.Vector3(p.x * rm[0] + p.y * rm[3] + p.z * rm[6], p.x * rm[1] + p.y * rm[4] + p.z * rm[7], p.x * rm[2] + p.y * rm[5] + p.z * rm[8]);
+}
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","three":"ktPTu"}],"ivRbE":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/math/OBB.js":"hBt0X","./packableObjectListeners.js":"5N5lS","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"hBt0X":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "OBB", ()=>OBB);
+var _three = require("three");
+// module scope helper variables
+const a = {
+    c: null,
+    u: [
+        new (0, _three.Vector3)(),
+        new (0, _three.Vector3)(),
+        new (0, _three.Vector3)()
+    ],
+    e: [] // half width
+};
+const b = {
+    c: null,
+    u: [
+        new (0, _three.Vector3)(),
+        new (0, _three.Vector3)(),
+        new (0, _three.Vector3)()
+    ],
+    e: [] // half width
+};
+const R = [
+    [],
+    [],
+    []
+];
+const AbsR = [
+    [],
+    [],
+    []
+];
+const t = [];
+const xAxis = new (0, _three.Vector3)();
+const yAxis = new (0, _three.Vector3)();
+const zAxis = new (0, _three.Vector3)();
+const v1 = new (0, _three.Vector3)();
+const size = new (0, _three.Vector3)();
+const closestPoint = new (0, _three.Vector3)();
+const rotationMatrix = new (0, _three.Matrix3)();
+const aabb = new (0, _three.Box3)();
+const matrix = new (0, _three.Matrix4)();
+const inverse = new (0, _three.Matrix4)();
+const localRay = new (0, _three.Ray)();
+// OBB
+class OBB {
+    constructor(center = new (0, _three.Vector3)(), halfSize = new (0, _three.Vector3)(), rotation = new (0, _three.Matrix3)()){
+        this.center = center;
+        this.halfSize = halfSize;
+        this.rotation = rotation;
+    }
+    set(center, halfSize, rotation) {
+        this.center = center;
+        this.halfSize = halfSize;
+        this.rotation = rotation;
+        return this;
+    }
+    copy(obb) {
+        this.center.copy(obb.center);
+        this.halfSize.copy(obb.halfSize);
+        this.rotation.copy(obb.rotation);
+        return this;
+    }
+    clone() {
+        return new this.constructor().copy(this);
+    }
+    getSize(result) {
+        return result.copy(this.halfSize).multiplyScalar(2);
+    }
+    /**
+	* Reference: Closest Point on OBB to Point in Real-Time Collision Detection
+	* by Christer Ericson (chapter 5.1.4)
+	*/ clampPoint(point, result) {
+        const halfSize = this.halfSize;
+        v1.subVectors(point, this.center);
+        this.rotation.extractBasis(xAxis, yAxis, zAxis);
+        // start at the center position of the OBB
+        result.copy(this.center);
+        // project the target onto the OBB axes and walk towards that point
+        const x = (0, _three.MathUtils).clamp(v1.dot(xAxis), -halfSize.x, halfSize.x);
+        result.add(xAxis.multiplyScalar(x));
+        const y = (0, _three.MathUtils).clamp(v1.dot(yAxis), -halfSize.y, halfSize.y);
+        result.add(yAxis.multiplyScalar(y));
+        const z = (0, _three.MathUtils).clamp(v1.dot(zAxis), -halfSize.z, halfSize.z);
+        result.add(zAxis.multiplyScalar(z));
+        return result;
+    }
+    containsPoint(point) {
+        v1.subVectors(point, this.center);
+        this.rotation.extractBasis(xAxis, yAxis, zAxis);
+        // project v1 onto each axis and check if these points lie inside the OBB
+        return Math.abs(v1.dot(xAxis)) <= this.halfSize.x && Math.abs(v1.dot(yAxis)) <= this.halfSize.y && Math.abs(v1.dot(zAxis)) <= this.halfSize.z;
+    }
+    intersectsBox3(box3) {
+        return this.intersectsOBB(obb.fromBox3(box3));
+    }
+    intersectsSphere(sphere) {
+        // find the point on the OBB closest to the sphere center
+        this.clampPoint(sphere.center, closestPoint);
+        // if that point is inside the sphere, the OBB and sphere intersect
+        return closestPoint.distanceToSquared(sphere.center) <= sphere.radius * sphere.radius;
+    }
+    /**
+	* Reference: OBB-OBB Intersection in Real-Time Collision Detection
+	* by Christer Ericson (chapter 4.4.1)
+	*
+	*/ intersectsOBB(obb, epsilon = Number.EPSILON) {
+        // prepare data structures (the code uses the same nomenclature like the reference)
+        a.c = this.center;
+        a.e[0] = this.halfSize.x;
+        a.e[1] = this.halfSize.y;
+        a.e[2] = this.halfSize.z;
+        this.rotation.extractBasis(a.u[0], a.u[1], a.u[2]);
+        b.c = obb.center;
+        b.e[0] = obb.halfSize.x;
+        b.e[1] = obb.halfSize.y;
+        b.e[2] = obb.halfSize.z;
+        obb.rotation.extractBasis(b.u[0], b.u[1], b.u[2]);
+        // compute rotation matrix expressing b in a's coordinate frame
+        for(let i = 0; i < 3; i++)for(let j = 0; j < 3; j++)R[i][j] = a.u[i].dot(b.u[j]);
+        // compute translation vector
+        v1.subVectors(b.c, a.c);
+        // bring translation into a's coordinate frame
+        t[0] = v1.dot(a.u[0]);
+        t[1] = v1.dot(a.u[1]);
+        t[2] = v1.dot(a.u[2]);
+        // compute common subexpressions. Add in an epsilon term to
+        // counteract arithmetic errors when two edges are parallel and
+        // their cross product is (near) null
+        for(let i = 0; i < 3; i++)for(let j = 0; j < 3; j++)AbsR[i][j] = Math.abs(R[i][j]) + epsilon;
+        let ra, rb;
+        // test axes L = A0, L = A1, L = A2
+        for(let i = 0; i < 3; i++){
+            ra = a.e[i];
+            rb = b.e[0] * AbsR[i][0] + b.e[1] * AbsR[i][1] + b.e[2] * AbsR[i][2];
+            if (Math.abs(t[i]) > ra + rb) return false;
+        }
+        // test axes L = B0, L = B1, L = B2
+        for(let i = 0; i < 3; i++){
+            ra = a.e[0] * AbsR[0][i] + a.e[1] * AbsR[1][i] + a.e[2] * AbsR[2][i];
+            rb = b.e[i];
+            if (Math.abs(t[0] * R[0][i] + t[1] * R[1][i] + t[2] * R[2][i]) > ra + rb) return false;
+        }
+        // test axis L = A0 x B0
+        ra = a.e[1] * AbsR[2][0] + a.e[2] * AbsR[1][0];
+        rb = b.e[1] * AbsR[0][2] + b.e[2] * AbsR[0][1];
+        if (Math.abs(t[2] * R[1][0] - t[1] * R[2][0]) > ra + rb) return false;
+        // test axis L = A0 x B1
+        ra = a.e[1] * AbsR[2][1] + a.e[2] * AbsR[1][1];
+        rb = b.e[0] * AbsR[0][2] + b.e[2] * AbsR[0][0];
+        if (Math.abs(t[2] * R[1][1] - t[1] * R[2][1]) > ra + rb) return false;
+        // test axis L = A0 x B2
+        ra = a.e[1] * AbsR[2][2] + a.e[2] * AbsR[1][2];
+        rb = b.e[0] * AbsR[0][1] + b.e[1] * AbsR[0][0];
+        if (Math.abs(t[2] * R[1][2] - t[1] * R[2][2]) > ra + rb) return false;
+        // test axis L = A1 x B0
+        ra = a.e[0] * AbsR[2][0] + a.e[2] * AbsR[0][0];
+        rb = b.e[1] * AbsR[1][2] + b.e[2] * AbsR[1][1];
+        if (Math.abs(t[0] * R[2][0] - t[2] * R[0][0]) > ra + rb) return false;
+        // test axis L = A1 x B1
+        ra = a.e[0] * AbsR[2][1] + a.e[2] * AbsR[0][1];
+        rb = b.e[0] * AbsR[1][2] + b.e[2] * AbsR[1][0];
+        if (Math.abs(t[0] * R[2][1] - t[2] * R[0][1]) > ra + rb) return false;
+        // test axis L = A1 x B2
+        ra = a.e[0] * AbsR[2][2] + a.e[2] * AbsR[0][2];
+        rb = b.e[0] * AbsR[1][1] + b.e[1] * AbsR[1][0];
+        if (Math.abs(t[0] * R[2][2] - t[2] * R[0][2]) > ra + rb) return false;
+        // test axis L = A2 x B0
+        ra = a.e[0] * AbsR[1][0] + a.e[1] * AbsR[0][0];
+        rb = b.e[1] * AbsR[2][2] + b.e[2] * AbsR[2][1];
+        if (Math.abs(t[1] * R[0][0] - t[0] * R[1][0]) > ra + rb) return false;
+        // test axis L = A2 x B1
+        ra = a.e[0] * AbsR[1][1] + a.e[1] * AbsR[0][1];
+        rb = b.e[0] * AbsR[2][2] + b.e[2] * AbsR[2][0];
+        if (Math.abs(t[1] * R[0][1] - t[0] * R[1][1]) > ra + rb) return false;
+        // test axis L = A2 x B2
+        ra = a.e[0] * AbsR[1][2] + a.e[1] * AbsR[0][2];
+        rb = b.e[0] * AbsR[2][1] + b.e[1] * AbsR[2][0];
+        if (Math.abs(t[1] * R[0][2] - t[0] * R[1][2]) > ra + rb) return false;
+        // since no separating axis is found, the OBBs must be intersecting
+        return true;
+    }
+    /**
+	* Reference: Testing Box Against Plane in Real-Time Collision Detection
+	* by Christer Ericson (chapter 5.2.3)
+	*/ intersectsPlane(plane) {
+        this.rotation.extractBasis(xAxis, yAxis, zAxis);
+        // compute the projection interval radius of this OBB onto L(t) = this->center + t * p.normal;
+        const r = this.halfSize.x * Math.abs(plane.normal.dot(xAxis)) + this.halfSize.y * Math.abs(plane.normal.dot(yAxis)) + this.halfSize.z * Math.abs(plane.normal.dot(zAxis));
+        // compute distance of the OBB's center from the plane
+        const d = plane.normal.dot(this.center) - plane.constant;
+        // Intersection occurs when distance d falls within [-r,+r] interval
+        return Math.abs(d) <= r;
+    }
+    /**
+	* Performs a ray/OBB intersection test and stores the intersection point
+	* to the given 3D vector. If no intersection is detected, *null* is returned.
+	*/ intersectRay(ray, result) {
+        // the idea is to perform the intersection test in the local space
+        // of the OBB.
+        this.getSize(size);
+        aabb.setFromCenterAndSize(v1.set(0, 0, 0), size);
+        // create a 4x4 transformation matrix
+        matrix.setFromMatrix3(this.rotation);
+        matrix.setPosition(this.center);
+        // transform ray to the local space of the OBB
+        inverse.copy(matrix).invert();
+        localRay.copy(ray).applyMatrix4(inverse);
+        // perform ray <-> AABB intersection test
+        if (localRay.intersectBox(aabb, result)) // transform the intersection point back to world space
+        return result.applyMatrix4(matrix);
+        else return null;
+    }
+    /**
+	* Performs a ray/OBB intersection test. Returns either true or false if
+	* there is a intersection or not.
+	*/ intersectsRay(ray) {
+        return this.intersectRay(ray, v1) !== null;
+    }
+    fromBox3(box3) {
+        box3.getCenter(this.center);
+        box3.getSize(this.halfSize).multiplyScalar(0.5);
+        this.rotation.identity();
+        return this;
+    }
+    equals(obb) {
+        return obb.center.equals(this.center) && obb.halfSize.equals(this.halfSize) && obb.rotation.equals(this.rotation);
+    }
+    applyMatrix4(matrix) {
+        const e = matrix.elements;
+        let sx = v1.set(e[0], e[1], e[2]).length();
+        const sy = v1.set(e[4], e[5], e[6]).length();
+        const sz = v1.set(e[8], e[9], e[10]).length();
+        const det = matrix.determinant();
+        if (det < 0) sx = -sx;
+        rotationMatrix.setFromMatrix4(matrix);
+        const invSX = 1 / sx;
+        const invSY = 1 / sy;
+        const invSZ = 1 / sz;
+        rotationMatrix.elements[0] *= invSX;
+        rotationMatrix.elements[1] *= invSX;
+        rotationMatrix.elements[2] *= invSX;
+        rotationMatrix.elements[3] *= invSY;
+        rotationMatrix.elements[4] *= invSY;
+        rotationMatrix.elements[5] *= invSY;
+        rotationMatrix.elements[6] *= invSZ;
+        rotationMatrix.elements[7] *= invSZ;
+        rotationMatrix.elements[8] *= invSZ;
+        this.rotation.multiply(rotationMatrix);
+        this.halfSize.x *= sx;
+        this.halfSize.y *= sy;
+        this.halfSize.z *= sz;
+        v1.setFromMatrixPosition(matrix);
+        this.center.add(v1);
+        return this;
+    }
+}
+const obb = new OBB();
+
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"5N5lS":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "addNewBox3Tree", ()=>addNewBox3Tree);
+parcelHelpers.export(exports, "addListenersToPackableObject", ()=>addListenersToPackableObject);
+parcelHelpers.export(exports, "addListenersToContainerObject", ()=>addListenersToContainerObject);
+var _boxesTreeJs = require("./BoxesTree.js");
+var _utilsJs = require("./utils.js");
+var _three = require("three");
+const box3sTrees = [];
+function addNewBox3Tree(box) {
+    box3sTrees.push(new (0, _boxesTreeJs.BoxesTree)(box));
+}
+function findBoxTree(box) {
+    for (let tree of box3sTrees)if (tree.find(box)) return tree;
+    return undefined;
+}
+function addToBoxesTreesList(parentBox, boxes) {
+    let parentNode;
+    let parentTree;
+    for (let tree of box3sTrees){
+        parentNode = tree.find(parentBox);
+        if (parentNode) {
+            parentTree = tree;
+            break;
+        }
+    }
+    if (!parentNode) {
+        const newTree = new (0, _boxesTreeJs.BoxesTree)(parentBox);
+        parentNode = newTree.getRoot();
+        box3sTrees.push(newTree);
+        parentTree = newTree;
+    }
+    for (let b of boxes)parentTree.insert(parentBox, b);
+    return {
+        parentNode: parentNode,
+        parentTree: parentTree
+    };
+}
+function getBox3Slice(b) {
+    b.isSlice = true;
+    return b;
+}
+function getObjSlice(obj) {
+    const model = _utilsJs.getModelsGroup(obj);
+    const box3 = new _three.Box3().setFromObject(model);
+    return getBox3Slice(box3);
+}
+// function applyToBoxAndChildren(box, cb, args){
+// 	cb(box,args);
+// 	if(box.childBoxes && box.childBoxes.length > 0)
+// 		for(let b of box.childBoxes)
+// 			applyToBoxAndChildren(b, cb, args);
+// }
+function divideBox3BySlice(box, slice) {
+    const boxes = [];
+    if (_utilsJs.round(box.min.y) === _utilsJs.round(slice.min.y)) {
+        // вертикальная балка
+        boxes.push(new _three.Box3(box.min, new _three.Vector3(slice.min.x, slice.max.y, slice.max.z)));
+        boxes.push(new _three.Box3(new _three.Vector3(slice.max.x, slice.min.y, slice.min.z), box.max));
+    } else if (_utilsJs.round(box.min.x) === _utilsJs.round(slice.min.x)) {
+        // горизонтальная балка
+        boxes.push(new _three.Box3(box.min, new _three.Vector3(slice.max.x, slice.min.y, slice.max.z)));
+        boxes.push(new _three.Box3(new _three.Vector3(slice.min.x, slice.max.y, slice.min.z), box.max));
+    } else {
+        // тут, наверное, произошёл проёб из-за чисел с плавающей точкой
+        // ну и пошло оно нахуй
+        boxes.push(new _three.Box3(box.min, slice.max));
+        boxes.push(new _three.Box3(slice.min, box.max));
+    }
+    return boxes;
+}
+function onPickup(obj, dragEngine) {
+    if (obj.userData.parentNode) {
+        const tree = findBoxTree(obj.userData.parentNode.key);
+        tree.unbindObj(obj);
+        obj.userData.parentNode.children = [];
+        renderBoxes3(dragEngine);
+        obj.userData.parentNode = null;
+    }
+}
+function onDrop(obj, dragEngine) {
+    const model = _utilsJs.getModelsGroup(obj);
+    if (model && model.userData.scaleBox) {
+        const slice = getObjSlice(obj);
+        const parentBox = model.userData.scaleBox;
+        const boxes = divideBox3BySlice(parentBox, slice);
+        const pNodeAndTree = addToBoxesTreesList(parentBox, boxes);
+        renderBoxes3(dragEngine);
+        obj.userData.parentNode = pNodeAndTree.parentNode;
+        pNodeAndTree.parentTree.bindObject(obj);
+    }
+}
+function renderBoxes3(dragEngine) {
+    dragEngine.stage.clearBox3s();
+    for (let tree of box3sTrees)for (let node of tree.preOrderTraversal()){
+        const box = node.key;
+        if (node.isLeaf) dragEngine.stage.addBox3(box, true);
+    }
+}
+function onMove(obj, dragEngine) {
+    const interbox = dragEngine.cursorIntersectsBox3s();
+    dragEngine.stage.returnObjOriginalScale(obj);
+    if (interbox) {
+        dragEngine.snapObjectToBox3(obj, interbox);
+        if (obj.userData.lockScale) dragEngine.setPlaneNormal(dragEngine.pNormalVertical);
+    // onDrop(obj,dragEngine);
+    // onPickup(obj,dragEngine);
+    }
+}
+function addListenersToPackableObject(obj, dragEngine) {
+    obj.userData.onPickup = ()=>{
+        onPickup(obj, dragEngine);
+    };
+    obj.userData.onDrop = ()=>{
+        onDrop(obj, dragEngine);
+    };
+    obj.userData.onMove = ()=>{
+        onMove(obj, dragEngine);
+    };
+    obj.userData.isPackable = true;
+}
+function addListenersToContainerObject(obj, dragEngine, box3) {
+    obj.userData.onMove = (oldpos, newpos)=>{
+        const moved = new _three.Vector3().subVectors(newpos, oldpos);
+        const tree = findBoxTree(box3);
+        const parentNode = tree.find(box3);
+        _utilsJs.moveBox3(box3, moved);
+        parentNode.children = [];
+        renderBoxes3(dragEngine);
+        try {
+            for (let o of tree.bindedObjects)_utilsJs.moveObj(o, moved);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+}
+
+},{"./BoxesTree.js":"e5frl","./utils.js":"72Dku","three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"e5frl":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "BoxesTree", ()=>BoxesTree);
+var _boxesNodeJs = require("./BoxesNode.js");
+class BoxesTree {
+    constructor(key, value = key){
+        this.root = new (0, _boxesNodeJs.BoxesNode)(key, value);
+        this.bindedObjects = [];
+    }
+    *preOrderTraversal(node = this.root) {
+        yield node;
+        if (node.children.length) for (let child of node.children)yield* this.preOrderTraversal(child);
+    }
+    *postOrderTraversal(node = this.root) {
+        if (node.children.length) for (let child of node.children)yield* this.postOrderTraversal(child);
+        yield node;
+    }
+    insert(parentNodeKey, key, value = key) {
+        for (let node of this.preOrderTraversal())if (node.key === parentNodeKey) {
+            node.children.push(new (0, _boxesNodeJs.BoxesNode)(key, value, node));
+            return true;
+        }
+        return false;
+    }
+    remove(key) {
+        for (let node of this.preOrderTraversal()){
+            const filtered = node.children.filter((c)=>c.key !== key);
+            if (filtered.length !== node.children.length) {
+                node.children = filtered;
+                return true;
+            }
+        }
+        return false;
+    }
+    find(key) {
+        for (let node of this.preOrderTraversal()){
+            if (node.key === key) return node;
+        }
+        return undefined;
+    }
+    getRoot() {
+        return this.root;
+    }
+    bindObject(obj) {
+        this.bindedObjects.push(obj);
+    }
+    unbindObj(obj) {
+        this.bindedObjects = this.bindedObjects.filter((o)=>{
+            return o !== obj;
+        });
+    }
+}
+
+},{"./BoxesNode.js":"2CKaX","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"2CKaX":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "BoxesNode", ()=>BoxesNode);
+class BoxesNode {
+    constructor(key, value = key, parent = null){
+        this.key = key;
+        this.value = value;
+        this.parent = parent;
+        this.children = [];
+    }
+    get isLeaf() {
+        return this.children.length === 0;
+    }
+    get hasChildren() {
+        return !this.isLeaf;
+    }
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"ivRbE":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -48146,7 +48947,7 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
     }
 }
 
-},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"kmFdU":[function(require,module,exports) {
+},{"three":"ktPTu","./Stage.js":"5MQQY","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kmFdU":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -48158,6 +48959,8 @@ parcelHelpers.defineInteropFlag(exports);
 */ parcelHelpers.export(exports, "DragEnginePlane", ()=>DragEnginePlane);
 var _three = require("three");
 var _stageJs = require("./Stage.js");
+var _utilsJs = require("./utils.js");
+var _obbJs = require("three/examples/jsm/math/OBB.js");
 class DragEnginePlane {
     /**
 		Инициализация необходимых переменных.
@@ -48175,7 +48978,7 @@ class DragEnginePlane {
         this.lockX = false;
         this.lockY = false;
         this.lockZ = false;
-        this.collision = false;
+        this.collision = true;
         this.dragging = true;
     }
     setDragging(bool) {
@@ -48262,11 +49065,18 @@ class DragEnginePlane {
         if (intersects.length > 0 && intersects[0].object.userData.isSelectable) return this.getRootParentGroup(intersects[0].object);
         else return null;
     }
+    setPlaneNormal(normal) {
+        this.pNormal = normal;
+        this.planeDrag.setFromNormalAndCoplanarPoint(this.pNormal, this.pIntersect);
+    // может быть ещё надо тащить dragObject и пересчитывать shift?
+    // this.shift.subVectors(this.dragObject.position, this.pIntersect);
+    }
     /**
 		Начать перемещение модели
 	*/ pickup(intersectionPoint, obj) {
         this.stage.controls.enabled = false;
         this.dragObject = obj;
+        if (this.dragObject.userData.onPickup) this.dragObject.userData.onPickup();
         this.pIntersect.copy(intersectionPoint);
         this.planeDrag.setFromNormalAndCoplanarPoint(this.pNormal, this.pIntersect);
         this.shift.subVectors(obj.position, intersectionPoint);
@@ -48274,6 +49084,8 @@ class DragEnginePlane {
     /**
 		Прекратить перемещение модели
 	*/ drop() {
+        if (!this.dragObject) return;
+        if (this.dragObject.userData.onDrop) this.dragObject.userData.onDrop();
         this.dragObject = null;
         this.stage.controls.enabled = true;
     }
@@ -48283,41 +49095,106 @@ class DragEnginePlane {
         this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
         this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
         const oldpos = this.dragObject.position.clone();
-        let x = this.dragObject.position.x;
-        let y = this.dragObject.position.y;
-        let z = this.dragObject.position.z;
         this.dragObject.position.addVectors(this.planeIntersect, this.shift);
-        this.applyAxisLock(x, y, z);
-        this.applyRestraint(this.dragObject);
-        this.applyCollision(this.dragObject);
-        if (this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
+        _utilsJs.doWithoutLabels(this.dragObject, (o)=>{
+            this.applyCollision(o, oldpos);
+            this.applyAxisLock(o, oldpos);
+            this.applyRestraint(o);
+        });
+        if (this.dragObject && this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
+    }
+    snapObjectToBox3(obj, box3) {
+        this.stage.scaleObjToBox3(obj, box3);
+        this.stage.setRestraint(obj, box3);
     }
     /**
 		Ограничить перемещение модели в случае, если включена блокировка какой-то из осей.
-	*/ applyAxisLock(x, y, z) {
+	*/ applyAxisLock(obj, pos) {
         if (this.lockX) {
-            this.dragObject.position.y = y;
-            this.dragObject.position.z = z;
+            obj.position.y = pos.y;
+            obj.position.z = pos.z;
         } else if (this.lockY) {
-            this.dragObject.position.x = x;
-            this.dragObject.position.z = z;
+            obj.position.x = pos.x;
+            obj.position.z = pos.z;
         } else if (this.lockZ) {
-            this.dragObject.position.y = y;
-            this.dragObject.position.x = x;
+            obj.position.y = pos.y;
+            obj.position.x = pos.x;
         }
     }
     /**
 		Применить ограничение на перемещение модели, в случае если коллизии активированы и в объекте модели эти коллизии прописаны.
 		Если какая-то из сторон куба вышла за пределы ограничителя, то позиция корректируется так, чтобы вернуть модель обратно внутрь ограничителя.
 	*/ applyRestraint(obj) {
-        if (!this.collision) return;
+        if (!this.collision || obj.userData.isNotAffectedByCollision) return;
         let restraint = obj.userData.restraint;
         if (restraint) obj.position.clamp(restraint.min, restraint.max);
     }
     /*
 		Применить коллизию: если перемещаемая модель столкнулась с другой моделью, у которой есть коллизия, то пересчитываем позицию перемещаемой модели так, чтобы коллизионные коробки двух моделей не пересекались.
-	**/ applyCollision(obj) {
-        if (!this.collision) return;
+	**/ applyCollision(obj, oldpos, noLimit) {
+        if (!this.collision || obj.userData.isNotAffectedByCollision) return;
+        for (let colobj of this.stage.objectsWithCollision){
+            if (obj === colobj) continue;
+            if (obj === this.getRootParentGroup(colobj)) continue;
+            const objGroup = _utilsJs.getModelsGroup(obj);
+            let objMesh;
+            _utilsJs.applyToMeshes(objGroup, (o)=>{
+                objMesh = o;
+            });
+            // utils.applyToMeshes(colobj, o=>{
+            // 	if(o.parent.name === 'models') colObjMesh = o;
+            // });
+            const obb = objMesh.userData.obb;
+            const colObb = colobj.userData.obb;
+            if (this.hasIntersection(obb, colObb)) {
+                let prevpos = obj.position.clone();
+                let clampPoint = new _three.Vector3();
+                let halfSize = obb.halfSize;
+                colObb.clampPoint(obj.position, clampPoint);
+                const clampDist = prevpos.distanceTo(clampPoint);
+                if (clampDist > 0.01 && clampDist < halfSize.x + halfSize.z) {
+                    obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
+                    let dragbbox = new _three.Box3().setFromObject(obj);
+                    let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
+                    let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
+                    let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
+                    let dragpos = obj.position;
+                    if (prevpos.x < dragpos.x) dragpos.x -= halfLength;
+                    else if (prevpos.x > dragpos.x) dragpos.x += halfLength;
+                    if (prevpos.z < dragpos.z) dragpos.z -= halfWidth;
+                    else if (prevpos.z > dragpos.z) dragpos.z += halfWidth;
+                // if(prevpos.y < dragpos.y) {
+                // dragpos.y -= halfHeight;
+                // } else if (prevpos.y > dragpos.y) {
+                // dragpos.y += halfHeight;
+                // }
+                // let dragpos = obj.position;
+                // if(prevpos.x < dragpos.x) {
+                // dragpos.x -= halfSize.x;
+                // } else if (prevpos.x > dragpos.x) {
+                // dragpos.x += halfSize.x;
+                // }
+                // if(prevpos.z < dragpos.z) {
+                // dragpos.z -= halfSize.z;
+                // } else if (prevpos.z > dragpos.z) {
+                // dragpos.z += halfSize.z;
+                // }
+                // if(prevpos.y < dragpos.y) {
+                // dragpos.y -= halfSize.y;
+                // } else if (prevpos.y > dragpos.y) {
+                // dragpos.y += halfSize.y;
+                // }
+                }
+            }
+        }
+    }
+    applyCollision_old(obj, oldpos, noLimit) {
+        if (!this.collision || obj.userData.isNotAffectedByCollision) return;
+        if (!obj.userData.collisionDelay) obj.userData.collisionDelay = 0;
+        if (obj.userData.collisionDelay > 0) {
+            obj.userData.collisionDelay--;
+            return;
+        }
         // вынимаем линии из потомков объекта, чтобы они не учавствовали в коллизии
         let tempchild1 = [];
         let chiCopy1 = [
@@ -48327,6 +49204,7 @@ class DragEnginePlane {
             tempchild1.push(c);
             obj.remove(c);
         }
+        let collisions = 0;
         for (let colobj of this.stage.objectsWithCollision){
             if (obj === colobj) continue;
             if (obj === this.getRootParentGroup(colobj)) continue;
@@ -48338,38 +49216,90 @@ class DragEnginePlane {
                 tempchild2.push(c);
                 colobj.remove(c);
             }
-            if (this.hasIntersection(obj, colobj)) {
+            let objMesh, colObjMesh;
+            _utilsJs.applyToMeshes(obj, (o)=>{
+                if (o.parent.name === "models") objMesh = o;
+            });
+            _utilsJs.applyToMeshes(colobj, (o)=>{
+                if (o.parent.name === "models") colObjMesh = o;
+            });
+            const obb = objMesh.userData.obb;
+            const colObb = colObjMesh.userData.obb;
+            if (this.hasIntersection(obb, colObb)) {
+                // if (!obj.userData.phantom){
+                // this.dragObject = utils.cloneObject(obj);
+                // utils.applyToMeshes(this.dragObject,(o)=>{
+                // o.material.emissive.set('red');
+                // });
+                // this.dragObject.userData.phantom = true;
+                // this.dragObject.userData.origObj = obj;
+                // this.dragObject.stuckObject = colobj;
+                // this.stage.addObject(this.dragObject,true);
+                // } else {
+                // collisions++;
+                // }
                 let prevpos = obj.position.clone();
-                let colbbox = colobj.isBox3 ? colobj : new _three.Box3().setFromObject(colobj);
-                obj.position.clamp(colbbox.min, colbbox.max);
-                // let con_help1 = new THREE.Box3Helper(colbbox, "blue");
-                // this.stage.scene.add(con_help1);
-                /*	
-					после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
-					на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
-					"код" ниже выталкивает таскаемый объект за пределы коллизионного объекта
-				
-					Схема: линии это границы таскаемого объекта, единицы - границы коллизионного.
-					После клемпа			После портянки ниже
-						11111111					11111111
-					|---1---|  1			|-------1	   1
-					|	1   |  1     =>		|		1	   1
-					|___11111111			|_______11111111
-				*/ let dragbbox = new _three.Box3().setFromObject(obj);
-                let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
-                let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
-                let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
-                let dragpos = obj.position;
-                if (prevpos.x < dragpos.x) dragpos.x -= halfLength;
-                else if (prevpos.x > dragpos.x) dragpos.x += halfLength;
-                if (prevpos.z < dragpos.z) dragpos.z -= halfWidth;
-                else if (prevpos.z > dragpos.z) dragpos.z += halfWidth;
-                if (prevpos.y < dragpos.y) dragpos.y -= halfHeight;
-                else if (prevpos.y > dragpos.y) dragpos.y += halfHeight;
+                let clampPoint = new _three.Vector3();
+                let halfSize = obb.halfSize;
+                colObb.clampPoint(obj.position, clampPoint);
+                const clampDist = prevpos.distanceTo(clampPoint);
+                if (clampDist > 0.01 && clampDist < halfSize.x + halfSize.z) {
+                    obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
+                    console.log(obj.rotation);
+                    let dragpos = obj.position;
+                    if (prevpos.x < dragpos.x) dragpos.x -= halfSize.x;
+                    else if (prevpos.x > dragpos.x) dragpos.x += halfSize.x;
+                    if (prevpos.z < dragpos.z) dragpos.z -= halfSize.z;
+                    else if (prevpos.z > dragpos.z) dragpos.z += halfSize.z;
+                    if (prevpos.y < dragpos.y) dragpos.y -= halfSize.y;
+                    else if (prevpos.y > dragpos.y) dragpos.y += halfSize.y;
+                }
             }
+            // let colbbox = colobj.isBox3 ? colobj : new THREE.Box3().setFromObject(colobj);
+            // obj.position.clamp(colbbox.min, colbbox.max);
+            // // let con_help1 = new THREE.Box3Helper(colbbox, "blue");
+            // // this.stage.scene.add(con_help1);
+            // /*	
+            // после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
+            // на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
+            // "код" ниже выталкивает таскаемый объект за пределы коллизионного объекта
+            // Схема: линии это границы таскаемого объекта, единицы - границы коллизионного.
+            // После клемпа			После портянки ниже
+            // 11111111					11111111
+            // |---1---|  1			|-------1	   1
+            // |	1   |  1     =>		|		1	   1
+            // |___11111111			|_______11111111
+            // */
+            // let dragbbox = new THREE.Box3().setFromObject(obj);
+            // let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;
+            // let halfHeight = (dragbbox.max.y - dragbbox.min.y)/2;
+            // let halfWidth  = (dragbbox.max.z - dragbbox.min.z)/2;
+            // let dragpos = obj.position;
+            // if(prevpos.x < dragpos.x) {
+            // dragpos.x -= halfLength;
+            // } else if (prevpos.x > dragpos.x) {
+            // dragpos.x += halfLength;
+            // }
+            // if(prevpos.z < dragpos.z) {
+            // dragpos.z -= halfWidth;
+            // } else if (prevpos.z > dragpos.z) {
+            // dragpos.z += halfWidth;
+            // }
+            // if(prevpos.y < dragpos.y) {
+            // dragpos.y -= halfHeight;
+            // } else if (prevpos.y > dragpos.y) {
+            // dragpos.y += halfHeight;
+            // }
             for (let c of tempchild2)colobj.add(c);
         }
         for (let c of tempchild1)obj.add(c);
+        if (obj.userData.phantom && collisions === 0) obj.userData.collisionTicks = obj.userData.collisionTicks ? obj.userData.collisionTicks - 1 : 2;
+        if (obj.userData.phantom && obj.userData.collisionTicks <= 0) {
+            this.dragObject = obj.userData.origObj;
+            this.dragObject.position.set(obj.position.x, obj.position.y, obj.position.z);
+            this.dragObject.userData.collisionDelay = 10;
+            this.stage.removeObject(obj);
+        }
     }
     /**
 		Рассчитывает нормализованное положение мыши в сцене.
@@ -48388,12 +49318,58 @@ class DragEnginePlane {
     }
     /**
 		Проверяет, пересекаются ли два объекта или нет. Используется при определении коллизии.
-	*/ hasIntersection(obj1, obj2) {
+	*/ hasIntersection(obb1, obb2) {
+        // let obj1Mesh, obj2Mesh;
+        // utils.applyToMeshes(obj1, (obj)=>{
+        // if(obj.parent.name === 'models') obj1Mesh = obj;
+        // });
+        // utils.applyToMeshes(obj2, (obj)=>{
+        // if(obj.parent.name === 'models') obj2Mesh = obj;
+        // });
+        // const obb1 = obj1Mesh.userData.obb;
+        // const obb2 = obj2Mesh.userData.obb;
+        return obb1.intersectsOBB(obb2);
+    }
+    #hasIntersection_copy(obj1, obj2) {
         let colbox1 = new _three.Box3();
         let colbox2 = new _three.Box3();
         colbox1 = obj1.isBox3 ? obj1 : colbox1.setFromObject(obj1);
         colbox2 = obj2.isBox3 ? obj2 : colbox2.setFromObject(obj2);
         return colbox1.intersectsBox(colbox2);
+    }
+    objIntersectsWithBox3(obj) {
+        const objbox = new _three.Box3().setFromObject(obj);
+        for (let b of this.stage.box3s){
+            if (objbox.intersectsBox(b)) return b;
+        }
+        return false;
+    }
+    // pointIntersectsWithBox3(point){
+    // 	for (let b of this.stage.box3s){
+    // 		if (b.containsPoint(point)) return b;
+    // 	}
+    // 	return false;
+    // }
+    cursorIntersectsBox3s() {
+        this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
+        let resultBox;
+        let prevDist;
+        for (let b of this.stage.box3s){
+            const intersectionPoint = new _three.Vector3();
+            const doIntersect = this.stage.raycaster.ray.intersectBox(b, intersectionPoint);
+            if (doIntersect) {
+                if (!resultBox) {
+                    resultBox = b;
+                    prevDist = this.stage.camera.position.distanceTo(intersectionPoint);
+                }
+                const currDist = this.stage.camera.position.distanceTo(intersectionPoint);
+                if (prevDist > currDist) {
+                    resultBox = b;
+                    prevDist = currDist;
+                }
+            }
+        }
+        return resultBox;
     }
     /**
 		Выбирает самого верхнего предка модели, не являющегося сценой.
@@ -48413,7 +49389,7 @@ class DragEnginePlane {
     }
 }
 
-},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4SNlt":[function(require,module,exports) {
+},{"three":"ktPTu","./Stage.js":"5MQQY","./utils.js":"72Dku","three/examples/jsm/math/OBB.js":"hBt0X","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4SNlt":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -48451,6 +49427,9 @@ class MaterialManager {
             },
             wallpaperTwo: ()=>{
                 return self.createWallTexturedMaterial("wallpaper2.jpg");
+            },
+            wallRoundCorner: ()=>{
+                return self.createCylinderTexturedMaterial("wallpaper2.jpg");
             },
             redLine: ()=>{
                 return new _three.LineBasicMaterial({
@@ -48497,6 +49476,22 @@ class MaterialManager {
         ];
         return multiMaterial;
     }
+    createCylinderTexturedMaterial(filename) {
+        const texturedMaterial = this.createStandardTexturedMaterial(filename);
+        const nonTexturedMaterial = new _three.MeshStandardMaterial({
+            color: "gray",
+            side: _three.DoubleSide
+        });
+        const multiMaterial = [
+            nonTexturedMaterial,
+            texturedMaterial,
+            nonTexturedMaterial,
+            nonTexturedMaterial,
+            nonTexturedMaterial,
+            nonTexturedMaterial
+        ];
+        return multiMaterial;
+    }
     /**
 		Устанавливает материал для модели
 	*/ setMeshMaterial(mesh, materialKey) {
@@ -48529,7 +49524,7 @@ class MaterialManager {
     }
 }
 
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"cHEjt":[function(require,module,exports) {
+},{"three":"ktPTu","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cHEjt":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -48538,6 +49533,7 @@ parcelHelpers.defineInteropFlag(exports);
 	(В теории, по крайней мере. Сейчас это больше похоже на массив с глобальными переменными. Для превращения этого класса в контролер надо определить методы, которые будут взаимодействовать с объектами в полях. Когда-нибудь я этим займусь...)
 */ parcelHelpers.export(exports, "MainController", ()=>MainController);
 var _dragEnginePlaneJs = require("./DragEnginePlane.js");
+var _utilsJs = require("./utils.js");
 class MainController {
     /**
 		Инициализация класса.
@@ -48598,14 +49594,14 @@ class MainController {
 	*/ addListeners() {
         let self = this;
     }
-    addObjectToCurrentStage(obj, isMovable, hasCollision, hasDimensions) {
-        this.currentStage.addObject(obj, isMovable, hasCollision, hasDimensions);
+    addObjectToCurrentStage(obj, isMovable, hasCollision, hasDimensions, isPackable) {
+        this.currentStage.addObject(obj, isMovable, hasCollision, hasDimensions, isPackable);
     }
     removeObjectFromCurrentStage(obj) {
         this.currentStage.removeObject(obj);
     }
     addLabelToObject(obj) {
-        this.labelManager.addDimensionLines(obj);
+        this.labelManager.addLabelToObject(obj);
     }
     removeLabelFromObject(obj) {
         this.labelManager.removeLabel(obj);
@@ -48628,16 +49624,18 @@ class MainController {
         return this.currentStage.getSelectedObject();
     }
     moveObject(obj, axis, amount) {
+        const prevpos = obj.position.clone();
         this.currentStage.moveObject(obj, axis, amount);
-        this.applyCollisionAndRestraint(obj);
+    // this.applyCollisionAndRestraint(obj, prevpos);
     }
     scaleObject(obj, axis, amount) {
+        const prevpos = obj.position.clone();
         this.currentStage.scaleObjectAxisScalar(obj, axis, amount);
-        this.applyCollisionAndRestraint(obj);
+    // this.applyCollisionAndRestraint(obj, prevpos);
     }
-    applyCollisionAndRestraint(obj) {
+    applyCollisionAndRestraint(obj, prevpos) {
         this.dragEngine.applyRestraint(obj);
-        this.dragEngine.applyCollision(obj);
+    // this.dragEngine.applyCollision(obj, prevpos, true);
     }
     unsetSelection() {
         this.currentStage.unsetSelectedObject();
@@ -48658,6 +49656,9 @@ class MainController {
         this.#doExporting(objects, ()=>{
             this.exportManager.exportToStage(objects, stageTo);
         });
+    // utils.doWithoutLabels(objects, (o)=>{
+    // 	this.exportManager.exportToStage(o, stageTo);
+    // });
     }
     downloadStageToUserPc(stage) {
         let exportable = stage.scene.children.filter((o)=>{
@@ -48682,7 +49683,7 @@ class MainController {
     }
 }
 
-},{"./DragEnginePlane.js":"kmFdU","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8hs9t":[function(require,module,exports) {
+},{"./DragEnginePlane.js":"kmFdU","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8hs9t":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -48692,6 +49693,7 @@ var _three = require("three");
 var _gltfloaderJs = require("three/examples/jsm/loaders/GLTFLoader.js");
 var _gltfexporterJs = require("three/examples/jsm/exporters/GLTFExporter.js");
 var _utilsJs = require("./utils.js");
+var _obbJs = require("three/examples/jsm/math/OBB.js");
 class ExportManager {
     /**
 		Конструктор класса
@@ -48784,10 +49786,18 @@ class ExportManager {
                 }
             }
             // добавить модельки в сцену. Сделать поправку на их положение в текущей сцене.
+            console.log("Adding groups");
             for (let g of groups){
                 if (!g) continue;
                 let group = new _three.Group();
-                for (let m of g)group.add(m);
+                for (let m of g){
+                    _utilsJs.applyToMeshes(m, (o)=>{
+                        const badObb = o.geometry.userData.obb;
+                        o.geometry.userData.obb = new (0, _obbJs.OBB)(badObb.center, badObb.halfSize, badObb.rotation);
+                        o.userData.obb = new (0, _obbJs.OBB)();
+                    });
+                    group.add(m);
+                }
                 let pos = new _three.Vector3();
                 new _three.Box3().setFromObject(group).getCenter(pos);
                 for (let m of group.children){
@@ -48801,6 +49811,8 @@ class ExportManager {
                 container.add(group);
                 stage.addObject(container, true, true, true);
                 container.position.copy(pos);
+                console.log(g);
+                console.log(container);
             }
         });
     }
@@ -48819,7 +49831,7 @@ class ExportManager {
     }
 }
 
-},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"aEsVy":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./utils.js":"72Dku","three/examples/jsm/math/OBB.js":"hBt0X","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"aEsVy":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -48829,11 +49841,39 @@ var _three = require("three");
 var _fontLoaderJs = require("three/examples/jsm/loaders/FontLoader.js");
 var _textGeometryJs = require("three/examples/jsm/geometries/TextGeometry.js");
 var _troikaThreeText = require("troika-three-text");
+var _utilsJs = require("./utils.js");
 class LabelManager {
-    constructor(){}
+    getObjDepth(obj) {
+        const geomDepth = obj.geometry.parameters.depth;
+        return geomDepth * obj.scale.z;
+    }
     /**
 		Добавляет размерные линии к объектам
-	*/ addDimensionLines(obj) {
+	*/ addLabelToObject(obj) {
+        if (obj.userData.isWall) this.addWallDimensions(obj);
+        else this.addObjectDimensions(obj);
+    }
+    addWallDimensions(obj) {
+        // obj.material.wireframe = true;
+        let box3 = new _three.Box3().setFromObject(obj);
+        let size = new _three.Vector3();
+        let size_copy = new _three.Vector3();
+        box3.getSize(size);
+        size_copy.copy(size);
+        size.x /= obj.scale.x;
+        size.y /= obj.scale.y;
+        size.z /= obj.scale.z;
+        let size_halved = new _three.Vector3(size.x / 2, size.y / 2, size.z / 2);
+        let mesh;
+        _utilsJs.applyToMeshes(obj, (o)=>{
+            mesh = o;
+        });
+        const depth = this.getObjDepth(mesh);
+        let textX = this.createText(Math.floor(depth * 1000) + "\u043C\u043C", new _three.Vector3(0, size_halved.y + 0.1, 0), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI));
+        obj.add(textX);
+        textX.sync();
+    }
+    addObjectDimensions(obj) {
         // obj.material.wireframe = true;
         let box3 = new _three.Box3().setFromObject(obj);
         let size = new _three.Vector3();
@@ -48899,6 +49939,7 @@ class LabelManager {
         myText.position.set(position.x, position.y, position.z);
         myText.fontSize = 0.3;
         myText.color = "white";
+        myText.outlineWidth = "10%";
         myText.userData.isText = true;
         myText.textAlign = "center";
         myText.anchorX = "50%";
@@ -48963,7 +50004,7 @@ class LabelManager {
     }
 }
 
-},{"three":"ktPTu","three/examples/jsm/loaders/FontLoader.js":"h0CPK","three/examples/jsm/geometries/TextGeometry.js":"d5vi9","troika-three-text":"7YS8r","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"h0CPK":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/loaders/FontLoader.js":"h0CPK","three/examples/jsm/geometries/TextGeometry.js":"d5vi9","troika-three-text":"7YS8r","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"h0CPK":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "FontLoader", ()=>FontLoader);
@@ -49166,10 +50207,18 @@ function addListeners(controller) {
     document.querySelector("#clone").onclick = function() {
         const selected = controller.getSelectedObject();
         if (!selected) return;
-        controller.removeSelectionColor(selected);
-        const newObject = _utilsJs.cloneObject(controller.currentStage.selectedObject);
-        controller.addObjectToCurrentStage(newObject, newObject.userData.isMovable, newObject.userData.hasCollision);
-        controller.applySelectionColor(selected);
+        console.log(selected);
+        _utilsJs.doWithoutLabels(selected, (obj)=>{
+            const parentNode = obj.userData.parentNode;
+            obj.userData.parentNode = null;
+            controller.removeSelectionColor(obj);
+            const newObject = _utilsJs.cloneObject(obj);
+            obj.userData.parentNode = parentNode;
+            newObject.userData.baserestraint = null;
+            // controller.currentStage.scene.add(newObject);
+            controller.addObjectToCurrentStage(newObject, newObject.userData.isMovable, newObject.userData.hasCollision, newObject.userData.hasDimensions, newObject.userData.isPackable);
+        });
+    // controller.applySelectionColor(selected);
     };
     // Выбор материала для выбранного объекта
     const materialSelector = document.querySelector("#materials");
@@ -49192,14 +50241,13 @@ function addListeners(controller) {
         controller.uploadUserFileToStage(fileList[0], controller.getCurrentStage());
     }, false);
     document.querySelector("#drawing").addEventListener("change", (e)=>{
-        controller.currentStage.switchToOrthoCamera();
-        controller.currentStage.controls.enableRotate = !e.target.checked;
+        if (e.target.checked) controller.currentStage.switchToOrthoCamera();
         controller.drawEngine.setDrawing(e.target.checked);
         controller.dragEngine.setDragging(!e.target.checked);
     });
 }
 
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"c6KBJ":[function(require,module,exports) {
+},{"three":"ktPTu","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"c6KBJ":[function(require,module,exports) {
 /**
 	Функция, которая добавляет управление приложением с помощью клавиатуры.
 	Управление:
@@ -49278,12 +50326,14 @@ class DrawEngine {
     #wallpaperMaterialKey = "wallpaperTwo";
     #notAllowedMaterialKey = "redLine";
     #allowedMaterialKey = "greenLine";
+    #roundCornerMaterialKey = "wallRoundCorner";
     constructor(dragEngine, materialManager){
         this.dragEngine = dragEngine;
         this.materialManager = materialManager;
         this.#initialize();
         this.drawing = false;
         this.wallMaterial = this.materialManager.getMaterial(this.#wallpaperMaterialKey);
+        this.cylinderMaterial = this.materialManager.getMaterial(this.#roundCornerMaterialKey);
         this.lineMaterialBad = this.materialManager.getMaterial(this.#notAllowedMaterialKey);
         this.lineMaterialGood = this.materialManager.getMaterial(this.#allowedMaterialKey);
     }
@@ -49292,7 +50342,7 @@ class DrawEngine {
         this.nodesList = [];
         this.polys = [];
         this.walls = [];
-        this.anchors = [];
+        this.corners = [];
         this.wallGraph = new (0, _wallGraphJs.WallGraph)();
         this.inter = new _three.Vector3();
         this.start;
@@ -49323,30 +50373,54 @@ class DrawEngine {
             this.polys.push(poly);
         }
     }
+    #removeCorners() {
+        for (let c of this.corners)c.removeFromParent();
+    }
     clearWalls() {
         this.#removeFloor();
+        this.#removeCorners();
         this.#initialize();
     }
-    movePoint(p, newPos) {
-        const p_copy = p.clone();
-        p.addVectors(p, newPos);
-        const connectedWalls = this.wallGraph.getWallsByPoint(p_copy);
+    moveWallPoint(p, moved) {
+        const oldpos = p.clone();
+        p.addVectors(p, moved);
+        const newpos = p;
+        this.moveCorners(oldpos, newpos);
+        this.moveWalls(oldpos, newpos);
+        this.#changeFloor(oldpos, newpos);
+        this.redrawFloor();
+    }
+    moveCornerPoint(oldpos, newpos) {
+        this.moveWalls(oldpos, newpos);
+        this.#changeFloor(oldpos, newpos);
+        this.redrawFloor();
+    }
+    moveCorners(oldpos, newpos) {
+        for (let c of this.corners){
+            const pos = c.position;
+            if (_utilsJs.pointsHaveSameCoordinatesXZ(oldpos, pos)) c.position.copy(newpos);
+        }
+    }
+    moveWalls(oldpos, newpos) {
+        const connectedWalls = this.wallGraph.getWallsByPoint(oldpos);
         const startPoints = [];
         const endPoints = [];
         for (let w of connectedWalls){
-            endPoints.push(p);
-            if (_utilsJs.pointsHaveSameCoordinatesXZ(w.userData.startPoint, p_copy)) startPoints.push(w.userData.endPoint);
+            endPoints.push(newpos);
+            if (_utilsJs.pointsHaveSameCoordinatesXZ(w.userData.startPoint, oldpos)) startPoints.push(w.userData.endPoint);
             else startPoints.push(w.userData.startPoint);
             this.stage.removeObject(w);
             this.wallGraph.deleteRaw(w);
         }
+        if (connectedWalls.length < 1) {
+            console.log(`Faild to move: oldpos: ${oldpos.x}:${oldpos.y}, newpos: ${newpos.x}${newpos.y}`);
+            for (let w of this.wallGraph.walls.values())console.log(`sp: ${w.userData.startPoint.x}-${w.userData.startPoint.y} ep: ${w.userData.endPoint.x}-${w.userData.endPoint.y}`);
+        }
         for(let i = 0; i < startPoints.length; i++){
             const wall = this.makeWallBetweenTwoPoints(startPoints[i], endPoints[i], this.wallMaterial);
             const added = this.wallGraph.add(wall);
-            if (added) this.stage.addObject(wall, true, false, false);
+            if (added) this.stage.addObject(wall, true, true, true);
         }
-        this.#changeFloor(p_copy, p);
-        this.redrawFloor();
     }
     makeWallBetweenTwoPoints(start, end, material) {
         const dist = start.distanceTo(end);
@@ -49359,6 +50433,8 @@ class DrawEngine {
         mesh.position.set((start.x + end.x) / 2, 1, (start.z + end.z) / 2);
         mesh.userData.startPoint = start;
         mesh.userData.endPoint = end;
+        mesh.userData.isWall = true;
+        mesh.userData.isNotAffectedByCollision = true;
         const self = this;
         mesh.userData.onMove = (sp, ep)=>{
             // посчитать, как сдвинулась стена, то есть вектор
@@ -49368,20 +50444,34 @@ class DrawEngine {
             const sp2 = new _three.Vector3().addVectors(mesh.userData.startPoint, moved);
             const ep2 = new _three.Vector3().addVectors(mesh.userData.endPoint, moved);
             // вызвать movePoint(startPoint, sp2), movePoint(endPoint.ep2)
-            self.movePoint(mesh.userData.startPoint, moved);
-            self.movePoint(mesh.userData.endPoint, moved);
+            self.moveWallPoint(mesh.userData.startPoint, moved);
+            self.moveWallPoint(mesh.userData.endPoint, moved);
             // обновить startPoint = sp2 и endPoint = ep2
             mesh.userData.startPoint = sp2;
             mesh.userData.endPoint = ep2;
         };
-        mesh.lookAt(end);
+        mesh.children[0].lookAt(end);
         return mesh;
     }
-    makeCylinderAtPoint(point) {
-        const mesh = new _three.Mesh(new _three.CylinderGeometry(0.1, 0.1, 2), new _three.MeshStandardMaterial({
-            color: "gray"
-        }));
+    makeCylinderAtPoint(point, material) {
+        for (let c of this.corners){
+            const p = c.position;
+            if (_utilsJs.pointsHaveSameCoordinatesXZ(p, point)) return;
+        }
+        const mat = [];
+        _utilsJs.applyToArrayOrValue(material, (m)=>{
+            mat.push(m.clone());
+        });
+        const mesh = _utilsJs.createMesh(new _three.CylinderGeometry(0.1, 0.1, 2.01), mat);
+        this.corners.push(mesh);
+        mesh.userData.isNotAffectedByCollision = true;
         mesh.position.set(point.x, 1, point.z);
+        const self = this;
+        mesh.userData.onMove = (startPoint, endPoint)=>{
+            // self.moveCornerPoint(startPoint, endPoint);
+            const moved = new _three.Vector3().subVectors(endPoint, startPoint);
+            self.moveWallPoint(startPoint, moved);
+        };
         return mesh;
     }
     createPolygon(points) {
@@ -49417,9 +50507,12 @@ class DrawEngine {
         this.end = new _three.Vector3(this.inter.x, 1, this.inter.z);
         _utilsJs.snapPoint(this.end);
         if (!this.start) return;
-        for (let p of this.anchors)if (_utilsJs.arePointsNearXZ(this.end, p)) {
-            this.end.x = p.x;
-            this.end.z = p.z;
+        for (let c of this.corners){
+            const p = c.position;
+            if (_utilsJs.arePointsNearXZ(this.end, p)) {
+                this.end.x = p.x;
+                this.end.z = p.z;
+            }
         }
         //adhoc
         var material = this.lineMaterialGood;
@@ -49437,21 +50530,24 @@ class DrawEngine {
     #onClick() {
         if (!this.drawing) return;
         if (!this.start) {
-            for (let p of this.anchors)if (_utilsJs.arePointsNearXZ(this.end, p)) {
-                this.end.x = p.x;
-                this.end.z = p.z;
+            for (let c of this.corners){
+                const p = c.position;
+                if (_utilsJs.arePointsNearXZ(this.end, p)) {
+                    this.end.x = p.x;
+                    this.end.z = p.z;
+                }
             }
             this.start = this.end;
-            this.anchors.push(this.end);
+            const cylinder = this.makeCylinderAtPoint(this.end, this.cylinderMaterial);
+            if (cylinder) this.stage.addObject(cylinder, true);
         } else {
             this.angleStart = this.start;
-            //adhoc
             const wall = this.makeWallBetweenTwoPoints(this.start, this.end, this.wallMaterial);
             const added = this.wallGraph.add(wall);
-            if (added) this.stage.addObject(wall, true, false, false);
+            if (added) this.stage.addObject(wall, true, true, true);
             this.walls.push(wall);
-            // const cylinder = makeCylinderAtPoint(end)
-            // stage.addObject(cylinder);
+            const cylinder = this.makeCylinderAtPoint(this.end, this.cylinderMaterial);
+            if (cylinder) this.stage.addObject(cylinder, true);
             this.nodes.push(this.start);
             let closed = false;
             if (_utilsJs.pointsHaveSameCoordinatesXZ(this.nodes[0], this.end)) closed = true;
@@ -49461,7 +50557,6 @@ class DrawEngine {
                 this.stage.addObject(poly);
                 this.polys.push(poly);
                 this.nodesList.push(this.nodes);
-                for (let w of this.walls)this.anchors.push(w.userData.startPoint);
                 this.start = null;
                 this.walls = [];
                 this.nodes = [];
@@ -49523,4 +50618,4 @@ class WallGraph {
 
 },{"./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
 
-//# sourceMappingURL=index.64a4978e.js.map
+//# sourceMappingURL=app.64a4978e.js.map

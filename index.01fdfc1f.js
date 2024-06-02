@@ -142,14 +142,14 @@
       this[globalName] = mainExports;
     }
   }
-})({"46PTB":[function(require,module,exports) {
+})({"X6XGv":[function(require,module,exports) {
 var global = arguments[3];
 var HMR_HOST = null;
 var HMR_PORT = null;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "d6ea1d42532a7575";
 var HMR_USE_SSE = false;
-module.bundle.HMR_BUNDLE_ID = "a4579e5764a4978e";
+module.bundle.HMR_BUNDLE_ID = "996ae61c01fdfc1f";
 "use strict";
 /* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, HMR_USE_SSE, chrome, browser, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */ /*::
 import type {
@@ -583,47 +583,408 @@ function hmrAccept(bundle /*: ParcelRequire */ , id /*: string */ ) {
     });
 }
 
-},{}],"goJYj":[function(require,module,exports) {
+},{}],"inLWO":[function(require,module,exports) {
 var _three = require("three");
-var _gltfloaderJs = require("three/examples/jsm/loaders/GLTFLoader.js");
-var _gltfexporterJs = require("three/examples/jsm/exporters/GLTFExporter.js");
-var _datGui = require("dat.gui");
-var _bufferGeometryUtilsJs = require("three/examples/jsm/utils/BufferGeometryUtils.js");
-var _troikaThreeText = require("troika-three-text");
-var _stageJs = require("./Stage.js");
-var _floorPlannerStageJs = require("./FloorPlannerStage.js");
-var _dragEnginePlaneJs = require("./DragEnginePlane.js");
-var _materialManagerJs = require("./MaterialManager.js");
-var _mainControllerJs = require("./MainController.js");
-var _exportManagerJs = require("./ExportManager.js");
-var _labelManagerJs = require("./LabelManager.js");
-var _addListenersJs = require("./addListeners.js");
-var _addKeyboardControlsJs = require("./addKeyboardControls.js");
-var _drawEngineJs = require("./DrawEngine.js");
-var _utilsJs = require("./utils.js");
-/**
-	Точка входа в приложение, создаются объекты, разрешаются зависимости
-*/ const textureLoader = new _three.TextureLoader();
-const materialManager = new (0, _materialManagerJs.MaterialManager)(textureLoader);
-const assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
-const exporter = new (0, _gltfexporterJs.GLTFExporter)();
-const exportManager = new (0, _exportManagerJs.ExportManager)(exporter, assetLoader);
-const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)();
-const drawEngine = new (0, _drawEngineJs.DrawEngine)(dragEngine, materialManager);
-const labelManager = new (0, _labelManagerJs.LabelManager)();
-const controller = new (0, _mainControllerJs.MainController)(dragEngine, drawEngine, exportManager, materialManager, labelManager);
-const builderStage = new (0, _stageJs.Stage)(controller);
-const floorStage = new (0, _floorPlannerStageJs.FloorPlannerStage)(controller);
-controller.registerStage("builder", builderStage);
-controller.registerStage("floorPlanner", floorStage);
-controller.setCurrentStage("builder");
-(0, _addListenersJs.addListeners)(controller);
-(0, _addKeyboardControlsJs.addKeyboardControls)(controller); // TODO: сделать таскание за ноды, а не только за стены
- // TODO: сделать методы для постройки стены и предоставить их через контроллер
- // TODO: заменить начальные стенки в floorPlaner на те из drawEngine
- // TODO: приклеивать слушателей drawEngine к дом элементу рендера, дом элемент получать из контроллера, и контроллер же должен точно так же как и с dragEngine регистрировать эти слушатели
+var _orbitControlsJs = require("three/examples/jsm/controls/OrbitControls.js"); // модуль, шоб мышкой дёргать туда сюда за яйца
+var _datGui = require("dat.gui"); // модуль, который позволяет динамически менять свойство объектов во время выполнения приложения с помощью интерфейса
+var _gltfloaderJs = require("three/examples/jsm/loaders/GLTFLoader.js"); // модуль чтоб загружать GLTF модельки в сцену
+// импортируем картинку, шоб потом её поюзать в качестве текстуры
+// import nebula from '../img/nebula.png';
+// import osaka from '../img/osa.jpg';
+// import chijo from '../img/chijo.png';
+// так же импортируем модельку (сцену) из блендера
+// const brusUrl = new URL('../assets/brus.glb', import.meta.url);
+// const benchCushion = new URL('../Blueprint3D-assets/models/glb/special/benchCushion.glb', import.meta.url);
+function doObjectsCollide(posStill, posMove, BoundStill, BoundMove) {
+    if (posMove.x >= BoundStill.min.x + BoundMove.min.x + posStill.x && posMove.x <= BoundStill.max.x + BoundMove.max.x + posStill.x && posMove.z >= BoundStill.min.z + BoundMove.min.z + posStill.z && posMove.z <= BoundStill.max.z + BoundMove.max.z + posStill.z) {
+        console.log("Collide!");
+        return true;
+    }
+    return false;
+}
+const collidableObjects = [];
+const movableObject = [];
+// инструмент для ThreeJS, который создаёт пространство для рендера объектов
+const renderer = new _three.WebGLRenderer({
+    antialias: false
+});
+// врубаем отображение теней для тех объектов, что могут их отбрасывать\принимать
+renderer.shadowMap.enabled = true;
+// устанавливаем размер пространства
+renderer.setSize(window.innerWidth, window.innerHeight);
+// закидываем пространство - холст - в дом документа
+document.body.appendChild(renderer.domElement);
+// создаём сцену, в которой будет всё остальное
+const scene = new _three.Scene();
+// перспективная камера - поле зрения, соотношение сторон, ближний и дальний край рендера
+const camera = new _three.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+// элемент, нужный для того, чтобы дёргать сцену мышкой
+const orbit = new (0, _orbitControlsJs.OrbitControls)(camera, renderer.domElement);
+// инструмент помошник - добавляет координаты, аргумент - длина координат
+const axesHelper = new _three.AxesHelper(3);
+scene.add(axesHelper);
+// перемещаем камеру, чтобы увидеть координаты
+camera.position.set(-10, 30, 30); //  (x,y,z)
+orbit.update(); // метод надо звать каждый раз, когда изменяется положение камеры
+// добавляем коробку в сцену
+const boxGeometry = new _three.BoxGeometry(); // создали гемоетрию, типа 8 вертексов и 6 полигонов
+const boxMaterial = new _three.MeshBasicMaterial({
+    color: 0x00FF00
+}); // создали материал, сплошной зелёный цвет. Так же BasicMaterial не требует источников света для отображения.
+const box = new _three.Mesh(boxGeometry, boxMaterial); // скобинировали геометрию и материал в 3д объект, тобишь меш
+scene.add(box);
+// добавляем плоскость в сцену (как плоско)
+const planeGeometry = new _three.PlaneGeometry(30, 30);
+const planeMaterial = new _three.MeshStandardMaterial({
+    color: 0xFFFFFF,
+    side: _three.DoubleSide // иначе меш будет пропадать, если на неё смотреть с обратной стороны
+});
+const plane = new _three.Mesh(planeGeometry, planeMaterial);
+scene.add(plane);
+// поворачиваем плоскость из | положения в __
+plane.rotation.x = -0.5 * Math.PI;
+// включить отображение теней, падающих на эту плоскость
+plane.receiveShadow = true;
+// добавляем сеточку, аргументы конструктора сеточки - размер сетки, сколько ячеек должно быть
+const gridHelper = new _three.GridHelper(30);
+scene.add(gridHelper);
+// создание сферы, в аргументах можно определить размер сферы и число колец и сегментов для составления этой сферы. Низкие значения могут создать тетраедр или подобную еболу
+const sphereGeometry = new _three.SphereGeometry(4, 50, 50);
+// THREE.MeshStandardMaterial -  Стандартный материал предмета, ему уже нужен источник света для отображения
+const sphereMaterial = new _three.MeshStandardMaterial({
+    color: 0x0000FF,
+    wireframe: false // отображать ли вайрфрейм объекта
+});
+const sphere = new _three.Mesh(sphereGeometry, sphereMaterial);
+scene.add(sphere);
+collidableObjects.push(sphere);
+sphere.geometry.computeBoundingBox();
+sphere.position.set(-10, 10, 0);
+// включить отрбрасывание теней этой сферой
+sphere.castShadow = true;
+// создаём естесственный (Ambient) свет
+const ambientLight = new _three.AmbientLight(0x333333);
+scene.add(ambientLight);
+// создаём направленный (Directional) источник света. Второй аргумент - интенсивность света
+/*
+	const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 0.8);
+	scene.add(directionalLight);
+	directionalLight.position.set(-30,50,0);
+	directionalLight.castShadow = true; // источни света тоже должен отбрасывать тенягу
+	directionalLight.shadow.camera.bottom = -12; // увеличиваем прямоугольник, в котором отображается тень от этого источника света
 
-},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","dat.gui":"k3xQk","three/examples/jsm/utils/BufferGeometryUtils.js":"5o7x9","troika-three-text":"7YS8r","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./ExportManager.js":"8hs9t","./LabelManager.js":"aEsVy","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ","./utils.js":"72Dku","./DrawEngine.js":"KIqcM"}],"ktPTu":[function(require,module,exports) {
+
+	// утилита, показывающая в сцене где находятся направленные источники света
+	const dLightHelper = new THREE.DirectionalLightHelper(directionalLight,5);
+	scene.add(dLightHelper);
+
+
+	// для рендера теней используется камера, встроенная в источник света. Если тень выпрыгивает за полне зрения этой камеры, то она перестаёт отображаться. Тут добавляем хелпер для отображения контуров этой камеры
+	const dLightShadowHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
+	scene.add(dLightShadowHelper);
+*/ // Спотлайт, работает по овалам
+// если тень пиксельная, то надо уменьшить spotLight.angle
+const spotLight = new _three.SpotLight(0xFFFFFF);
+spotLight.intensity = 5000;
+scene.add(spotLight);
+spotLight.position.set(-100, 100, 0);
+spotLight.castShadow = true;
+spotLight.angle = 0.2;
+const sLightHelper = new _three.SpotLightHelper(spotLight);
+scene.add(sLightHelper);
+// соевый туман на всю сцену. 2 и 3 аргументы - ближняя и дальняя граница видимости тумана. Чем дальше от камеры, тем гуще туман (линейная зависимость)
+// scene.fog = new THREE.Fog(0xFFFFFF, 0, 200);
+// крутой соевый туман, туман становится гуще экспоненциальноы
+//scene.fog = new THREE.FogExp2(0xFFFFFF, 0.01);
+// фон задника всего канваса
+// renderer.setClearColor(0x333333);
+// делаем из картинки текстуру и ставим её на фон канваса. Фон получается плоским таким, мех
+const textureLoader = new _three.TextureLoader();
+//scene.background = textureLoader.load(nebula);
+// текстура из 6 картинок, для крутого объёмного фона, найс. Сцена это на самом деле куб, шароверы соснули
+const cubeTextureLoader = new _three.CubeTextureLoader();
+// scene.background = cubeTextureLoader.load([
+// osaka, osaka, osaka,
+// osaka, osaka, osaka
+// ]);
+const box2Geometry = new _three.BoxGeometry(4, 4, 4);
+const box2Material = new _three.MeshBasicMaterial({
+});
+// если надо, чтобы каждый фейс куба имел свою текстуру
+// const box2MultiMaterial = [
+// new THREE.MeshBasicMaterial({map: textureLoader.load(nebula)}),
+// new THREE.MeshBasicMaterial({map: textureLoader.load(chijo)}),
+// new THREE.MeshBasicMaterial({map: textureLoader.load(osaka)}),
+// new THREE.MeshBasicMaterial({map: textureLoader.load(chijo)}),
+// new THREE.MeshBasicMaterial({map: textureLoader.load(nebula)}),
+// new THREE.MeshBasicMaterial({map: textureLoader.load(osaka)})
+// ];
+// const box2 = new THREE.Mesh(box2Geometry, box2MultiMaterial);
+// scene.add(box2);
+// collidableObjects.push(box2);
+// movableObject.push(box2);
+// box2.geometry.computeBoundingBox();
+// box2.position.set(0,10,0);
+const box2_c_Geometry = new _three.BoxGeometry(4, 4, 4);
+const box2_c_Material = new _three.MeshBasicMaterial({
+    color: 0x00FF00,
+    wireframe: true
+});
+const box2_constructor = new _three.Mesh(box2_c_Geometry, box2_c_Material);
+scene.add(box2_constructor);
+collidableObjects.push(box2_constructor);
+// box2.name = "box2";
+box2_constructor.name = "box2";
+box2_constructor.position.set(10, 10, 0);
+// sphere.material.map = textureLoader.load(chijo);
+// при создании плоскость можно сабдивайдить так же, как и сферу. 3 - по ширине, 4 - по высоте.
+const plane2Geometry = new _three.PlaneGeometry(10, 10, 10, 10);
+const plane2Material = new _three.MeshBasicMaterial({
+    color: 0xFFFFFF,
+    wireframe: true
+});
+const plane2 = new _three.Mesh(plane2Geometry, plane2Material);
+scene.add(plane2);
+plane2.position.set(10, 10, 15);
+const sphere2Geometry = new _three.SphereGeometry(4);
+// обычно делают не так, а создают <script>, в который накидывают этот воид майн код, и потом при создании материалов его подтягивают
+/*
+const vShader = `
+	void main() {
+		gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+	}
+`;
+
+const fShader = `
+	void main() {
+		gl_FragColor = vec4(0.5, 0.5, 1.0, 1.0);
+	}
+`;
+*/ const sphere2Material = new _three.ShaderMaterial({
+});
+const sphere2 = new _three.Mesh(sphere2Geometry, sphere2Material);
+scene.add(sphere2);
+collidableObjects.push(sphere2);
+sphere2.geometry.computeBoundingBox();
+sphere2.position.set(-5, 10, 10);
+// используем загрузчик, чтобы загрузить модельку
+// 1 - ссылка на модель, 2 - функция, что сделать после загрузки, 3 - функция, оповещающая о статусе загрузки модели, 4 - функция, что делать при ошибке загрузки
+const assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
+// assetLoader.load(benchCushion.href, function(gltf){
+// const model = gltf.scene;
+// scene.add(model);
+// model.name = "Bench";
+// model.position.set(-5,10,0);
+// // model.scale.set(10,10,10);
+// model.updateMatrix();
+// movableObject.push(model);
+// collidableObjects.push(model);
+// }, undefined, function(error){
+// console.log(error);
+// }); 
+// интерфейс для пользователя, чтобы тот мог играться с объектами в сцене (вместо того, чтобы заняться нормальным делом)
+const gui = new _datGui.GUI();
+// добавляем опции в интерфейс
+const options = {
+    sphereColor: "#ffea00",
+    wireframe: false,
+    speed: 0.01,
+    angle: 0.2,
+    penumbra: 0,
+    intensity: 10000
+};
+// addColor - добавляет динамическую палитру, дальше идёт коллбек, определяюший, что надо делать при изменении значения в этой палитре
+gui.addColor(options, "sphereColor").onChange(function(e) {
+    sphere.material.color.set(e);
+});
+// add - просто добавляет чекбокс, который может быть false \ true
+gui.add(options, "wireframe").onChange(function(e) {
+    sphere.material.wireframe = e;
+});
+// добавляется ползунок со значениями
+gui.add(options, "speed", 0, 0.1);
+gui.add(options, "angle", 0, 1);
+gui.add(options, "penumbra", 0, 1);
+gui.add(options, "intensity", 0, 100000);
+// переменные, нужны для того, чтобы заставить мячик прыыыгать
+let step = 0;
+// слушаем курсор, чтобы позволить этому самому курсору курсировать объекты по курсу
+var mousePosition = new _three.Vector2();
+// вот эта хуйня придумана укропами, чтобы двигать коробочки. Как работает - хз.
+var pNormal = new _three.Vector3(0, 1, 0);
+var planeIntersect = new _three.Vector3();
+var pIntersect = new _three.Vector3();
+var shift = new _three.Vector3();
+var isDragging = false;
+var dragObject;
+var rayCaster = new _three.Raycaster();
+var planeDrag = new _three.Plane();
+document.addEventListener("pointermove", function(e) {
+    mousePosition.x = e.clientX / window.innerWidth * 2 - 1;
+    mousePosition.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    rayCaster.setFromCamera(mousePosition, camera);
+    if (isDragging) {
+        prevX = dragObject.position.x;
+        prevZ = dragObject.position.z;
+        rayCaster.ray.intersectPlane(planeDrag, planeIntersect);
+        dragObject.position.addVectors(planeIntersect, shift);
+        let wall = false;
+        if (Math.abs(dragObject.position.x) >= 10) {
+            dragObject.position.x = prevX;
+            wall = true;
+        }
+        if (Math.abs(dragObject.position.z) >= 10) {
+            dragObject.position.z = prevZ;
+            wall = true;
+        }
+        const colliding = [];
+        for(let i = 0; i < collidableObjects.length; i++){
+            if (collidableObjects[i] === dragObject) continue;
+            var boundBox;
+            if (dragObject.isGroup) {
+                const groupBox = new _three.Box3();
+                groupBox.setFromObject(dragObject);
+                boundBox = groupBox;
+            } else {
+                dragObject.geometry.computeBoundingBox();
+                boundBox = dragObject.geometry.boundingBox;
+            }
+            var collidableBoundBox;
+            if (collidableObjects[i].isGroup) {
+                let groupBox = new _three.Box3();
+                groupBox.setFromObject(collidableObjects[i]);
+                collidableBoundBox = groupBox;
+            } else {
+                collidableObjects[i].geometry.computeBoundingBox();
+                collidableBoundBox = collidableObjects[i].geometry.boundingBox;
+            }
+            var doCollide = doObjectsCollide(collidableObjects[i].position, dragObject.position, collidableBoundBox, boundBox);
+            if (doCollide) {
+                colliding.push(collidableObjects[i]);
+                // столкнулись с объектом-конструктором
+                if (collidableObjects[i].name === dragObject.name) {
+                    dragObject.position.x = collidableObjects[i].position.x;
+                    dragObject.position.z = collidableObjects[i].position.z;
+                    return;
+                }
+            }
+        }
+        if (colliding.length > 1 || colliding.length === 1 && wall) {
+            // код баргладер, я хз как посчитать коллизии для нескольких объектов, поэтому падаем на запасной план
+            dragObject.position.x = prevX;
+            dragObject.position.z = prevZ;
+        } else if (colliding.length === 1) {
+            var collidableBoundBox;
+            if (colliding[0].isGroup) {
+                let groupBox = new _three.Box3();
+                groupBox.setFromObject(colliding[0]);
+                collidableBoundBox = groupBox;
+            } else {
+                colliding[0].geometry.computeBoundingBox();
+                collidableBoundBox = colliding[0].geometry.boundingBox;
+            }
+            const colx = colliding[0].position.x;
+            const colz = colliding[0].position.z;
+            const dragx = dragObject.position.x;
+            const dragz = dragObject.position.z;
+            const colBoundMinX = collidableBoundBox.min.x;
+            const colBoundMaxX = collidableBoundBox.max.x;
+            const colBoundMinZ = collidableBoundBox.min.z;
+            const colBoundMaxZ = collidableBoundBox.max.z;
+            const dragBoundMinX = boundBox.min.x;
+            const dragBoundMaxX = boundBox.max.x;
+            const dragBoundMinZ = boundBox.min.z;
+            const dragBoundMaxZ = boundBox.max.z;
+            var dX;
+            var dZ;
+            var newDragX;
+            var newDragZ;
+            if (colx > dragx) {
+                dX = colx - dragx;
+                newDragX = colx + colBoundMinX - dragBoundMaxX;
+            } else {
+                dX = dragx - colx;
+                newDragX = colx + colBoundMaxX - dragBoundMinX;
+            }
+            if (colz > dragz) {
+                dZ = colz - dragz;
+                newDragZ = colz + colBoundMinZ - dragBoundMaxZ;
+            } else {
+                dZ = dragz - colz;
+                newDragZ = colz + colBoundMaxZ - dragBoundMinZ;
+            }
+            if (dX > dZ) dragObject.position.x = newDragX;
+            else dragObject.position.z = newDragZ;
+        }
+    }
+});
+document.addEventListener("pointerdown", function() {
+    var intersects = rayCaster.intersectObjects(movableObject);
+    if (intersects.length > 0) {
+        intersectsObject = intersects[0].object;
+        if (intersectsObject.parent && intersectsObject.parent.isGroup) intersectsObject = intersectsObject.parent;
+        orbit.enabled = false;
+        pIntersect.copy(intersects[0].point);
+        planeDrag.setFromNormalAndCoplanarPoint(pNormal, pIntersect);
+        shift.subVectors(intersectsObject.position, intersects[0].point);
+        isDragging = true;
+        dragObject = intersectsObject;
+    }
+});
+document.addEventListener("pointerup", function() {
+    console.log(movableObject);
+    isDragging = false;
+    dragObject = null;
+    orbit.enabled = true;
+});
+// id и имя, чтоб потом можно было к ним обращаться, когда они попадут в intersects лучекастера
+const sphereId = sphere.id;
+console.log(scene.children[scene.children.length - 1]);
+console.log(scene.children);
+scene.children[11].position.set(50, 50, 0);
+function animate(time) {
+    // крутит коробочку и заново отрисовывает сцену
+    // эта функция будет вызываться постоянно, обеспечивая аниме
+    box.rotation.x = time / 1000;
+    box.rotation.y = time / 1000;
+    // y сферы колеблется в пределах значений синуса * 10, то есть от -10 до +10. step+=speed обеспечивает новое значение для функции каждый кусок времен
+    step += options.speed;
+    //sphere.position.y = 10 * Math.abs(Math.sin(step));
+    spotLight.angle = options.angle;
+    spotLight.penumbra = options.penumbra;
+    spotLight.intensity = options.intensity;
+    sLightHelper.update();
+    // луч между камерой и 3д курсором, во что он попадает, то записывается в intersects
+    rayCaster.setFromCamera(mousePosition, camera);
+    const intersects = rayCaster.intersectObjects(scene.children);
+    //console.log(intersects);
+    // смотрим в пересечения и чота делаем с определёнными объектами
+    for(let i = 0; i < intersects.length; i++){
+        if (intersects[i].object.id === sphereId) intersects[i].object.material.color.set(0xFF0000);
+        intersects[i].object.name;
+    }
+    /* массив, в котором сложены координаты всех точек, составляющих геометрию меша.
+	Структура этого массива:
+	   0  1  2  3  4  5 ....   6  9  0
+	   x, y, z, x, y, z, ... , x, y, z
+	   \Точка1/ \  Т2  /	   \ Т34 /
+	*/ // двигаем одну точку плоскости в 3 координатах
+    plane2.geometry.attributes.position.array[0] = 10 * Math.random();
+    plane2.geometry.attributes.position.array[1] = 10 * Math.random();
+    plane2.geometry.attributes.position.array[2] = 10 * Math.random();
+    plane2.geometry.attributes.position.needsUpdate = true; // необходимо звать эту функцию, чтобы движок перерисовал
+    renderer.render(scene, camera);
+}
+renderer.setAnimationLoop(animate);
+//renderer.setAnimationLoop(()=>{renderer.render(scene, camera)});
+// изменяем размер канваса при изменении окна браузера
+window.addEventListener("resize", function() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","dat.gui":"k3xQk","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF"}],"ktPTu":[function(require,module,exports) {
 /**
  * @license
  * Copyright 2010-2024 Three.js Authors
@@ -31536,7 +31897,3136 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}],"dVRsF":[function(require,module,exports) {
+},{}],"7mqRv":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "OrbitControls", ()=>OrbitControls);
+var _three = require("three");
+// OrbitControls performs orbiting, dollying (zooming), and panning.
+// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
+//
+//    Orbit - left mouse / touch: one-finger move
+//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
+//    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
+const _changeEvent = {
+    type: "change"
+};
+const _startEvent = {
+    type: "start"
+};
+const _endEvent = {
+    type: "end"
+};
+const _ray = new (0, _three.Ray)();
+const _plane = new (0, _three.Plane)();
+const TILT_LIMIT = Math.cos(70 * (0, _three.MathUtils).DEG2RAD);
+class OrbitControls extends (0, _three.EventDispatcher) {
+    constructor(object, domElement){
+        super();
+        this.object = object;
+        this.domElement = domElement;
+        this.domElement.style.touchAction = "none"; // disable touch scroll
+        // Set to false to disable this control
+        this.enabled = true;
+        // "target" sets the location of focus, where the object orbits around
+        this.target = new (0, _three.Vector3)();
+        // Sets the 3D cursor (similar to Blender), from which the maxTargetRadius takes effect
+        this.cursor = new (0, _three.Vector3)();
+        // How far you can dolly in and out ( PerspectiveCamera only )
+        this.minDistance = 0;
+        this.maxDistance = Infinity;
+        // How far you can zoom in and out ( OrthographicCamera only )
+        this.minZoom = 0;
+        this.maxZoom = Infinity;
+        // Limit camera target within a spherical area around the cursor
+        this.minTargetRadius = 0;
+        this.maxTargetRadius = Infinity;
+        // How far you can orbit vertically, upper and lower limits.
+        // Range is 0 to Math.PI radians.
+        this.minPolarAngle = 0; // radians
+        this.maxPolarAngle = Math.PI; // radians
+        // How far you can orbit horizontally, upper and lower limits.
+        // If set, the interval [ min, max ] must be a sub-interval of [ - 2 PI, 2 PI ], with ( max - min < 2 PI )
+        this.minAzimuthAngle = -Infinity; // radians
+        this.maxAzimuthAngle = Infinity; // radians
+        // Set to true to enable damping (inertia)
+        // If damping is enabled, you must call controls.update() in your animation loop
+        this.enableDamping = false;
+        this.dampingFactor = 0.05;
+        // This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
+        // Set to false to disable zooming
+        this.enableZoom = true;
+        this.zoomSpeed = 1.0;
+        // Set to false to disable rotating
+        this.enableRotate = true;
+        this.rotateSpeed = 1.0;
+        // Set to false to disable panning
+        this.enablePan = true;
+        this.panSpeed = 1.0;
+        this.screenSpacePanning = true; // if false, pan orthogonal to world-space direction camera.up
+        this.keyPanSpeed = 7.0; // pixels moved per arrow key push
+        this.zoomToCursor = false;
+        // Set to true to automatically rotate around the target
+        // If auto-rotate is enabled, you must call controls.update() in your animation loop
+        this.autoRotate = false;
+        this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
+        // The four arrow keys
+        this.keys = {
+            LEFT: "ArrowLeft",
+            UP: "ArrowUp",
+            RIGHT: "ArrowRight",
+            BOTTOM: "ArrowDown"
+        };
+        // Mouse buttons
+        this.mouseButtons = {
+            LEFT: (0, _three.MOUSE).ROTATE,
+            MIDDLE: (0, _three.MOUSE).DOLLY,
+            RIGHT: (0, _three.MOUSE).PAN
+        };
+        // Touch fingers
+        this.touches = {
+            ONE: (0, _three.TOUCH).ROTATE,
+            TWO: (0, _three.TOUCH).DOLLY_PAN
+        };
+        // for reset
+        this.target0 = this.target.clone();
+        this.position0 = this.object.position.clone();
+        this.zoom0 = this.object.zoom;
+        // the target DOM element for key events
+        this._domElementKeyEvents = null;
+        //
+        // public methods
+        //
+        this.getPolarAngle = function() {
+            return spherical.phi;
+        };
+        this.getAzimuthalAngle = function() {
+            return spherical.theta;
+        };
+        this.getDistance = function() {
+            return this.object.position.distanceTo(this.target);
+        };
+        this.listenToKeyEvents = function(domElement) {
+            domElement.addEventListener("keydown", onKeyDown);
+            this._domElementKeyEvents = domElement;
+        };
+        this.stopListenToKeyEvents = function() {
+            this._domElementKeyEvents.removeEventListener("keydown", onKeyDown);
+            this._domElementKeyEvents = null;
+        };
+        this.saveState = function() {
+            scope.target0.copy(scope.target);
+            scope.position0.copy(scope.object.position);
+            scope.zoom0 = scope.object.zoom;
+        };
+        this.reset = function() {
+            scope.target.copy(scope.target0);
+            scope.object.position.copy(scope.position0);
+            scope.object.zoom = scope.zoom0;
+            scope.object.updateProjectionMatrix();
+            scope.dispatchEvent(_changeEvent);
+            scope.update();
+            state = STATE.NONE;
+        };
+        // this method is exposed, but perhaps it would be better if we can make it private...
+        this.update = function() {
+            const offset = new (0, _three.Vector3)();
+            // so camera.up is the orbit axis
+            const quat = new (0, _three.Quaternion)().setFromUnitVectors(object.up, new (0, _three.Vector3)(0, 1, 0));
+            const quatInverse = quat.clone().invert();
+            const lastPosition = new (0, _three.Vector3)();
+            const lastQuaternion = new (0, _three.Quaternion)();
+            const lastTargetPosition = new (0, _three.Vector3)();
+            const twoPI = 2 * Math.PI;
+            return function update(deltaTime = null) {
+                const position = scope.object.position;
+                offset.copy(position).sub(scope.target);
+                // rotate offset to "y-axis-is-up" space
+                offset.applyQuaternion(quat);
+                // angle from z-axis around y-axis
+                spherical.setFromVector3(offset);
+                if (scope.autoRotate && state === STATE.NONE) rotateLeft(getAutoRotationAngle(deltaTime));
+                if (scope.enableDamping) {
+                    spherical.theta += sphericalDelta.theta * scope.dampingFactor;
+                    spherical.phi += sphericalDelta.phi * scope.dampingFactor;
+                } else {
+                    spherical.theta += sphericalDelta.theta;
+                    spherical.phi += sphericalDelta.phi;
+                }
+                // restrict theta to be between desired limits
+                let min = scope.minAzimuthAngle;
+                let max = scope.maxAzimuthAngle;
+                if (isFinite(min) && isFinite(max)) {
+                    if (min < -Math.PI) min += twoPI;
+                    else if (min > Math.PI) min -= twoPI;
+                    if (max < -Math.PI) max += twoPI;
+                    else if (max > Math.PI) max -= twoPI;
+                    if (min <= max) spherical.theta = Math.max(min, Math.min(max, spherical.theta));
+                    else spherical.theta = spherical.theta > (min + max) / 2 ? Math.max(min, spherical.theta) : Math.min(max, spherical.theta);
+                }
+                // restrict phi to be between desired limits
+                spherical.phi = Math.max(scope.minPolarAngle, Math.min(scope.maxPolarAngle, spherical.phi));
+                spherical.makeSafe();
+                // move target to panned location
+                if (scope.enableDamping === true) scope.target.addScaledVector(panOffset, scope.dampingFactor);
+                else scope.target.add(panOffset);
+                // Limit the target distance from the cursor to create a sphere around the center of interest
+                scope.target.sub(scope.cursor);
+                scope.target.clampLength(scope.minTargetRadius, scope.maxTargetRadius);
+                scope.target.add(scope.cursor);
+                let zoomChanged = false;
+                // adjust the camera position based on zoom only if we're not zooming to the cursor or if it's an ortho camera
+                // we adjust zoom later in these cases
+                if (scope.zoomToCursor && performCursorZoom || scope.object.isOrthographicCamera) spherical.radius = clampDistance(spherical.radius);
+                else {
+                    const prevRadius = spherical.radius;
+                    spherical.radius = clampDistance(spherical.radius * scale);
+                    zoomChanged = prevRadius != spherical.radius;
+                }
+                offset.setFromSpherical(spherical);
+                // rotate offset back to "camera-up-vector-is-up" space
+                offset.applyQuaternion(quatInverse);
+                position.copy(scope.target).add(offset);
+                scope.object.lookAt(scope.target);
+                if (scope.enableDamping === true) {
+                    sphericalDelta.theta *= 1 - scope.dampingFactor;
+                    sphericalDelta.phi *= 1 - scope.dampingFactor;
+                    panOffset.multiplyScalar(1 - scope.dampingFactor);
+                } else {
+                    sphericalDelta.set(0, 0, 0);
+                    panOffset.set(0, 0, 0);
+                }
+                // adjust camera position
+                if (scope.zoomToCursor && performCursorZoom) {
+                    let newRadius = null;
+                    if (scope.object.isPerspectiveCamera) {
+                        // move the camera down the pointer ray
+                        // this method avoids floating point error
+                        const prevRadius = offset.length();
+                        newRadius = clampDistance(prevRadius * scale);
+                        const radiusDelta = prevRadius - newRadius;
+                        scope.object.position.addScaledVector(dollyDirection, radiusDelta);
+                        scope.object.updateMatrixWorld();
+                        zoomChanged = !!radiusDelta;
+                    } else if (scope.object.isOrthographicCamera) {
+                        // adjust the ortho camera position based on zoom changes
+                        const mouseBefore = new (0, _three.Vector3)(mouse.x, mouse.y, 0);
+                        mouseBefore.unproject(scope.object);
+                        const prevZoom = scope.object.zoom;
+                        scope.object.zoom = Math.max(scope.minZoom, Math.min(scope.maxZoom, scope.object.zoom / scale));
+                        scope.object.updateProjectionMatrix();
+                        zoomChanged = prevZoom !== scope.object.zoom;
+                        const mouseAfter = new (0, _three.Vector3)(mouse.x, mouse.y, 0);
+                        mouseAfter.unproject(scope.object);
+                        scope.object.position.sub(mouseAfter).add(mouseBefore);
+                        scope.object.updateMatrixWorld();
+                        newRadius = offset.length();
+                    } else {
+                        console.warn("WARNING: OrbitControls.js encountered an unknown camera type - zoom to cursor disabled.");
+                        scope.zoomToCursor = false;
+                    }
+                    // handle the placement of the target
+                    if (newRadius !== null) {
+                        if (this.screenSpacePanning) // position the orbit target in front of the new camera position
+                        scope.target.set(0, 0, -1).transformDirection(scope.object.matrix).multiplyScalar(newRadius).add(scope.object.position);
+                        else {
+                            // get the ray and translation plane to compute target
+                            _ray.origin.copy(scope.object.position);
+                            _ray.direction.set(0, 0, -1).transformDirection(scope.object.matrix);
+                            // if the camera is 20 degrees above the horizon then don't adjust the focus target to avoid
+                            // extremely large values
+                            if (Math.abs(scope.object.up.dot(_ray.direction)) < TILT_LIMIT) object.lookAt(scope.target);
+                            else {
+                                _plane.setFromNormalAndCoplanarPoint(scope.object.up, scope.target);
+                                _ray.intersectPlane(_plane, scope.target);
+                            }
+                        }
+                    }
+                } else if (scope.object.isOrthographicCamera) {
+                    const prevZoom = scope.object.zoom;
+                    scope.object.zoom = Math.max(scope.minZoom, Math.min(scope.maxZoom, scope.object.zoom / scale));
+                    if (prevZoom !== scope.object.zoom) {
+                        scope.object.updateProjectionMatrix();
+                        zoomChanged = true;
+                    }
+                }
+                scale = 1;
+                performCursorZoom = false;
+                // update condition is:
+                // min(camera displacement, camera rotation in radians)^2 > EPS
+                // using small-angle approximation cos(x/2) = 1 - x^2 / 8
+                if (zoomChanged || lastPosition.distanceToSquared(scope.object.position) > EPS || 8 * (1 - lastQuaternion.dot(scope.object.quaternion)) > EPS || lastTargetPosition.distanceToSquared(scope.target) > EPS) {
+                    scope.dispatchEvent(_changeEvent);
+                    lastPosition.copy(scope.object.position);
+                    lastQuaternion.copy(scope.object.quaternion);
+                    lastTargetPosition.copy(scope.target);
+                    return true;
+                }
+                return false;
+            };
+        }();
+        this.dispose = function() {
+            scope.domElement.removeEventListener("contextmenu", onContextMenu);
+            scope.domElement.removeEventListener("pointerdown", onPointerDown);
+            scope.domElement.removeEventListener("pointercancel", onPointerUp);
+            scope.domElement.removeEventListener("wheel", onMouseWheel);
+            scope.domElement.removeEventListener("pointermove", onPointerMove);
+            scope.domElement.removeEventListener("pointerup", onPointerUp);
+            const document = scope.domElement.getRootNode(); // offscreen canvas compatibility
+            document.removeEventListener("keydown", interceptControlDown, {
+                capture: true
+            });
+            if (scope._domElementKeyEvents !== null) {
+                scope._domElementKeyEvents.removeEventListener("keydown", onKeyDown);
+                scope._domElementKeyEvents = null;
+            }
+        //scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
+        };
+        //
+        // internals
+        //
+        const scope = this;
+        const STATE = {
+            NONE: -1,
+            ROTATE: 0,
+            DOLLY: 1,
+            PAN: 2,
+            TOUCH_ROTATE: 3,
+            TOUCH_PAN: 4,
+            TOUCH_DOLLY_PAN: 5,
+            TOUCH_DOLLY_ROTATE: 6
+        };
+        let state = STATE.NONE;
+        const EPS = 0.000001;
+        // current position in spherical coordinates
+        const spherical = new (0, _three.Spherical)();
+        const sphericalDelta = new (0, _three.Spherical)();
+        let scale = 1;
+        const panOffset = new (0, _three.Vector3)();
+        const rotateStart = new (0, _three.Vector2)();
+        const rotateEnd = new (0, _three.Vector2)();
+        const rotateDelta = new (0, _three.Vector2)();
+        const panStart = new (0, _three.Vector2)();
+        const panEnd = new (0, _three.Vector2)();
+        const panDelta = new (0, _three.Vector2)();
+        const dollyStart = new (0, _three.Vector2)();
+        const dollyEnd = new (0, _three.Vector2)();
+        const dollyDelta = new (0, _three.Vector2)();
+        const dollyDirection = new (0, _three.Vector3)();
+        const mouse = new (0, _three.Vector2)();
+        let performCursorZoom = false;
+        const pointers = [];
+        const pointerPositions = {};
+        let controlActive = false;
+        function getAutoRotationAngle(deltaTime) {
+            if (deltaTime !== null) return 2 * Math.PI / 60 * scope.autoRotateSpeed * deltaTime;
+            else return 2 * Math.PI / 60 / 60 * scope.autoRotateSpeed;
+        }
+        function getZoomScale(delta) {
+            const normalizedDelta = Math.abs(delta * 0.01);
+            return Math.pow(0.95, scope.zoomSpeed * normalizedDelta);
+        }
+        function rotateLeft(angle) {
+            sphericalDelta.theta -= angle;
+        }
+        function rotateUp(angle) {
+            sphericalDelta.phi -= angle;
+        }
+        const panLeft = function() {
+            const v = new (0, _three.Vector3)();
+            return function panLeft(distance, objectMatrix) {
+                v.setFromMatrixColumn(objectMatrix, 0); // get X column of objectMatrix
+                v.multiplyScalar(-distance);
+                panOffset.add(v);
+            };
+        }();
+        const panUp = function() {
+            const v = new (0, _three.Vector3)();
+            return function panUp(distance, objectMatrix) {
+                if (scope.screenSpacePanning === true) v.setFromMatrixColumn(objectMatrix, 1);
+                else {
+                    v.setFromMatrixColumn(objectMatrix, 0);
+                    v.crossVectors(scope.object.up, v);
+                }
+                v.multiplyScalar(distance);
+                panOffset.add(v);
+            };
+        }();
+        // deltaX and deltaY are in pixels; right and down are positive
+        const pan = function() {
+            const offset = new (0, _three.Vector3)();
+            return function pan(deltaX, deltaY) {
+                const element = scope.domElement;
+                if (scope.object.isPerspectiveCamera) {
+                    // perspective
+                    const position = scope.object.position;
+                    offset.copy(position).sub(scope.target);
+                    let targetDistance = offset.length();
+                    // half of the fov is center to top of screen
+                    targetDistance *= Math.tan(scope.object.fov / 2 * Math.PI / 180.0);
+                    // we use only clientHeight here so aspect ratio does not distort speed
+                    panLeft(2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix);
+                    panUp(2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix);
+                } else if (scope.object.isOrthographicCamera) {
+                    // orthographic
+                    panLeft(deltaX * (scope.object.right - scope.object.left) / scope.object.zoom / element.clientWidth, scope.object.matrix);
+                    panUp(deltaY * (scope.object.top - scope.object.bottom) / scope.object.zoom / element.clientHeight, scope.object.matrix);
+                } else {
+                    // camera neither orthographic nor perspective
+                    console.warn("WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.");
+                    scope.enablePan = false;
+                }
+            };
+        }();
+        function dollyOut(dollyScale) {
+            if (scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera) scale /= dollyScale;
+            else {
+                console.warn("WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.");
+                scope.enableZoom = false;
+            }
+        }
+        function dollyIn(dollyScale) {
+            if (scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera) scale *= dollyScale;
+            else {
+                console.warn("WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.");
+                scope.enableZoom = false;
+            }
+        }
+        function updateZoomParameters(x, y) {
+            if (!scope.zoomToCursor) return;
+            performCursorZoom = true;
+            const rect = scope.domElement.getBoundingClientRect();
+            const dx = x - rect.left;
+            const dy = y - rect.top;
+            const w = rect.width;
+            const h = rect.height;
+            mouse.x = dx / w * 2 - 1;
+            mouse.y = -(dy / h) * 2 + 1;
+            dollyDirection.set(mouse.x, mouse.y, 1).unproject(scope.object).sub(scope.object.position).normalize();
+        }
+        function clampDistance(dist) {
+            return Math.max(scope.minDistance, Math.min(scope.maxDistance, dist));
+        }
+        //
+        // event callbacks - update the object state
+        //
+        function handleMouseDownRotate(event) {
+            rotateStart.set(event.clientX, event.clientY);
+        }
+        function handleMouseDownDolly(event) {
+            updateZoomParameters(event.clientX, event.clientX);
+            dollyStart.set(event.clientX, event.clientY);
+        }
+        function handleMouseDownPan(event) {
+            panStart.set(event.clientX, event.clientY);
+        }
+        function handleMouseMoveRotate(event) {
+            rotateEnd.set(event.clientX, event.clientY);
+            rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(scope.rotateSpeed);
+            const element = scope.domElement;
+            rotateLeft(2 * Math.PI * rotateDelta.x / element.clientHeight); // yes, height
+            rotateUp(2 * Math.PI * rotateDelta.y / element.clientHeight);
+            rotateStart.copy(rotateEnd);
+            scope.update();
+        }
+        function handleMouseMoveDolly(event) {
+            dollyEnd.set(event.clientX, event.clientY);
+            dollyDelta.subVectors(dollyEnd, dollyStart);
+            if (dollyDelta.y > 0) dollyOut(getZoomScale(dollyDelta.y));
+            else if (dollyDelta.y < 0) dollyIn(getZoomScale(dollyDelta.y));
+            dollyStart.copy(dollyEnd);
+            scope.update();
+        }
+        function handleMouseMovePan(event) {
+            panEnd.set(event.clientX, event.clientY);
+            panDelta.subVectors(panEnd, panStart).multiplyScalar(scope.panSpeed);
+            pan(panDelta.x, panDelta.y);
+            panStart.copy(panEnd);
+            scope.update();
+        }
+        function handleMouseWheel(event) {
+            updateZoomParameters(event.clientX, event.clientY);
+            if (event.deltaY < 0) dollyIn(getZoomScale(event.deltaY));
+            else if (event.deltaY > 0) dollyOut(getZoomScale(event.deltaY));
+            scope.update();
+        }
+        function handleKeyDown(event) {
+            let needsUpdate = false;
+            switch(event.code){
+                case scope.keys.UP:
+                    if (event.ctrlKey || event.metaKey || event.shiftKey) rotateUp(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                    else pan(0, scope.keyPanSpeed);
+                    needsUpdate = true;
+                    break;
+                case scope.keys.BOTTOM:
+                    if (event.ctrlKey || event.metaKey || event.shiftKey) rotateUp(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                    else pan(0, -scope.keyPanSpeed);
+                    needsUpdate = true;
+                    break;
+                case scope.keys.LEFT:
+                    if (event.ctrlKey || event.metaKey || event.shiftKey) rotateLeft(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                    else pan(scope.keyPanSpeed, 0);
+                    needsUpdate = true;
+                    break;
+                case scope.keys.RIGHT:
+                    if (event.ctrlKey || event.metaKey || event.shiftKey) rotateLeft(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
+                    else pan(-scope.keyPanSpeed, 0);
+                    needsUpdate = true;
+                    break;
+            }
+            if (needsUpdate) {
+                // prevent the browser from scrolling on cursor keys
+                event.preventDefault();
+                scope.update();
+            }
+        }
+        function handleTouchStartRotate(event) {
+            if (pointers.length === 1) rotateStart.set(event.pageX, event.pageY);
+            else {
+                const position = getSecondPointerPosition(event);
+                const x = 0.5 * (event.pageX + position.x);
+                const y = 0.5 * (event.pageY + position.y);
+                rotateStart.set(x, y);
+            }
+        }
+        function handleTouchStartPan(event) {
+            if (pointers.length === 1) panStart.set(event.pageX, event.pageY);
+            else {
+                const position = getSecondPointerPosition(event);
+                const x = 0.5 * (event.pageX + position.x);
+                const y = 0.5 * (event.pageY + position.y);
+                panStart.set(x, y);
+            }
+        }
+        function handleTouchStartDolly(event) {
+            const position = getSecondPointerPosition(event);
+            const dx = event.pageX - position.x;
+            const dy = event.pageY - position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            dollyStart.set(0, distance);
+        }
+        function handleTouchStartDollyPan(event) {
+            if (scope.enableZoom) handleTouchStartDolly(event);
+            if (scope.enablePan) handleTouchStartPan(event);
+        }
+        function handleTouchStartDollyRotate(event) {
+            if (scope.enableZoom) handleTouchStartDolly(event);
+            if (scope.enableRotate) handleTouchStartRotate(event);
+        }
+        function handleTouchMoveRotate(event) {
+            if (pointers.length == 1) rotateEnd.set(event.pageX, event.pageY);
+            else {
+                const position = getSecondPointerPosition(event);
+                const x = 0.5 * (event.pageX + position.x);
+                const y = 0.5 * (event.pageY + position.y);
+                rotateEnd.set(x, y);
+            }
+            rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(scope.rotateSpeed);
+            const element = scope.domElement;
+            rotateLeft(2 * Math.PI * rotateDelta.x / element.clientHeight); // yes, height
+            rotateUp(2 * Math.PI * rotateDelta.y / element.clientHeight);
+            rotateStart.copy(rotateEnd);
+        }
+        function handleTouchMovePan(event) {
+            if (pointers.length === 1) panEnd.set(event.pageX, event.pageY);
+            else {
+                const position = getSecondPointerPosition(event);
+                const x = 0.5 * (event.pageX + position.x);
+                const y = 0.5 * (event.pageY + position.y);
+                panEnd.set(x, y);
+            }
+            panDelta.subVectors(panEnd, panStart).multiplyScalar(scope.panSpeed);
+            pan(panDelta.x, panDelta.y);
+            panStart.copy(panEnd);
+        }
+        function handleTouchMoveDolly(event) {
+            const position = getSecondPointerPosition(event);
+            const dx = event.pageX - position.x;
+            const dy = event.pageY - position.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            dollyEnd.set(0, distance);
+            dollyDelta.set(0, Math.pow(dollyEnd.y / dollyStart.y, scope.zoomSpeed));
+            dollyOut(dollyDelta.y);
+            dollyStart.copy(dollyEnd);
+            const centerX = (event.pageX + position.x) * 0.5;
+            const centerY = (event.pageY + position.y) * 0.5;
+            updateZoomParameters(centerX, centerY);
+        }
+        function handleTouchMoveDollyPan(event) {
+            if (scope.enableZoom) handleTouchMoveDolly(event);
+            if (scope.enablePan) handleTouchMovePan(event);
+        }
+        function handleTouchMoveDollyRotate(event) {
+            if (scope.enableZoom) handleTouchMoveDolly(event);
+            if (scope.enableRotate) handleTouchMoveRotate(event);
+        }
+        //
+        // event handlers - FSM: listen for events and reset state
+        //
+        function onPointerDown(event) {
+            if (scope.enabled === false) return;
+            if (pointers.length === 0) {
+                scope.domElement.setPointerCapture(event.pointerId);
+                scope.domElement.addEventListener("pointermove", onPointerMove);
+                scope.domElement.addEventListener("pointerup", onPointerUp);
+            }
+            //
+            if (isTrackingPointer(event)) return;
+            //
+            addPointer(event);
+            if (event.pointerType === "touch") onTouchStart(event);
+            else onMouseDown(event);
+        }
+        function onPointerMove(event) {
+            if (scope.enabled === false) return;
+            if (event.pointerType === "touch") onTouchMove(event);
+            else onMouseMove(event);
+        }
+        function onPointerUp(event) {
+            removePointer(event);
+            switch(pointers.length){
+                case 0:
+                    scope.domElement.releasePointerCapture(event.pointerId);
+                    scope.domElement.removeEventListener("pointermove", onPointerMove);
+                    scope.domElement.removeEventListener("pointerup", onPointerUp);
+                    scope.dispatchEvent(_endEvent);
+                    state = STATE.NONE;
+                    break;
+                case 1:
+                    const pointerId = pointers[0];
+                    const position = pointerPositions[pointerId];
+                    // minimal placeholder event - allows state correction on pointer-up
+                    onTouchStart({
+                        pointerId: pointerId,
+                        pageX: position.x,
+                        pageY: position.y
+                    });
+                    break;
+            }
+        }
+        function onMouseDown(event) {
+            let mouseAction;
+            switch(event.button){
+                case 0:
+                    mouseAction = scope.mouseButtons.LEFT;
+                    break;
+                case 1:
+                    mouseAction = scope.mouseButtons.MIDDLE;
+                    break;
+                case 2:
+                    mouseAction = scope.mouseButtons.RIGHT;
+                    break;
+                default:
+                    mouseAction = -1;
+            }
+            switch(mouseAction){
+                case (0, _three.MOUSE).DOLLY:
+                    if (scope.enableZoom === false) return;
+                    handleMouseDownDolly(event);
+                    state = STATE.DOLLY;
+                    break;
+                case (0, _three.MOUSE).ROTATE:
+                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                        if (scope.enablePan === false) return;
+                        handleMouseDownPan(event);
+                        state = STATE.PAN;
+                    } else {
+                        if (scope.enableRotate === false) return;
+                        handleMouseDownRotate(event);
+                        state = STATE.ROTATE;
+                    }
+                    break;
+                case (0, _three.MOUSE).PAN:
+                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
+                        if (scope.enableRotate === false) return;
+                        handleMouseDownRotate(event);
+                        state = STATE.ROTATE;
+                    } else {
+                        if (scope.enablePan === false) return;
+                        handleMouseDownPan(event);
+                        state = STATE.PAN;
+                    }
+                    break;
+                default:
+                    state = STATE.NONE;
+            }
+            if (state !== STATE.NONE) scope.dispatchEvent(_startEvent);
+        }
+        function onMouseMove(event) {
+            switch(state){
+                case STATE.ROTATE:
+                    if (scope.enableRotate === false) return;
+                    handleMouseMoveRotate(event);
+                    break;
+                case STATE.DOLLY:
+                    if (scope.enableZoom === false) return;
+                    handleMouseMoveDolly(event);
+                    break;
+                case STATE.PAN:
+                    if (scope.enablePan === false) return;
+                    handleMouseMovePan(event);
+                    break;
+            }
+        }
+        function onMouseWheel(event) {
+            if (scope.enabled === false || scope.enableZoom === false || state !== STATE.NONE) return;
+            event.preventDefault();
+            scope.dispatchEvent(_startEvent);
+            handleMouseWheel(customWheelEvent(event));
+            scope.dispatchEvent(_endEvent);
+        }
+        function customWheelEvent(event) {
+            const mode = event.deltaMode;
+            // minimal wheel event altered to meet delta-zoom demand
+            const newEvent = {
+                clientX: event.clientX,
+                clientY: event.clientY,
+                deltaY: event.deltaY
+            };
+            switch(mode){
+                case 1:
+                    newEvent.deltaY *= 16;
+                    break;
+                case 2:
+                    newEvent.deltaY *= 100;
+                    break;
+            }
+            // detect if event was triggered by pinching
+            if (event.ctrlKey && !controlActive) newEvent.deltaY *= 10;
+            return newEvent;
+        }
+        function interceptControlDown(event) {
+            if (event.key === "Control") {
+                controlActive = true;
+                const document = scope.domElement.getRootNode(); // offscreen canvas compatibility
+                document.addEventListener("keyup", interceptControlUp, {
+                    passive: true,
+                    capture: true
+                });
+            }
+        }
+        function interceptControlUp(event) {
+            if (event.key === "Control") {
+                controlActive = false;
+                const document = scope.domElement.getRootNode(); // offscreen canvas compatibility
+                document.removeEventListener("keyup", interceptControlUp, {
+                    passive: true,
+                    capture: true
+                });
+            }
+        }
+        function onKeyDown(event) {
+            if (scope.enabled === false || scope.enablePan === false) return;
+            handleKeyDown(event);
+        }
+        function onTouchStart(event) {
+            trackPointer(event);
+            switch(pointers.length){
+                case 1:
+                    switch(scope.touches.ONE){
+                        case (0, _three.TOUCH).ROTATE:
+                            if (scope.enableRotate === false) return;
+                            handleTouchStartRotate(event);
+                            state = STATE.TOUCH_ROTATE;
+                            break;
+                        case (0, _three.TOUCH).PAN:
+                            if (scope.enablePan === false) return;
+                            handleTouchStartPan(event);
+                            state = STATE.TOUCH_PAN;
+                            break;
+                        default:
+                            state = STATE.NONE;
+                    }
+                    break;
+                case 2:
+                    switch(scope.touches.TWO){
+                        case (0, _three.TOUCH).DOLLY_PAN:
+                            if (scope.enableZoom === false && scope.enablePan === false) return;
+                            handleTouchStartDollyPan(event);
+                            state = STATE.TOUCH_DOLLY_PAN;
+                            break;
+                        case (0, _three.TOUCH).DOLLY_ROTATE:
+                            if (scope.enableZoom === false && scope.enableRotate === false) return;
+                            handleTouchStartDollyRotate(event);
+                            state = STATE.TOUCH_DOLLY_ROTATE;
+                            break;
+                        default:
+                            state = STATE.NONE;
+                    }
+                    break;
+                default:
+                    state = STATE.NONE;
+            }
+            if (state !== STATE.NONE) scope.dispatchEvent(_startEvent);
+        }
+        function onTouchMove(event) {
+            trackPointer(event);
+            switch(state){
+                case STATE.TOUCH_ROTATE:
+                    if (scope.enableRotate === false) return;
+                    handleTouchMoveRotate(event);
+                    scope.update();
+                    break;
+                case STATE.TOUCH_PAN:
+                    if (scope.enablePan === false) return;
+                    handleTouchMovePan(event);
+                    scope.update();
+                    break;
+                case STATE.TOUCH_DOLLY_PAN:
+                    if (scope.enableZoom === false && scope.enablePan === false) return;
+                    handleTouchMoveDollyPan(event);
+                    scope.update();
+                    break;
+                case STATE.TOUCH_DOLLY_ROTATE:
+                    if (scope.enableZoom === false && scope.enableRotate === false) return;
+                    handleTouchMoveDollyRotate(event);
+                    scope.update();
+                    break;
+                default:
+                    state = STATE.NONE;
+            }
+        }
+        function onContextMenu(event) {
+            if (scope.enabled === false) return;
+            event.preventDefault();
+        }
+        function addPointer(event) {
+            pointers.push(event.pointerId);
+        }
+        function removePointer(event) {
+            delete pointerPositions[event.pointerId];
+            for(let i = 0; i < pointers.length; i++)if (pointers[i] == event.pointerId) {
+                pointers.splice(i, 1);
+                return;
+            }
+        }
+        function isTrackingPointer(event) {
+            for(let i = 0; i < pointers.length; i++){
+                if (pointers[i] == event.pointerId) return true;
+            }
+            return false;
+        }
+        function trackPointer(event) {
+            let position = pointerPositions[event.pointerId];
+            if (position === undefined) {
+                position = new (0, _three.Vector2)();
+                pointerPositions[event.pointerId] = position;
+            }
+            position.set(event.pageX, event.pageY);
+        }
+        function getSecondPointerPosition(event) {
+            const pointerId = event.pointerId === pointers[0] ? pointers[1] : pointers[0];
+            return pointerPositions[pointerId];
+        }
+        //
+        scope.domElement.addEventListener("contextmenu", onContextMenu);
+        scope.domElement.addEventListener("pointerdown", onPointerDown);
+        scope.domElement.addEventListener("pointercancel", onPointerUp);
+        scope.domElement.addEventListener("wheel", onMouseWheel, {
+            passive: false
+        });
+        const document = scope.domElement.getRootNode(); // offscreen canvas compatibility
+        document.addEventListener("keydown", interceptControlDown, {
+            passive: true,
+            capture: true
+        });
+        // force an update at start
+        this.update();
+    }
+}
+
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"k3xQk":[function(require,module,exports) {
+/**
+ * dat-gui JavaScript Controller Library
+ * https://github.com/dataarts/dat.gui
+ *
+ * Copyright 2011 Data Arts Team, Google Creative Lab
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "color", ()=>color);
+parcelHelpers.export(exports, "controllers", ()=>controllers);
+parcelHelpers.export(exports, "dom", ()=>dom$1);
+parcelHelpers.export(exports, "gui", ()=>gui);
+parcelHelpers.export(exports, "GUI", ()=>GUI$1);
+function ___$insertStyle(css) {
+    if (!css) return;
+    if (typeof window === "undefined") return;
+    var style = document.createElement("style");
+    style.setAttribute("type", "text/css");
+    style.innerHTML = css;
+    document.head.appendChild(style);
+    return css;
+}
+function colorToString(color, forceCSSHex) {
+    var colorFormat = color.__state.conversionName.toString();
+    var r = Math.round(color.r);
+    var g = Math.round(color.g);
+    var b = Math.round(color.b);
+    var a = color.a;
+    var h = Math.round(color.h);
+    var s = color.s.toFixed(1);
+    var v = color.v.toFixed(1);
+    if (forceCSSHex || colorFormat === "THREE_CHAR_HEX" || colorFormat === "SIX_CHAR_HEX") {
+        var str = color.hex.toString(16);
+        while(str.length < 6)str = "0" + str;
+        return "#" + str;
+    } else if (colorFormat === "CSS_RGB") return "rgb(" + r + "," + g + "," + b + ")";
+    else if (colorFormat === "CSS_RGBA") return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+    else if (colorFormat === "HEX") return "0x" + color.hex.toString(16);
+    else if (colorFormat === "RGB_ARRAY") return "[" + r + "," + g + "," + b + "]";
+    else if (colorFormat === "RGBA_ARRAY") return "[" + r + "," + g + "," + b + "," + a + "]";
+    else if (colorFormat === "RGB_OBJ") return "{r:" + r + ",g:" + g + ",b:" + b + "}";
+    else if (colorFormat === "RGBA_OBJ") return "{r:" + r + ",g:" + g + ",b:" + b + ",a:" + a + "}";
+    else if (colorFormat === "HSV_OBJ") return "{h:" + h + ",s:" + s + ",v:" + v + "}";
+    else if (colorFormat === "HSVA_OBJ") return "{h:" + h + ",s:" + s + ",v:" + v + ",a:" + a + "}";
+    return "unknown format";
+}
+var ARR_EACH = Array.prototype.forEach;
+var ARR_SLICE = Array.prototype.slice;
+var Common = {
+    BREAK: {},
+    extend: function extend(target) {
+        this.each(ARR_SLICE.call(arguments, 1), function(obj) {
+            var keys = this.isObject(obj) ? Object.keys(obj) : [];
+            keys.forEach((function(key) {
+                if (!this.isUndefined(obj[key])) target[key] = obj[key];
+            }).bind(this));
+        }, this);
+        return target;
+    },
+    defaults: function defaults(target) {
+        this.each(ARR_SLICE.call(arguments, 1), function(obj) {
+            var keys = this.isObject(obj) ? Object.keys(obj) : [];
+            keys.forEach((function(key) {
+                if (this.isUndefined(target[key])) target[key] = obj[key];
+            }).bind(this));
+        }, this);
+        return target;
+    },
+    compose: function compose() {
+        var toCall = ARR_SLICE.call(arguments);
+        return function() {
+            var args = ARR_SLICE.call(arguments);
+            for(var i = toCall.length - 1; i >= 0; i--)args = [
+                toCall[i].apply(this, args)
+            ];
+            return args[0];
+        };
+    },
+    each: function each(obj, itr, scope) {
+        if (!obj) return;
+        if (ARR_EACH && obj.forEach && obj.forEach === ARR_EACH) obj.forEach(itr, scope);
+        else if (obj.length === obj.length + 0) {
+            var key = void 0;
+            var l = void 0;
+            for(key = 0, l = obj.length; key < l; key++){
+                if (key in obj && itr.call(scope, obj[key], key) === this.BREAK) return;
+            }
+        } else for(var _key in obj){
+            if (itr.call(scope, obj[_key], _key) === this.BREAK) return;
+        }
+    },
+    defer: function defer(fnc) {
+        setTimeout(fnc, 0);
+    },
+    debounce: function debounce(func, threshold, callImmediately) {
+        var timeout = void 0;
+        return function() {
+            var obj = this;
+            var args = arguments;
+            function delayed() {
+                timeout = null;
+                if (!callImmediately) func.apply(obj, args);
+            }
+            var callNow = callImmediately || !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(delayed, threshold);
+            if (callNow) func.apply(obj, args);
+        };
+    },
+    toArray: function toArray(obj) {
+        if (obj.toArray) return obj.toArray();
+        return ARR_SLICE.call(obj);
+    },
+    isUndefined: function isUndefined(obj) {
+        return obj === undefined;
+    },
+    isNull: function isNull(obj) {
+        return obj === null;
+    },
+    isNaN: function(_isNaN) {
+        function isNaN1(_x) {
+            return _isNaN.apply(this, arguments);
+        }
+        isNaN1.toString = function() {
+            return _isNaN.toString();
+        };
+        return isNaN1;
+    }(function(obj) {
+        return isNaN(obj);
+    }),
+    isArray: Array.isArray || function(obj) {
+        return obj.constructor === Array;
+    },
+    isObject: function isObject(obj) {
+        return obj === Object(obj);
+    },
+    isNumber: function isNumber(obj) {
+        return obj === obj + 0;
+    },
+    isString: function isString(obj) {
+        return obj === obj + "";
+    },
+    isBoolean: function isBoolean(obj) {
+        return obj === false || obj === true;
+    },
+    isFunction: function isFunction(obj) {
+        return obj instanceof Function;
+    }
+};
+var INTERPRETATIONS = [
+    {
+        litmus: Common.isString,
+        conversions: {
+            THREE_CHAR_HEX: {
+                read: function read(original) {
+                    var test = original.match(/^#([A-F0-9])([A-F0-9])([A-F0-9])$/i);
+                    if (test === null) return false;
+                    return {
+                        space: "HEX",
+                        hex: parseInt("0x" + test[1].toString() + test[1].toString() + test[2].toString() + test[2].toString() + test[3].toString() + test[3].toString(), 0)
+                    };
+                },
+                write: colorToString
+            },
+            SIX_CHAR_HEX: {
+                read: function read(original) {
+                    var test = original.match(/^#([A-F0-9]{6})$/i);
+                    if (test === null) return false;
+                    return {
+                        space: "HEX",
+                        hex: parseInt("0x" + test[1].toString(), 0)
+                    };
+                },
+                write: colorToString
+            },
+            CSS_RGB: {
+                read: function read(original) {
+                    var test = original.match(/^rgb\(\s*(\S+)\s*,\s*(\S+)\s*,\s*(\S+)\s*\)/);
+                    if (test === null) return false;
+                    return {
+                        space: "RGB",
+                        r: parseFloat(test[1]),
+                        g: parseFloat(test[2]),
+                        b: parseFloat(test[3])
+                    };
+                },
+                write: colorToString
+            },
+            CSS_RGBA: {
+                read: function read(original) {
+                    var test = original.match(/^rgba\(\s*(\S+)\s*,\s*(\S+)\s*,\s*(\S+)\s*,\s*(\S+)\s*\)/);
+                    if (test === null) return false;
+                    return {
+                        space: "RGB",
+                        r: parseFloat(test[1]),
+                        g: parseFloat(test[2]),
+                        b: parseFloat(test[3]),
+                        a: parseFloat(test[4])
+                    };
+                },
+                write: colorToString
+            }
+        }
+    },
+    {
+        litmus: Common.isNumber,
+        conversions: {
+            HEX: {
+                read: function read(original) {
+                    return {
+                        space: "HEX",
+                        hex: original,
+                        conversionName: "HEX"
+                    };
+                },
+                write: function write(color) {
+                    return color.hex;
+                }
+            }
+        }
+    },
+    {
+        litmus: Common.isArray,
+        conversions: {
+            RGB_ARRAY: {
+                read: function read(original) {
+                    if (original.length !== 3) return false;
+                    return {
+                        space: "RGB",
+                        r: original[0],
+                        g: original[1],
+                        b: original[2]
+                    };
+                },
+                write: function write(color) {
+                    return [
+                        color.r,
+                        color.g,
+                        color.b
+                    ];
+                }
+            },
+            RGBA_ARRAY: {
+                read: function read(original) {
+                    if (original.length !== 4) return false;
+                    return {
+                        space: "RGB",
+                        r: original[0],
+                        g: original[1],
+                        b: original[2],
+                        a: original[3]
+                    };
+                },
+                write: function write(color) {
+                    return [
+                        color.r,
+                        color.g,
+                        color.b,
+                        color.a
+                    ];
+                }
+            }
+        }
+    },
+    {
+        litmus: Common.isObject,
+        conversions: {
+            RGBA_OBJ: {
+                read: function read(original) {
+                    if (Common.isNumber(original.r) && Common.isNumber(original.g) && Common.isNumber(original.b) && Common.isNumber(original.a)) return {
+                        space: "RGB",
+                        r: original.r,
+                        g: original.g,
+                        b: original.b,
+                        a: original.a
+                    };
+                    return false;
+                },
+                write: function write(color) {
+                    return {
+                        r: color.r,
+                        g: color.g,
+                        b: color.b,
+                        a: color.a
+                    };
+                }
+            },
+            RGB_OBJ: {
+                read: function read(original) {
+                    if (Common.isNumber(original.r) && Common.isNumber(original.g) && Common.isNumber(original.b)) return {
+                        space: "RGB",
+                        r: original.r,
+                        g: original.g,
+                        b: original.b
+                    };
+                    return false;
+                },
+                write: function write(color) {
+                    return {
+                        r: color.r,
+                        g: color.g,
+                        b: color.b
+                    };
+                }
+            },
+            HSVA_OBJ: {
+                read: function read(original) {
+                    if (Common.isNumber(original.h) && Common.isNumber(original.s) && Common.isNumber(original.v) && Common.isNumber(original.a)) return {
+                        space: "HSV",
+                        h: original.h,
+                        s: original.s,
+                        v: original.v,
+                        a: original.a
+                    };
+                    return false;
+                },
+                write: function write(color) {
+                    return {
+                        h: color.h,
+                        s: color.s,
+                        v: color.v,
+                        a: color.a
+                    };
+                }
+            },
+            HSV_OBJ: {
+                read: function read(original) {
+                    if (Common.isNumber(original.h) && Common.isNumber(original.s) && Common.isNumber(original.v)) return {
+                        space: "HSV",
+                        h: original.h,
+                        s: original.s,
+                        v: original.v
+                    };
+                    return false;
+                },
+                write: function write(color) {
+                    return {
+                        h: color.h,
+                        s: color.s,
+                        v: color.v
+                    };
+                }
+            }
+        }
+    }
+];
+var result = void 0;
+var toReturn = void 0;
+var interpret = function interpret() {
+    toReturn = false;
+    var original = arguments.length > 1 ? Common.toArray(arguments) : arguments[0];
+    Common.each(INTERPRETATIONS, function(family) {
+        if (family.litmus(original)) {
+            Common.each(family.conversions, function(conversion, conversionName) {
+                result = conversion.read(original);
+                if (toReturn === false && result !== false) {
+                    toReturn = result;
+                    result.conversionName = conversionName;
+                    result.conversion = conversion;
+                    return Common.BREAK;
+                }
+            });
+            return Common.BREAK;
+        }
+    });
+    return toReturn;
+};
+var tmpComponent = void 0;
+var ColorMath = {
+    hsv_to_rgb: function hsv_to_rgb(h, s, v) {
+        var hi = Math.floor(h / 60) % 6;
+        var f = h / 60 - Math.floor(h / 60);
+        var p = v * (1.0 - s);
+        var q = v * (1.0 - f * s);
+        var t = v * (1.0 - (1.0 - f) * s);
+        var c = [
+            [
+                v,
+                t,
+                p
+            ],
+            [
+                q,
+                v,
+                p
+            ],
+            [
+                p,
+                v,
+                t
+            ],
+            [
+                p,
+                q,
+                v
+            ],
+            [
+                t,
+                p,
+                v
+            ],
+            [
+                v,
+                p,
+                q
+            ]
+        ][hi];
+        return {
+            r: c[0] * 255,
+            g: c[1] * 255,
+            b: c[2] * 255
+        };
+    },
+    rgb_to_hsv: function rgb_to_hsv(r, g, b) {
+        var min = Math.min(r, g, b);
+        var max = Math.max(r, g, b);
+        var delta = max - min;
+        var h = void 0;
+        var s = void 0;
+        if (max !== 0) s = delta / max;
+        else return {
+            h: NaN,
+            s: 0,
+            v: 0
+        };
+        if (r === max) h = (g - b) / delta;
+        else if (g === max) h = 2 + (b - r) / delta;
+        else h = 4 + (r - g) / delta;
+        h /= 6;
+        if (h < 0) h += 1;
+        return {
+            h: h * 360,
+            s: s,
+            v: max / 255
+        };
+    },
+    rgb_to_hex: function rgb_to_hex(r, g, b) {
+        var hex = this.hex_with_component(0, 2, r);
+        hex = this.hex_with_component(hex, 1, g);
+        hex = this.hex_with_component(hex, 0, b);
+        return hex;
+    },
+    component_from_hex: function component_from_hex(hex, componentIndex) {
+        return hex >> componentIndex * 8 & 0xFF;
+    },
+    hex_with_component: function hex_with_component(hex, componentIndex, value) {
+        return value << (tmpComponent = componentIndex * 8) | hex & ~(0xFF << tmpComponent);
+    }
+};
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
+    return typeof obj;
+} : function(obj) {
+    return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+};
+var classCallCheck = function(instance, Constructor) {
+    if (!(instance instanceof Constructor)) throw new TypeError("Cannot call a class as a function");
+};
+var createClass = function() {
+    function defineProperties(target, props) {
+        for(var i = 0; i < props.length; i++){
+            var descriptor = props[i];
+            descriptor.enumerable = descriptor.enumerable || false;
+            descriptor.configurable = true;
+            if ("value" in descriptor) descriptor.writable = true;
+            Object.defineProperty(target, descriptor.key, descriptor);
+        }
+    }
+    return function(Constructor, protoProps, staticProps) {
+        if (protoProps) defineProperties(Constructor.prototype, protoProps);
+        if (staticProps) defineProperties(Constructor, staticProps);
+        return Constructor;
+    };
+}();
+var get = function get(object, property, receiver) {
+    if (object === null) object = Function.prototype;
+    var desc = Object.getOwnPropertyDescriptor(object, property);
+    if (desc === undefined) {
+        var parent = Object.getPrototypeOf(object);
+        if (parent === null) return undefined;
+        else return get(parent, property, receiver);
+    } else if ("value" in desc) return desc.value;
+    else {
+        var getter = desc.get;
+        if (getter === undefined) return undefined;
+        return getter.call(receiver);
+    }
+};
+var inherits = function(subClass, superClass) {
+    if (typeof superClass !== "function" && superClass !== null) throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+    subClass.prototype = Object.create(superClass && superClass.prototype, {
+        constructor: {
+            value: subClass,
+            enumerable: false,
+            writable: true,
+            configurable: true
+        }
+    });
+    if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
+};
+var possibleConstructorReturn = function(self, call) {
+    if (!self) throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+    return call && (typeof call === "object" || typeof call === "function") ? call : self;
+};
+var Color = function() {
+    function Color() {
+        classCallCheck(this, Color);
+        this.__state = interpret.apply(this, arguments);
+        if (this.__state === false) throw new Error("Failed to interpret color arguments");
+        this.__state.a = this.__state.a || 1;
+    }
+    createClass(Color, [
+        {
+            key: "toString",
+            value: function toString() {
+                return colorToString(this);
+            }
+        },
+        {
+            key: "toHexString",
+            value: function toHexString() {
+                return colorToString(this, true);
+            }
+        },
+        {
+            key: "toOriginal",
+            value: function toOriginal() {
+                return this.__state.conversion.write(this);
+            }
+        }
+    ]);
+    return Color;
+}();
+function defineRGBComponent(target, component, componentHexIndex) {
+    Object.defineProperty(target, component, {
+        get: function get$$1() {
+            if (this.__state.space === "RGB") return this.__state[component];
+            Color.recalculateRGB(this, component, componentHexIndex);
+            return this.__state[component];
+        },
+        set: function set$$1(v) {
+            if (this.__state.space !== "RGB") {
+                Color.recalculateRGB(this, component, componentHexIndex);
+                this.__state.space = "RGB";
+            }
+            this.__state[component] = v;
+        }
+    });
+}
+function defineHSVComponent(target, component) {
+    Object.defineProperty(target, component, {
+        get: function get$$1() {
+            if (this.__state.space === "HSV") return this.__state[component];
+            Color.recalculateHSV(this);
+            return this.__state[component];
+        },
+        set: function set$$1(v) {
+            if (this.__state.space !== "HSV") {
+                Color.recalculateHSV(this);
+                this.__state.space = "HSV";
+            }
+            this.__state[component] = v;
+        }
+    });
+}
+Color.recalculateRGB = function(color, component, componentHexIndex) {
+    if (color.__state.space === "HEX") color.__state[component] = ColorMath.component_from_hex(color.__state.hex, componentHexIndex);
+    else if (color.__state.space === "HSV") Common.extend(color.__state, ColorMath.hsv_to_rgb(color.__state.h, color.__state.s, color.__state.v));
+    else throw new Error("Corrupted color state");
+};
+Color.recalculateHSV = function(color) {
+    var result = ColorMath.rgb_to_hsv(color.r, color.g, color.b);
+    Common.extend(color.__state, {
+        s: result.s,
+        v: result.v
+    });
+    if (!Common.isNaN(result.h)) color.__state.h = result.h;
+    else if (Common.isUndefined(color.__state.h)) color.__state.h = 0;
+};
+Color.COMPONENTS = [
+    "r",
+    "g",
+    "b",
+    "h",
+    "s",
+    "v",
+    "hex",
+    "a"
+];
+defineRGBComponent(Color.prototype, "r", 2);
+defineRGBComponent(Color.prototype, "g", 1);
+defineRGBComponent(Color.prototype, "b", 0);
+defineHSVComponent(Color.prototype, "h");
+defineHSVComponent(Color.prototype, "s");
+defineHSVComponent(Color.prototype, "v");
+Object.defineProperty(Color.prototype, "a", {
+    get: function get$$1() {
+        return this.__state.a;
+    },
+    set: function set$$1(v) {
+        this.__state.a = v;
+    }
+});
+Object.defineProperty(Color.prototype, "hex", {
+    get: function get$$1() {
+        if (this.__state.space !== "HEX") {
+            this.__state.hex = ColorMath.rgb_to_hex(this.r, this.g, this.b);
+            this.__state.space = "HEX";
+        }
+        return this.__state.hex;
+    },
+    set: function set$$1(v) {
+        this.__state.space = "HEX";
+        this.__state.hex = v;
+    }
+});
+var Controller = function() {
+    function Controller(object, property) {
+        classCallCheck(this, Controller);
+        this.initialValue = object[property];
+        this.domElement = document.createElement("div");
+        this.object = object;
+        this.property = property;
+        this.__onChange = undefined;
+        this.__onFinishChange = undefined;
+    }
+    createClass(Controller, [
+        {
+            key: "onChange",
+            value: function onChange(fnc) {
+                this.__onChange = fnc;
+                return this;
+            }
+        },
+        {
+            key: "onFinishChange",
+            value: function onFinishChange(fnc) {
+                this.__onFinishChange = fnc;
+                return this;
+            }
+        },
+        {
+            key: "setValue",
+            value: function setValue(newValue) {
+                this.object[this.property] = newValue;
+                if (this.__onChange) this.__onChange.call(this, newValue);
+                this.updateDisplay();
+                return this;
+            }
+        },
+        {
+            key: "getValue",
+            value: function getValue() {
+                return this.object[this.property];
+            }
+        },
+        {
+            key: "updateDisplay",
+            value: function updateDisplay() {
+                return this;
+            }
+        },
+        {
+            key: "isModified",
+            value: function isModified() {
+                return this.initialValue !== this.getValue();
+            }
+        }
+    ]);
+    return Controller;
+}();
+var EVENT_MAP = {
+    HTMLEvents: [
+        "change"
+    ],
+    MouseEvents: [
+        "click",
+        "mousemove",
+        "mousedown",
+        "mouseup",
+        "mouseover"
+    ],
+    KeyboardEvents: [
+        "keydown"
+    ]
+};
+var EVENT_MAP_INV = {};
+Common.each(EVENT_MAP, function(v, k) {
+    Common.each(v, function(e) {
+        EVENT_MAP_INV[e] = k;
+    });
+});
+var CSS_VALUE_PIXELS = /(\d+(\.\d+)?)px/;
+function cssValueToPixels(val) {
+    if (val === "0" || Common.isUndefined(val)) return 0;
+    var match = val.match(CSS_VALUE_PIXELS);
+    if (!Common.isNull(match)) return parseFloat(match[1]);
+    return 0;
+}
+var dom = {
+    makeSelectable: function makeSelectable(elem, selectable) {
+        if (elem === undefined || elem.style === undefined) return;
+        elem.onselectstart = selectable ? function() {
+            return false;
+        } : function() {};
+        elem.style.MozUserSelect = selectable ? "auto" : "none";
+        elem.style.KhtmlUserSelect = selectable ? "auto" : "none";
+        elem.unselectable = selectable ? "on" : "off";
+    },
+    makeFullscreen: function makeFullscreen(elem, hor, vert) {
+        var vertical = vert;
+        var horizontal = hor;
+        if (Common.isUndefined(horizontal)) horizontal = true;
+        if (Common.isUndefined(vertical)) vertical = true;
+        elem.style.position = "absolute";
+        if (horizontal) {
+            elem.style.left = 0;
+            elem.style.right = 0;
+        }
+        if (vertical) {
+            elem.style.top = 0;
+            elem.style.bottom = 0;
+        }
+    },
+    fakeEvent: function fakeEvent(elem, eventType, pars, aux) {
+        var params = pars || {};
+        var className = EVENT_MAP_INV[eventType];
+        if (!className) throw new Error("Event type " + eventType + " not supported.");
+        var evt = document.createEvent(className);
+        switch(className){
+            case "MouseEvents":
+                var clientX = params.x || params.clientX || 0;
+                var clientY = params.y || params.clientY || 0;
+                evt.initMouseEvent(eventType, params.bubbles || false, params.cancelable || true, window, params.clickCount || 1, 0, 0, clientX, clientY, false, false, false, false, 0, null);
+                break;
+            case "KeyboardEvents":
+                var init = evt.initKeyboardEvent || evt.initKeyEvent;
+                Common.defaults(params, {
+                    cancelable: true,
+                    ctrlKey: false,
+                    altKey: false,
+                    shiftKey: false,
+                    metaKey: false,
+                    keyCode: undefined,
+                    charCode: undefined
+                });
+                init(eventType, params.bubbles || false, params.cancelable, window, params.ctrlKey, params.altKey, params.shiftKey, params.metaKey, params.keyCode, params.charCode);
+                break;
+            default:
+                evt.initEvent(eventType, params.bubbles || false, params.cancelable || true);
+                break;
+        }
+        Common.defaults(evt, aux);
+        elem.dispatchEvent(evt);
+    },
+    bind: function bind(elem, event, func, newBool) {
+        var bool = newBool || false;
+        if (elem.addEventListener) elem.addEventListener(event, func, bool);
+        else if (elem.attachEvent) elem.attachEvent("on" + event, func);
+        return dom;
+    },
+    unbind: function unbind(elem, event, func, newBool) {
+        var bool = newBool || false;
+        if (elem.removeEventListener) elem.removeEventListener(event, func, bool);
+        else if (elem.detachEvent) elem.detachEvent("on" + event, func);
+        return dom;
+    },
+    addClass: function addClass(elem, className) {
+        if (elem.className === undefined) elem.className = className;
+        else if (elem.className !== className) {
+            var classes = elem.className.split(/ +/);
+            if (classes.indexOf(className) === -1) {
+                classes.push(className);
+                elem.className = classes.join(" ").replace(/^\s+/, "").replace(/\s+$/, "");
+            }
+        }
+        return dom;
+    },
+    removeClass: function removeClass(elem, className) {
+        if (className) {
+            if (elem.className === className) elem.removeAttribute("class");
+            else {
+                var classes = elem.className.split(/ +/);
+                var index = classes.indexOf(className);
+                if (index !== -1) {
+                    classes.splice(index, 1);
+                    elem.className = classes.join(" ");
+                }
+            }
+        } else elem.className = undefined;
+        return dom;
+    },
+    hasClass: function hasClass(elem, className) {
+        return new RegExp("(?:^|\\s+)" + className + "(?:\\s+|$)").test(elem.className) || false;
+    },
+    getWidth: function getWidth(elem) {
+        var style = getComputedStyle(elem);
+        return cssValueToPixels(style["border-left-width"]) + cssValueToPixels(style["border-right-width"]) + cssValueToPixels(style["padding-left"]) + cssValueToPixels(style["padding-right"]) + cssValueToPixels(style.width);
+    },
+    getHeight: function getHeight(elem) {
+        var style = getComputedStyle(elem);
+        return cssValueToPixels(style["border-top-width"]) + cssValueToPixels(style["border-bottom-width"]) + cssValueToPixels(style["padding-top"]) + cssValueToPixels(style["padding-bottom"]) + cssValueToPixels(style.height);
+    },
+    getOffset: function getOffset(el) {
+        var elem = el;
+        var offset = {
+            left: 0,
+            top: 0
+        };
+        if (elem.offsetParent) do {
+            offset.left += elem.offsetLeft;
+            offset.top += elem.offsetTop;
+            elem = elem.offsetParent;
+        }while (elem);
+        return offset;
+    },
+    isActive: function isActive(elem) {
+        return elem === document.activeElement && (elem.type || elem.href);
+    }
+};
+var BooleanController = function(_Controller) {
+    inherits(BooleanController, _Controller);
+    function BooleanController(object, property) {
+        classCallCheck(this, BooleanController);
+        var _this2 = possibleConstructorReturn(this, (BooleanController.__proto__ || Object.getPrototypeOf(BooleanController)).call(this, object, property));
+        var _this = _this2;
+        _this2.__prev = _this2.getValue();
+        _this2.__checkbox = document.createElement("input");
+        _this2.__checkbox.setAttribute("type", "checkbox");
+        function onChange() {
+            _this.setValue(!_this.__prev);
+        }
+        dom.bind(_this2.__checkbox, "change", onChange, false);
+        _this2.domElement.appendChild(_this2.__checkbox);
+        _this2.updateDisplay();
+        return _this2;
+    }
+    createClass(BooleanController, [
+        {
+            key: "setValue",
+            value: function setValue(v) {
+                var toReturn = get(BooleanController.prototype.__proto__ || Object.getPrototypeOf(BooleanController.prototype), "setValue", this).call(this, v);
+                if (this.__onFinishChange) this.__onFinishChange.call(this, this.getValue());
+                this.__prev = this.getValue();
+                return toReturn;
+            }
+        },
+        {
+            key: "updateDisplay",
+            value: function updateDisplay() {
+                if (this.getValue() === true) {
+                    this.__checkbox.setAttribute("checked", "checked");
+                    this.__checkbox.checked = true;
+                    this.__prev = true;
+                } else {
+                    this.__checkbox.checked = false;
+                    this.__prev = false;
+                }
+                return get(BooleanController.prototype.__proto__ || Object.getPrototypeOf(BooleanController.prototype), "updateDisplay", this).call(this);
+            }
+        }
+    ]);
+    return BooleanController;
+}(Controller);
+var OptionController = function(_Controller) {
+    inherits(OptionController, _Controller);
+    function OptionController(object, property, opts) {
+        classCallCheck(this, OptionController);
+        var _this2 = possibleConstructorReturn(this, (OptionController.__proto__ || Object.getPrototypeOf(OptionController)).call(this, object, property));
+        var options = opts;
+        var _this = _this2;
+        _this2.__select = document.createElement("select");
+        if (Common.isArray(options)) {
+            var map = {};
+            Common.each(options, function(element) {
+                map[element] = element;
+            });
+            options = map;
+        }
+        Common.each(options, function(value, key) {
+            var opt = document.createElement("option");
+            opt.innerHTML = key;
+            opt.setAttribute("value", value);
+            _this.__select.appendChild(opt);
+        });
+        _this2.updateDisplay();
+        dom.bind(_this2.__select, "change", function() {
+            var desiredValue = this.options[this.selectedIndex].value;
+            _this.setValue(desiredValue);
+        });
+        _this2.domElement.appendChild(_this2.__select);
+        return _this2;
+    }
+    createClass(OptionController, [
+        {
+            key: "setValue",
+            value: function setValue(v) {
+                var toReturn = get(OptionController.prototype.__proto__ || Object.getPrototypeOf(OptionController.prototype), "setValue", this).call(this, v);
+                if (this.__onFinishChange) this.__onFinishChange.call(this, this.getValue());
+                return toReturn;
+            }
+        },
+        {
+            key: "updateDisplay",
+            value: function updateDisplay() {
+                if (dom.isActive(this.__select)) return this;
+                this.__select.value = this.getValue();
+                return get(OptionController.prototype.__proto__ || Object.getPrototypeOf(OptionController.prototype), "updateDisplay", this).call(this);
+            }
+        }
+    ]);
+    return OptionController;
+}(Controller);
+var StringController = function(_Controller) {
+    inherits(StringController, _Controller);
+    function StringController(object, property) {
+        classCallCheck(this, StringController);
+        var _this2 = possibleConstructorReturn(this, (StringController.__proto__ || Object.getPrototypeOf(StringController)).call(this, object, property));
+        var _this = _this2;
+        function onChange() {
+            _this.setValue(_this.__input.value);
+        }
+        function onBlur() {
+            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.getValue());
+        }
+        _this2.__input = document.createElement("input");
+        _this2.__input.setAttribute("type", "text");
+        dom.bind(_this2.__input, "keyup", onChange);
+        dom.bind(_this2.__input, "change", onChange);
+        dom.bind(_this2.__input, "blur", onBlur);
+        dom.bind(_this2.__input, "keydown", function(e) {
+            if (e.keyCode === 13) this.blur();
+        });
+        _this2.updateDisplay();
+        _this2.domElement.appendChild(_this2.__input);
+        return _this2;
+    }
+    createClass(StringController, [
+        {
+            key: "updateDisplay",
+            value: function updateDisplay() {
+                if (!dom.isActive(this.__input)) this.__input.value = this.getValue();
+                return get(StringController.prototype.__proto__ || Object.getPrototypeOf(StringController.prototype), "updateDisplay", this).call(this);
+            }
+        }
+    ]);
+    return StringController;
+}(Controller);
+function numDecimals(x) {
+    var _x = x.toString();
+    if (_x.indexOf(".") > -1) return _x.length - _x.indexOf(".") - 1;
+    return 0;
+}
+var NumberController = function(_Controller) {
+    inherits(NumberController, _Controller);
+    function NumberController(object, property, params) {
+        classCallCheck(this, NumberController);
+        var _this = possibleConstructorReturn(this, (NumberController.__proto__ || Object.getPrototypeOf(NumberController)).call(this, object, property));
+        var _params = params || {};
+        _this.__min = _params.min;
+        _this.__max = _params.max;
+        _this.__step = _params.step;
+        if (Common.isUndefined(_this.__step)) {
+            if (_this.initialValue === 0) _this.__impliedStep = 1;
+            else _this.__impliedStep = Math.pow(10, Math.floor(Math.log(Math.abs(_this.initialValue)) / Math.LN10)) / 10;
+        } else _this.__impliedStep = _this.__step;
+        _this.__precision = numDecimals(_this.__impliedStep);
+        return _this;
+    }
+    createClass(NumberController, [
+        {
+            key: "setValue",
+            value: function setValue(v) {
+                var _v = v;
+                if (this.__min !== undefined && _v < this.__min) _v = this.__min;
+                else if (this.__max !== undefined && _v > this.__max) _v = this.__max;
+                if (this.__step !== undefined && _v % this.__step !== 0) _v = Math.round(_v / this.__step) * this.__step;
+                return get(NumberController.prototype.__proto__ || Object.getPrototypeOf(NumberController.prototype), "setValue", this).call(this, _v);
+            }
+        },
+        {
+            key: "min",
+            value: function min(minValue) {
+                this.__min = minValue;
+                return this;
+            }
+        },
+        {
+            key: "max",
+            value: function max(maxValue) {
+                this.__max = maxValue;
+                return this;
+            }
+        },
+        {
+            key: "step",
+            value: function step(stepValue) {
+                this.__step = stepValue;
+                this.__impliedStep = stepValue;
+                this.__precision = numDecimals(stepValue);
+                return this;
+            }
+        }
+    ]);
+    return NumberController;
+}(Controller);
+function roundToDecimal(value, decimals) {
+    var tenTo = Math.pow(10, decimals);
+    return Math.round(value * tenTo) / tenTo;
+}
+var NumberControllerBox = function(_NumberController) {
+    inherits(NumberControllerBox, _NumberController);
+    function NumberControllerBox(object, property, params) {
+        classCallCheck(this, NumberControllerBox);
+        var _this2 = possibleConstructorReturn(this, (NumberControllerBox.__proto__ || Object.getPrototypeOf(NumberControllerBox)).call(this, object, property, params));
+        _this2.__truncationSuspended = false;
+        var _this = _this2;
+        var prevY = void 0;
+        function onChange() {
+            var attempted = parseFloat(_this.__input.value);
+            if (!Common.isNaN(attempted)) _this.setValue(attempted);
+        }
+        function onFinish() {
+            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.getValue());
+        }
+        function onBlur() {
+            onFinish();
+        }
+        function onMouseDrag(e) {
+            var diff = prevY - e.clientY;
+            _this.setValue(_this.getValue() + diff * _this.__impliedStep);
+            prevY = e.clientY;
+        }
+        function onMouseUp() {
+            dom.unbind(window, "mousemove", onMouseDrag);
+            dom.unbind(window, "mouseup", onMouseUp);
+            onFinish();
+        }
+        function onMouseDown(e) {
+            dom.bind(window, "mousemove", onMouseDrag);
+            dom.bind(window, "mouseup", onMouseUp);
+            prevY = e.clientY;
+        }
+        _this2.__input = document.createElement("input");
+        _this2.__input.setAttribute("type", "text");
+        dom.bind(_this2.__input, "change", onChange);
+        dom.bind(_this2.__input, "blur", onBlur);
+        dom.bind(_this2.__input, "mousedown", onMouseDown);
+        dom.bind(_this2.__input, "keydown", function(e) {
+            if (e.keyCode === 13) {
+                _this.__truncationSuspended = true;
+                this.blur();
+                _this.__truncationSuspended = false;
+                onFinish();
+            }
+        });
+        _this2.updateDisplay();
+        _this2.domElement.appendChild(_this2.__input);
+        return _this2;
+    }
+    createClass(NumberControllerBox, [
+        {
+            key: "updateDisplay",
+            value: function updateDisplay() {
+                this.__input.value = this.__truncationSuspended ? this.getValue() : roundToDecimal(this.getValue(), this.__precision);
+                return get(NumberControllerBox.prototype.__proto__ || Object.getPrototypeOf(NumberControllerBox.prototype), "updateDisplay", this).call(this);
+            }
+        }
+    ]);
+    return NumberControllerBox;
+}(NumberController);
+function map(v, i1, i2, o1, o2) {
+    return o1 + (o2 - o1) * ((v - i1) / (i2 - i1));
+}
+var NumberControllerSlider = function(_NumberController) {
+    inherits(NumberControllerSlider, _NumberController);
+    function NumberControllerSlider(object, property, min, max, step) {
+        classCallCheck(this, NumberControllerSlider);
+        var _this2 = possibleConstructorReturn(this, (NumberControllerSlider.__proto__ || Object.getPrototypeOf(NumberControllerSlider)).call(this, object, property, {
+            min: min,
+            max: max,
+            step: step
+        }));
+        var _this = _this2;
+        _this2.__background = document.createElement("div");
+        _this2.__foreground = document.createElement("div");
+        dom.bind(_this2.__background, "mousedown", onMouseDown);
+        dom.bind(_this2.__background, "touchstart", onTouchStart);
+        dom.addClass(_this2.__background, "slider");
+        dom.addClass(_this2.__foreground, "slider-fg");
+        function onMouseDown(e) {
+            document.activeElement.blur();
+            dom.bind(window, "mousemove", onMouseDrag);
+            dom.bind(window, "mouseup", onMouseUp);
+            onMouseDrag(e);
+        }
+        function onMouseDrag(e) {
+            e.preventDefault();
+            var bgRect = _this.__background.getBoundingClientRect();
+            _this.setValue(map(e.clientX, bgRect.left, bgRect.right, _this.__min, _this.__max));
+            return false;
+        }
+        function onMouseUp() {
+            dom.unbind(window, "mousemove", onMouseDrag);
+            dom.unbind(window, "mouseup", onMouseUp);
+            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.getValue());
+        }
+        function onTouchStart(e) {
+            if (e.touches.length !== 1) return;
+            dom.bind(window, "touchmove", onTouchMove);
+            dom.bind(window, "touchend", onTouchEnd);
+            onTouchMove(e);
+        }
+        function onTouchMove(e) {
+            var clientX = e.touches[0].clientX;
+            var bgRect = _this.__background.getBoundingClientRect();
+            _this.setValue(map(clientX, bgRect.left, bgRect.right, _this.__min, _this.__max));
+        }
+        function onTouchEnd() {
+            dom.unbind(window, "touchmove", onTouchMove);
+            dom.unbind(window, "touchend", onTouchEnd);
+            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.getValue());
+        }
+        _this2.updateDisplay();
+        _this2.__background.appendChild(_this2.__foreground);
+        _this2.domElement.appendChild(_this2.__background);
+        return _this2;
+    }
+    createClass(NumberControllerSlider, [
+        {
+            key: "updateDisplay",
+            value: function updateDisplay() {
+                var pct = (this.getValue() - this.__min) / (this.__max - this.__min);
+                this.__foreground.style.width = pct * 100 + "%";
+                return get(NumberControllerSlider.prototype.__proto__ || Object.getPrototypeOf(NumberControllerSlider.prototype), "updateDisplay", this).call(this);
+            }
+        }
+    ]);
+    return NumberControllerSlider;
+}(NumberController);
+var FunctionController = function(_Controller) {
+    inherits(FunctionController, _Controller);
+    function FunctionController(object, property, text) {
+        classCallCheck(this, FunctionController);
+        var _this2 = possibleConstructorReturn(this, (FunctionController.__proto__ || Object.getPrototypeOf(FunctionController)).call(this, object, property));
+        var _this = _this2;
+        _this2.__button = document.createElement("div");
+        _this2.__button.innerHTML = text === undefined ? "Fire" : text;
+        dom.bind(_this2.__button, "click", function(e) {
+            e.preventDefault();
+            _this.fire();
+            return false;
+        });
+        dom.addClass(_this2.__button, "button");
+        _this2.domElement.appendChild(_this2.__button);
+        return _this2;
+    }
+    createClass(FunctionController, [
+        {
+            key: "fire",
+            value: function fire() {
+                if (this.__onChange) this.__onChange.call(this);
+                this.getValue().call(this.object);
+                if (this.__onFinishChange) this.__onFinishChange.call(this, this.getValue());
+            }
+        }
+    ]);
+    return FunctionController;
+}(Controller);
+var ColorController = function(_Controller) {
+    inherits(ColorController, _Controller);
+    function ColorController(object, property) {
+        classCallCheck(this, ColorController);
+        var _this2 = possibleConstructorReturn(this, (ColorController.__proto__ || Object.getPrototypeOf(ColorController)).call(this, object, property));
+        _this2.__color = new Color(_this2.getValue());
+        _this2.__temp = new Color(0);
+        var _this = _this2;
+        _this2.domElement = document.createElement("div");
+        dom.makeSelectable(_this2.domElement, false);
+        _this2.__selector = document.createElement("div");
+        _this2.__selector.className = "selector";
+        _this2.__saturation_field = document.createElement("div");
+        _this2.__saturation_field.className = "saturation-field";
+        _this2.__field_knob = document.createElement("div");
+        _this2.__field_knob.className = "field-knob";
+        _this2.__field_knob_border = "2px solid ";
+        _this2.__hue_knob = document.createElement("div");
+        _this2.__hue_knob.className = "hue-knob";
+        _this2.__hue_field = document.createElement("div");
+        _this2.__hue_field.className = "hue-field";
+        _this2.__input = document.createElement("input");
+        _this2.__input.type = "text";
+        _this2.__input_textShadow = "0 1px 1px ";
+        dom.bind(_this2.__input, "keydown", function(e) {
+            if (e.keyCode === 13) onBlur.call(this);
+        });
+        dom.bind(_this2.__input, "blur", onBlur);
+        dom.bind(_this2.__selector, "mousedown", function() {
+            dom.addClass(this, "drag").bind(window, "mouseup", function() {
+                dom.removeClass(_this.__selector, "drag");
+            });
+        });
+        dom.bind(_this2.__selector, "touchstart", function() {
+            dom.addClass(this, "drag").bind(window, "touchend", function() {
+                dom.removeClass(_this.__selector, "drag");
+            });
+        });
+        var valueField = document.createElement("div");
+        Common.extend(_this2.__selector.style, {
+            width: "122px",
+            height: "102px",
+            padding: "3px",
+            backgroundColor: "#222",
+            boxShadow: "0px 1px 3px rgba(0,0,0,0.3)"
+        });
+        Common.extend(_this2.__field_knob.style, {
+            position: "absolute",
+            width: "12px",
+            height: "12px",
+            border: _this2.__field_knob_border + (_this2.__color.v < 0.5 ? "#fff" : "#000"),
+            boxShadow: "0px 1px 3px rgba(0,0,0,0.5)",
+            borderRadius: "12px",
+            zIndex: 1
+        });
+        Common.extend(_this2.__hue_knob.style, {
+            position: "absolute",
+            width: "15px",
+            height: "2px",
+            borderRight: "4px solid #fff",
+            zIndex: 1
+        });
+        Common.extend(_this2.__saturation_field.style, {
+            width: "100px",
+            height: "100px",
+            border: "1px solid #555",
+            marginRight: "3px",
+            display: "inline-block",
+            cursor: "pointer"
+        });
+        Common.extend(valueField.style, {
+            width: "100%",
+            height: "100%",
+            background: "none"
+        });
+        linearGradient(valueField, "top", "rgba(0,0,0,0)", "#000");
+        Common.extend(_this2.__hue_field.style, {
+            width: "15px",
+            height: "100px",
+            border: "1px solid #555",
+            cursor: "ns-resize",
+            position: "absolute",
+            top: "3px",
+            right: "3px"
+        });
+        hueGradient(_this2.__hue_field);
+        Common.extend(_this2.__input.style, {
+            outline: "none",
+            textAlign: "center",
+            color: "#fff",
+            border: 0,
+            fontWeight: "bold",
+            textShadow: _this2.__input_textShadow + "rgba(0,0,0,0.7)"
+        });
+        dom.bind(_this2.__saturation_field, "mousedown", fieldDown);
+        dom.bind(_this2.__saturation_field, "touchstart", fieldDown);
+        dom.bind(_this2.__field_knob, "mousedown", fieldDown);
+        dom.bind(_this2.__field_knob, "touchstart", fieldDown);
+        dom.bind(_this2.__hue_field, "mousedown", fieldDownH);
+        dom.bind(_this2.__hue_field, "touchstart", fieldDownH);
+        function fieldDown(e) {
+            setSV(e);
+            dom.bind(window, "mousemove", setSV);
+            dom.bind(window, "touchmove", setSV);
+            dom.bind(window, "mouseup", fieldUpSV);
+            dom.bind(window, "touchend", fieldUpSV);
+        }
+        function fieldDownH(e) {
+            setH(e);
+            dom.bind(window, "mousemove", setH);
+            dom.bind(window, "touchmove", setH);
+            dom.bind(window, "mouseup", fieldUpH);
+            dom.bind(window, "touchend", fieldUpH);
+        }
+        function fieldUpSV() {
+            dom.unbind(window, "mousemove", setSV);
+            dom.unbind(window, "touchmove", setSV);
+            dom.unbind(window, "mouseup", fieldUpSV);
+            dom.unbind(window, "touchend", fieldUpSV);
+            onFinish();
+        }
+        function fieldUpH() {
+            dom.unbind(window, "mousemove", setH);
+            dom.unbind(window, "touchmove", setH);
+            dom.unbind(window, "mouseup", fieldUpH);
+            dom.unbind(window, "touchend", fieldUpH);
+            onFinish();
+        }
+        function onBlur() {
+            var i = interpret(this.value);
+            if (i !== false) {
+                _this.__color.__state = i;
+                _this.setValue(_this.__color.toOriginal());
+            } else this.value = _this.__color.toString();
+        }
+        function onFinish() {
+            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.__color.toOriginal());
+        }
+        _this2.__saturation_field.appendChild(valueField);
+        _this2.__selector.appendChild(_this2.__field_knob);
+        _this2.__selector.appendChild(_this2.__saturation_field);
+        _this2.__selector.appendChild(_this2.__hue_field);
+        _this2.__hue_field.appendChild(_this2.__hue_knob);
+        _this2.domElement.appendChild(_this2.__input);
+        _this2.domElement.appendChild(_this2.__selector);
+        _this2.updateDisplay();
+        function setSV(e) {
+            if (e.type.indexOf("touch") === -1) e.preventDefault();
+            var fieldRect = _this.__saturation_field.getBoundingClientRect();
+            var _ref = e.touches && e.touches[0] || e, clientX = _ref.clientX, clientY = _ref.clientY;
+            var s = (clientX - fieldRect.left) / (fieldRect.right - fieldRect.left);
+            var v = 1 - (clientY - fieldRect.top) / (fieldRect.bottom - fieldRect.top);
+            if (v > 1) v = 1;
+            else if (v < 0) v = 0;
+            if (s > 1) s = 1;
+            else if (s < 0) s = 0;
+            _this.__color.v = v;
+            _this.__color.s = s;
+            _this.setValue(_this.__color.toOriginal());
+            return false;
+        }
+        function setH(e) {
+            if (e.type.indexOf("touch") === -1) e.preventDefault();
+            var fieldRect = _this.__hue_field.getBoundingClientRect();
+            var _ref2 = e.touches && e.touches[0] || e, clientY = _ref2.clientY;
+            var h = 1 - (clientY - fieldRect.top) / (fieldRect.bottom - fieldRect.top);
+            if (h > 1) h = 1;
+            else if (h < 0) h = 0;
+            _this.__color.h = h * 360;
+            _this.setValue(_this.__color.toOriginal());
+            return false;
+        }
+        return _this2;
+    }
+    createClass(ColorController, [
+        {
+            key: "updateDisplay",
+            value: function updateDisplay() {
+                var i = interpret(this.getValue());
+                if (i !== false) {
+                    var mismatch = false;
+                    Common.each(Color.COMPONENTS, function(component) {
+                        if (!Common.isUndefined(i[component]) && !Common.isUndefined(this.__color.__state[component]) && i[component] !== this.__color.__state[component]) {
+                            mismatch = true;
+                            return {};
+                        }
+                    }, this);
+                    if (mismatch) Common.extend(this.__color.__state, i);
+                }
+                Common.extend(this.__temp.__state, this.__color.__state);
+                this.__temp.a = 1;
+                var flip = this.__color.v < 0.5 || this.__color.s > 0.5 ? 255 : 0;
+                var _flip = 255 - flip;
+                Common.extend(this.__field_knob.style, {
+                    marginLeft: 100 * this.__color.s - 7 + "px",
+                    marginTop: 100 * (1 - this.__color.v) - 7 + "px",
+                    backgroundColor: this.__temp.toHexString(),
+                    border: this.__field_knob_border + "rgb(" + flip + "," + flip + "," + flip + ")"
+                });
+                this.__hue_knob.style.marginTop = (1 - this.__color.h / 360) * 100 + "px";
+                this.__temp.s = 1;
+                this.__temp.v = 1;
+                linearGradient(this.__saturation_field, "left", "#fff", this.__temp.toHexString());
+                this.__input.value = this.__color.toString();
+                Common.extend(this.__input.style, {
+                    backgroundColor: this.__color.toHexString(),
+                    color: "rgb(" + flip + "," + flip + "," + flip + ")",
+                    textShadow: this.__input_textShadow + "rgba(" + _flip + "," + _flip + "," + _flip + ",.7)"
+                });
+            }
+        }
+    ]);
+    return ColorController;
+}(Controller);
+var vendors = [
+    "-moz-",
+    "-o-",
+    "-webkit-",
+    "-ms-",
+    ""
+];
+function linearGradient(elem, x, a, b) {
+    elem.style.background = "";
+    Common.each(vendors, function(vendor) {
+        elem.style.cssText += "background: " + vendor + "linear-gradient(" + x + ", " + a + " 0%, " + b + " 100%); ";
+    });
+}
+function hueGradient(elem) {
+    elem.style.background = "";
+    elem.style.cssText += "background: -moz-linear-gradient(top,  #ff0000 0%, #ff00ff 17%, #0000ff 34%, #00ffff 50%, #00ff00 67%, #ffff00 84%, #ff0000 100%);";
+    elem.style.cssText += "background: -webkit-linear-gradient(top,  #ff0000 0%,#ff00ff 17%,#0000ff 34%,#00ffff 50%,#00ff00 67%,#ffff00 84%,#ff0000 100%);";
+    elem.style.cssText += "background: -o-linear-gradient(top,  #ff0000 0%,#ff00ff 17%,#0000ff 34%,#00ffff 50%,#00ff00 67%,#ffff00 84%,#ff0000 100%);";
+    elem.style.cssText += "background: -ms-linear-gradient(top,  #ff0000 0%,#ff00ff 17%,#0000ff 34%,#00ffff 50%,#00ff00 67%,#ffff00 84%,#ff0000 100%);";
+    elem.style.cssText += "background: linear-gradient(top,  #ff0000 0%,#ff00ff 17%,#0000ff 34%,#00ffff 50%,#00ff00 67%,#ffff00 84%,#ff0000 100%);";
+}
+var css = {
+    load: function load(url, indoc) {
+        var doc = indoc || document;
+        var link = doc.createElement("link");
+        link.type = "text/css";
+        link.rel = "stylesheet";
+        link.href = url;
+        doc.getElementsByTagName("head")[0].appendChild(link);
+    },
+    inject: function inject(cssContent, indoc) {
+        var doc = indoc || document;
+        var injected = document.createElement("style");
+        injected.type = "text/css";
+        injected.innerHTML = cssContent;
+        var head = doc.getElementsByTagName("head")[0];
+        try {
+            head.appendChild(injected);
+        } catch (e) {}
+    }
+};
+var saveDialogContents = '<div id="dg-save" class="dg dialogue">\n\n  Here\'s the new load parameter for your <code>GUI</code>\'s constructor:\n\n  <textarea id="dg-new-constructor"></textarea>\n\n  <div id="dg-save-locally">\n\n    <input id="dg-local-storage" type="checkbox"/> Automatically save\n    values to <code>localStorage</code> on exit.\n\n    <div id="dg-local-explain">The values saved to <code>localStorage</code> will\n      override those passed to <code>dat.GUI</code>\'s constructor. This makes it\n      easier to work incrementally, but <code>localStorage</code> is fragile,\n      and your friends may not see the same values you do.\n\n    </div>\n\n  </div>\n\n</div>';
+var ControllerFactory = function ControllerFactory(object, property) {
+    var initialValue = object[property];
+    if (Common.isArray(arguments[2]) || Common.isObject(arguments[2])) return new OptionController(object, property, arguments[2]);
+    if (Common.isNumber(initialValue)) {
+        if (Common.isNumber(arguments[2]) && Common.isNumber(arguments[3])) {
+            if (Common.isNumber(arguments[4])) return new NumberControllerSlider(object, property, arguments[2], arguments[3], arguments[4]);
+            return new NumberControllerSlider(object, property, arguments[2], arguments[3]);
+        }
+        if (Common.isNumber(arguments[4])) return new NumberControllerBox(object, property, {
+            min: arguments[2],
+            max: arguments[3],
+            step: arguments[4]
+        });
+        return new NumberControllerBox(object, property, {
+            min: arguments[2],
+            max: arguments[3]
+        });
+    }
+    if (Common.isString(initialValue)) return new StringController(object, property);
+    if (Common.isFunction(initialValue)) return new FunctionController(object, property, "");
+    if (Common.isBoolean(initialValue)) return new BooleanController(object, property);
+    return null;
+};
+function requestAnimationFrame(callback) {
+    setTimeout(callback, 1000 / 60);
+}
+var requestAnimationFrame$1 = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || requestAnimationFrame;
+var CenteredDiv = function() {
+    function CenteredDiv() {
+        classCallCheck(this, CenteredDiv);
+        this.backgroundElement = document.createElement("div");
+        Common.extend(this.backgroundElement.style, {
+            backgroundColor: "rgba(0,0,0,0.8)",
+            top: 0,
+            left: 0,
+            display: "none",
+            zIndex: "1000",
+            opacity: 0,
+            WebkitTransition: "opacity 0.2s linear",
+            transition: "opacity 0.2s linear"
+        });
+        dom.makeFullscreen(this.backgroundElement);
+        this.backgroundElement.style.position = "fixed";
+        this.domElement = document.createElement("div");
+        Common.extend(this.domElement.style, {
+            position: "fixed",
+            display: "none",
+            zIndex: "1001",
+            opacity: 0,
+            WebkitTransition: "-webkit-transform 0.2s ease-out, opacity 0.2s linear",
+            transition: "transform 0.2s ease-out, opacity 0.2s linear"
+        });
+        document.body.appendChild(this.backgroundElement);
+        document.body.appendChild(this.domElement);
+        var _this = this;
+        dom.bind(this.backgroundElement, "click", function() {
+            _this.hide();
+        });
+    }
+    createClass(CenteredDiv, [
+        {
+            key: "show",
+            value: function show() {
+                var _this = this;
+                this.backgroundElement.style.display = "block";
+                this.domElement.style.display = "block";
+                this.domElement.style.opacity = 0;
+                this.domElement.style.webkitTransform = "scale(1.1)";
+                this.layout();
+                Common.defer(function() {
+                    _this.backgroundElement.style.opacity = 1;
+                    _this.domElement.style.opacity = 1;
+                    _this.domElement.style.webkitTransform = "scale(1)";
+                });
+            }
+        },
+        {
+            key: "hide",
+            value: function hide() {
+                var _this = this;
+                var hide = function hide() {
+                    _this.domElement.style.display = "none";
+                    _this.backgroundElement.style.display = "none";
+                    dom.unbind(_this.domElement, "webkitTransitionEnd", hide);
+                    dom.unbind(_this.domElement, "transitionend", hide);
+                    dom.unbind(_this.domElement, "oTransitionEnd", hide);
+                };
+                dom.bind(this.domElement, "webkitTransitionEnd", hide);
+                dom.bind(this.domElement, "transitionend", hide);
+                dom.bind(this.domElement, "oTransitionEnd", hide);
+                this.backgroundElement.style.opacity = 0;
+                this.domElement.style.opacity = 0;
+                this.domElement.style.webkitTransform = "scale(1.1)";
+            }
+        },
+        {
+            key: "layout",
+            value: function layout() {
+                this.domElement.style.left = window.innerWidth / 2 - dom.getWidth(this.domElement) / 2 + "px";
+                this.domElement.style.top = window.innerHeight / 2 - dom.getHeight(this.domElement) / 2 + "px";
+            }
+        }
+    ]);
+    return CenteredDiv;
+}();
+var styleSheet = ___$insertStyle(".dg ul{list-style:none;margin:0;padding:0;width:100%;clear:both}.dg.ac{position:fixed;top:0;left:0;right:0;height:0;z-index:0}.dg:not(.ac) .main{overflow:hidden}.dg.main{-webkit-transition:opacity .1s linear;-o-transition:opacity .1s linear;-moz-transition:opacity .1s linear;transition:opacity .1s linear}.dg.main.taller-than-window{overflow-y:auto}.dg.main.taller-than-window .close-button{opacity:1;margin-top:-1px;border-top:1px solid #2c2c2c}.dg.main ul.closed .close-button{opacity:1 !important}.dg.main:hover .close-button,.dg.main .close-button.drag{opacity:1}.dg.main .close-button{-webkit-transition:opacity .1s linear;-o-transition:opacity .1s linear;-moz-transition:opacity .1s linear;transition:opacity .1s linear;border:0;line-height:19px;height:20px;cursor:pointer;text-align:center;background-color:#000}.dg.main .close-button.close-top{position:relative}.dg.main .close-button.close-bottom{position:absolute}.dg.main .close-button:hover{background-color:#111}.dg.a{float:right;margin-right:15px;overflow-y:visible}.dg.a.has-save>ul.close-top{margin-top:0}.dg.a.has-save>ul.close-bottom{margin-top:27px}.dg.a.has-save>ul.closed{margin-top:0}.dg.a .save-row{top:0;z-index:1002}.dg.a .save-row.close-top{position:relative}.dg.a .save-row.close-bottom{position:fixed}.dg li{-webkit-transition:height .1s ease-out;-o-transition:height .1s ease-out;-moz-transition:height .1s ease-out;transition:height .1s ease-out;-webkit-transition:overflow .1s linear;-o-transition:overflow .1s linear;-moz-transition:overflow .1s linear;transition:overflow .1s linear}.dg li:not(.folder){cursor:auto;height:27px;line-height:27px;padding:0 4px 0 5px}.dg li.folder{padding:0;border-left:4px solid rgba(0,0,0,0)}.dg li.title{cursor:pointer;margin-left:-4px}.dg .closed li:not(.title),.dg .closed ul li,.dg .closed ul li>*{height:0;overflow:hidden;border:0}.dg .cr{clear:both;padding-left:3px;height:27px;overflow:hidden}.dg .property-name{cursor:default;float:left;clear:left;width:40%;overflow:hidden;text-overflow:ellipsis}.dg .cr.function .property-name{width:100%}.dg .c{float:left;width:60%;position:relative}.dg .c input[type=text]{border:0;margin-top:4px;padding:3px;width:100%;float:right}.dg .has-slider input[type=text]{width:30%;margin-left:0}.dg .slider{float:left;width:66%;margin-left:-5px;margin-right:0;height:19px;margin-top:4px}.dg .slider-fg{height:100%}.dg .c input[type=checkbox]{margin-top:7px}.dg .c select{margin-top:5px}.dg .cr.function,.dg .cr.function .property-name,.dg .cr.function *,.dg .cr.boolean,.dg .cr.boolean *{cursor:pointer}.dg .cr.color{overflow:visible}.dg .selector{display:none;position:absolute;margin-left:-9px;margin-top:23px;z-index:10}.dg .c:hover .selector,.dg .selector.drag{display:block}.dg li.save-row{padding:0}.dg li.save-row .button{display:inline-block;padding:0px 6px}.dg.dialogue{background-color:#222;width:460px;padding:15px;font-size:13px;line-height:15px}#dg-new-constructor{padding:10px;color:#222;font-family:Monaco, monospace;font-size:10px;border:0;resize:none;box-shadow:inset 1px 1px 1px #888;word-wrap:break-word;margin:12px 0;display:block;width:440px;overflow-y:scroll;height:100px;position:relative}#dg-local-explain{display:none;font-size:11px;line-height:17px;border-radius:3px;background-color:#333;padding:8px;margin-top:10px}#dg-local-explain code{font-size:10px}#dat-gui-save-locally{display:none}.dg{color:#eee;font:11px 'Lucida Grande', sans-serif;text-shadow:0 -1px 0 #111}.dg.main::-webkit-scrollbar{width:5px;background:#1a1a1a}.dg.main::-webkit-scrollbar-corner{height:0;display:none}.dg.main::-webkit-scrollbar-thumb{border-radius:5px;background:#676767}.dg li:not(.folder){background:#1a1a1a;border-bottom:1px solid #2c2c2c}.dg li.save-row{line-height:25px;background:#dad5cb;border:0}.dg li.save-row select{margin-left:5px;width:108px}.dg li.save-row .button{margin-left:5px;margin-top:1px;border-radius:2px;font-size:9px;line-height:7px;padding:4px 4px 5px 4px;background:#c5bdad;color:#fff;text-shadow:0 1px 0 #b0a58f;box-shadow:0 -1px 0 #b0a58f;cursor:pointer}.dg li.save-row .button.gears{background:#c5bdad url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAANCAYAAAB/9ZQ7AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAQJJREFUeNpiYKAU/P//PwGIC/ApCABiBSAW+I8AClAcgKxQ4T9hoMAEUrxx2QSGN6+egDX+/vWT4e7N82AMYoPAx/evwWoYoSYbACX2s7KxCxzcsezDh3evFoDEBYTEEqycggWAzA9AuUSQQgeYPa9fPv6/YWm/Acx5IPb7ty/fw+QZblw67vDs8R0YHyQhgObx+yAJkBqmG5dPPDh1aPOGR/eugW0G4vlIoTIfyFcA+QekhhHJhPdQxbiAIguMBTQZrPD7108M6roWYDFQiIAAv6Aow/1bFwXgis+f2LUAynwoIaNcz8XNx3Dl7MEJUDGQpx9gtQ8YCueB+D26OECAAQDadt7e46D42QAAAABJRU5ErkJggg==) 2px 1px no-repeat;height:7px;width:8px}.dg li.save-row .button:hover{background-color:#bab19e;box-shadow:0 -1px 0 #b0a58f}.dg li.folder{border-bottom:0}.dg li.title{padding-left:16px;background:#000 url(data:image/gif;base64,R0lGODlhBQAFAJEAAP////Pz8////////yH5BAEAAAIALAAAAAAFAAUAAAIIlI+hKgFxoCgAOw==) 6px 10px no-repeat;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.2)}.dg .closed li.title{background-image:url(data:image/gif;base64,R0lGODlhBQAFAJEAAP////Pz8////////yH5BAEAAAIALAAAAAAFAAUAAAIIlGIWqMCbWAEAOw==)}.dg .cr.boolean{border-left:3px solid #806787}.dg .cr.color{border-left:3px solid}.dg .cr.function{border-left:3px solid #e61d5f}.dg .cr.number{border-left:3px solid #2FA1D6}.dg .cr.number input[type=text]{color:#2FA1D6}.dg .cr.string{border-left:3px solid #1ed36f}.dg .cr.string input[type=text]{color:#1ed36f}.dg .cr.function:hover,.dg .cr.boolean:hover{background:#111}.dg .c input[type=text]{background:#303030;outline:none}.dg .c input[type=text]:hover{background:#3c3c3c}.dg .c input[type=text]:focus{background:#494949;color:#fff}.dg .c .slider{background:#303030;cursor:ew-resize}.dg .c .slider-fg{background:#2FA1D6;max-width:100%}.dg .c .slider:hover{background:#3c3c3c}.dg .c .slider:hover .slider-fg{background:#44abda}\n");
+css.inject(styleSheet);
+var CSS_NAMESPACE = "dg";
+var HIDE_KEY_CODE = 72;
+var CLOSE_BUTTON_HEIGHT = 20;
+var DEFAULT_DEFAULT_PRESET_NAME = "Default";
+var SUPPORTS_LOCAL_STORAGE = function() {
+    try {
+        return !!window.localStorage;
+    } catch (e) {
+        return false;
+    }
+}();
+var SAVE_DIALOGUE = void 0;
+var autoPlaceVirgin = true;
+var autoPlaceContainer = void 0;
+var hide = false;
+var hideableGuis = [];
+var GUI = function GUI(pars) {
+    var _this = this;
+    var params = pars || {};
+    this.domElement = document.createElement("div");
+    this.__ul = document.createElement("ul");
+    this.domElement.appendChild(this.__ul);
+    dom.addClass(this.domElement, CSS_NAMESPACE);
+    this.__folders = {};
+    this.__controllers = [];
+    this.__rememberedObjects = [];
+    this.__rememberedObjectIndecesToControllers = [];
+    this.__listening = [];
+    params = Common.defaults(params, {
+        closeOnTop: false,
+        autoPlace: true,
+        width: GUI.DEFAULT_WIDTH
+    });
+    params = Common.defaults(params, {
+        resizable: params.autoPlace,
+        hideable: params.autoPlace
+    });
+    if (!Common.isUndefined(params.load)) {
+        if (params.preset) params.load.preset = params.preset;
+    } else params.load = {
+        preset: DEFAULT_DEFAULT_PRESET_NAME
+    };
+    if (Common.isUndefined(params.parent) && params.hideable) hideableGuis.push(this);
+    params.resizable = Common.isUndefined(params.parent) && params.resizable;
+    if (params.autoPlace && Common.isUndefined(params.scrollable)) params.scrollable = true;
+    var useLocalStorage = SUPPORTS_LOCAL_STORAGE && localStorage.getItem(getLocalStorageHash(this, "isLocal")) === "true";
+    var saveToLocalStorage = void 0;
+    var titleRow = void 0;
+    Object.defineProperties(this, {
+        parent: {
+            get: function get$$1() {
+                return params.parent;
+            }
+        },
+        scrollable: {
+            get: function get$$1() {
+                return params.scrollable;
+            }
+        },
+        autoPlace: {
+            get: function get$$1() {
+                return params.autoPlace;
+            }
+        },
+        closeOnTop: {
+            get: function get$$1() {
+                return params.closeOnTop;
+            }
+        },
+        preset: {
+            get: function get$$1() {
+                if (_this.parent) return _this.getRoot().preset;
+                return params.load.preset;
+            },
+            set: function set$$1(v) {
+                if (_this.parent) _this.getRoot().preset = v;
+                else params.load.preset = v;
+                setPresetSelectIndex(this);
+                _this.revert();
+            }
+        },
+        width: {
+            get: function get$$1() {
+                return params.width;
+            },
+            set: function set$$1(v) {
+                params.width = v;
+                setWidth(_this, v);
+            }
+        },
+        name: {
+            get: function get$$1() {
+                return params.name;
+            },
+            set: function set$$1(v) {
+                params.name = v;
+                if (titleRow) titleRow.innerHTML = params.name;
+            }
+        },
+        closed: {
+            get: function get$$1() {
+                return params.closed;
+            },
+            set: function set$$1(v) {
+                params.closed = v;
+                if (params.closed) dom.addClass(_this.__ul, GUI.CLASS_CLOSED);
+                else dom.removeClass(_this.__ul, GUI.CLASS_CLOSED);
+                this.onResize();
+                if (_this.__closeButton) _this.__closeButton.innerHTML = v ? GUI.TEXT_OPEN : GUI.TEXT_CLOSED;
+            }
+        },
+        load: {
+            get: function get$$1() {
+                return params.load;
+            }
+        },
+        useLocalStorage: {
+            get: function get$$1() {
+                return useLocalStorage;
+            },
+            set: function set$$1(bool) {
+                if (SUPPORTS_LOCAL_STORAGE) {
+                    useLocalStorage = bool;
+                    if (bool) dom.bind(window, "unload", saveToLocalStorage);
+                    else dom.unbind(window, "unload", saveToLocalStorage);
+                    localStorage.setItem(getLocalStorageHash(_this, "isLocal"), bool);
+                }
+            }
+        }
+    });
+    if (Common.isUndefined(params.parent)) {
+        this.closed = params.closed || false;
+        dom.addClass(this.domElement, GUI.CLASS_MAIN);
+        dom.makeSelectable(this.domElement, false);
+        if (SUPPORTS_LOCAL_STORAGE) {
+            if (useLocalStorage) {
+                _this.useLocalStorage = true;
+                var savedGui = localStorage.getItem(getLocalStorageHash(this, "gui"));
+                if (savedGui) params.load = JSON.parse(savedGui);
+            }
+        }
+        this.__closeButton = document.createElement("div");
+        this.__closeButton.innerHTML = GUI.TEXT_CLOSED;
+        dom.addClass(this.__closeButton, GUI.CLASS_CLOSE_BUTTON);
+        if (params.closeOnTop) {
+            dom.addClass(this.__closeButton, GUI.CLASS_CLOSE_TOP);
+            this.domElement.insertBefore(this.__closeButton, this.domElement.childNodes[0]);
+        } else {
+            dom.addClass(this.__closeButton, GUI.CLASS_CLOSE_BOTTOM);
+            this.domElement.appendChild(this.__closeButton);
+        }
+        dom.bind(this.__closeButton, "click", function() {
+            _this.closed = !_this.closed;
+        });
+    } else {
+        if (params.closed === undefined) params.closed = true;
+        var titleRowName = document.createTextNode(params.name);
+        dom.addClass(titleRowName, "controller-name");
+        titleRow = addRow(_this, titleRowName);
+        var onClickTitle = function onClickTitle(e) {
+            e.preventDefault();
+            _this.closed = !_this.closed;
+            return false;
+        };
+        dom.addClass(this.__ul, GUI.CLASS_CLOSED);
+        dom.addClass(titleRow, "title");
+        dom.bind(titleRow, "click", onClickTitle);
+        if (!params.closed) this.closed = false;
+    }
+    if (params.autoPlace) {
+        if (Common.isUndefined(params.parent)) {
+            if (autoPlaceVirgin) {
+                autoPlaceContainer = document.createElement("div");
+                dom.addClass(autoPlaceContainer, CSS_NAMESPACE);
+                dom.addClass(autoPlaceContainer, GUI.CLASS_AUTO_PLACE_CONTAINER);
+                document.body.appendChild(autoPlaceContainer);
+                autoPlaceVirgin = false;
+            }
+            autoPlaceContainer.appendChild(this.domElement);
+            dom.addClass(this.domElement, GUI.CLASS_AUTO_PLACE);
+        }
+        if (!this.parent) setWidth(_this, params.width);
+    }
+    this.__resizeHandler = function() {
+        _this.onResizeDebounced();
+    };
+    dom.bind(window, "resize", this.__resizeHandler);
+    dom.bind(this.__ul, "webkitTransitionEnd", this.__resizeHandler);
+    dom.bind(this.__ul, "transitionend", this.__resizeHandler);
+    dom.bind(this.__ul, "oTransitionEnd", this.__resizeHandler);
+    this.onResize();
+    if (params.resizable) addResizeHandle(this);
+    saveToLocalStorage = function saveToLocalStorage() {
+        if (SUPPORTS_LOCAL_STORAGE && localStorage.getItem(getLocalStorageHash(_this, "isLocal")) === "true") localStorage.setItem(getLocalStorageHash(_this, "gui"), JSON.stringify(_this.getSaveObject()));
+    };
+    this.saveToLocalStorageIfPossible = saveToLocalStorage;
+    function resetWidth() {
+        var root = _this.getRoot();
+        root.width += 1;
+        Common.defer(function() {
+            root.width -= 1;
+        });
+    }
+    if (!params.parent) resetWidth();
+};
+GUI.toggleHide = function() {
+    hide = !hide;
+    Common.each(hideableGuis, function(gui) {
+        gui.domElement.style.display = hide ? "none" : "";
+    });
+};
+GUI.CLASS_AUTO_PLACE = "a";
+GUI.CLASS_AUTO_PLACE_CONTAINER = "ac";
+GUI.CLASS_MAIN = "main";
+GUI.CLASS_CONTROLLER_ROW = "cr";
+GUI.CLASS_TOO_TALL = "taller-than-window";
+GUI.CLASS_CLOSED = "closed";
+GUI.CLASS_CLOSE_BUTTON = "close-button";
+GUI.CLASS_CLOSE_TOP = "close-top";
+GUI.CLASS_CLOSE_BOTTOM = "close-bottom";
+GUI.CLASS_DRAG = "drag";
+GUI.DEFAULT_WIDTH = 245;
+GUI.TEXT_CLOSED = "Close Controls";
+GUI.TEXT_OPEN = "Open Controls";
+GUI._keydownHandler = function(e) {
+    if (document.activeElement.type !== "text" && (e.which === HIDE_KEY_CODE || e.keyCode === HIDE_KEY_CODE)) GUI.toggleHide();
+};
+dom.bind(window, "keydown", GUI._keydownHandler, false);
+Common.extend(GUI.prototype, {
+    add: function add(object, property) {
+        return _add(this, object, property, {
+            factoryArgs: Array.prototype.slice.call(arguments, 2)
+        });
+    },
+    addColor: function addColor(object, property) {
+        return _add(this, object, property, {
+            color: true
+        });
+    },
+    remove: function remove(controller) {
+        this.__ul.removeChild(controller.__li);
+        this.__controllers.splice(this.__controllers.indexOf(controller), 1);
+        var _this = this;
+        Common.defer(function() {
+            _this.onResize();
+        });
+    },
+    destroy: function destroy() {
+        if (this.parent) throw new Error("Only the root GUI should be removed with .destroy(). For subfolders, use gui.removeFolder(folder) instead.");
+        if (this.autoPlace) autoPlaceContainer.removeChild(this.domElement);
+        var _this = this;
+        Common.each(this.__folders, function(subfolder) {
+            _this.removeFolder(subfolder);
+        });
+        dom.unbind(window, "keydown", GUI._keydownHandler, false);
+        removeListeners(this);
+    },
+    addFolder: function addFolder(name) {
+        if (this.__folders[name] !== undefined) throw new Error('You already have a folder in this GUI by the name "' + name + '"');
+        var newGuiParams = {
+            name: name,
+            parent: this
+        };
+        newGuiParams.autoPlace = this.autoPlace;
+        if (this.load && this.load.folders && this.load.folders[name]) {
+            newGuiParams.closed = this.load.folders[name].closed;
+            newGuiParams.load = this.load.folders[name];
+        }
+        var gui = new GUI(newGuiParams);
+        this.__folders[name] = gui;
+        var li = addRow(this, gui.domElement);
+        dom.addClass(li, "folder");
+        return gui;
+    },
+    removeFolder: function removeFolder(folder) {
+        this.__ul.removeChild(folder.domElement.parentElement);
+        delete this.__folders[folder.name];
+        if (this.load && this.load.folders && this.load.folders[folder.name]) delete this.load.folders[folder.name];
+        removeListeners(folder);
+        var _this = this;
+        Common.each(folder.__folders, function(subfolder) {
+            folder.removeFolder(subfolder);
+        });
+        Common.defer(function() {
+            _this.onResize();
+        });
+    },
+    open: function open() {
+        this.closed = false;
+    },
+    close: function close() {
+        this.closed = true;
+    },
+    hide: function hide() {
+        this.domElement.style.display = "none";
+    },
+    show: function show() {
+        this.domElement.style.display = "";
+    },
+    onResize: function onResize() {
+        var root = this.getRoot();
+        if (root.scrollable) {
+            var top = dom.getOffset(root.__ul).top;
+            var h = 0;
+            Common.each(root.__ul.childNodes, function(node) {
+                if (!(root.autoPlace && node === root.__save_row)) h += dom.getHeight(node);
+            });
+            if (window.innerHeight - top - CLOSE_BUTTON_HEIGHT < h) {
+                dom.addClass(root.domElement, GUI.CLASS_TOO_TALL);
+                root.__ul.style.height = window.innerHeight - top - CLOSE_BUTTON_HEIGHT + "px";
+            } else {
+                dom.removeClass(root.domElement, GUI.CLASS_TOO_TALL);
+                root.__ul.style.height = "auto";
+            }
+        }
+        if (root.__resize_handle) Common.defer(function() {
+            root.__resize_handle.style.height = root.__ul.offsetHeight + "px";
+        });
+        if (root.__closeButton) root.__closeButton.style.width = root.width + "px";
+    },
+    onResizeDebounced: Common.debounce(function() {
+        this.onResize();
+    }, 50),
+    remember: function remember() {
+        if (Common.isUndefined(SAVE_DIALOGUE)) {
+            SAVE_DIALOGUE = new CenteredDiv();
+            SAVE_DIALOGUE.domElement.innerHTML = saveDialogContents;
+        }
+        if (this.parent) throw new Error("You can only call remember on a top level GUI.");
+        var _this = this;
+        Common.each(Array.prototype.slice.call(arguments), function(object) {
+            if (_this.__rememberedObjects.length === 0) addSaveMenu(_this);
+            if (_this.__rememberedObjects.indexOf(object) === -1) _this.__rememberedObjects.push(object);
+        });
+        if (this.autoPlace) setWidth(this, this.width);
+    },
+    getRoot: function getRoot() {
+        var gui = this;
+        while(gui.parent)gui = gui.parent;
+        return gui;
+    },
+    getSaveObject: function getSaveObject() {
+        var toReturn = this.load;
+        toReturn.closed = this.closed;
+        if (this.__rememberedObjects.length > 0) {
+            toReturn.preset = this.preset;
+            if (!toReturn.remembered) toReturn.remembered = {};
+            toReturn.remembered[this.preset] = getCurrentPreset(this);
+        }
+        toReturn.folders = {};
+        Common.each(this.__folders, function(element, key) {
+            toReturn.folders[key] = element.getSaveObject();
+        });
+        return toReturn;
+    },
+    save: function save() {
+        if (!this.load.remembered) this.load.remembered = {};
+        this.load.remembered[this.preset] = getCurrentPreset(this);
+        markPresetModified(this, false);
+        this.saveToLocalStorageIfPossible();
+    },
+    saveAs: function saveAs(presetName) {
+        if (!this.load.remembered) {
+            this.load.remembered = {};
+            this.load.remembered[DEFAULT_DEFAULT_PRESET_NAME] = getCurrentPreset(this, true);
+        }
+        this.load.remembered[presetName] = getCurrentPreset(this);
+        this.preset = presetName;
+        addPresetOption(this, presetName, true);
+        this.saveToLocalStorageIfPossible();
+    },
+    revert: function revert(gui) {
+        Common.each(this.__controllers, function(controller) {
+            if (!this.getRoot().load.remembered) controller.setValue(controller.initialValue);
+            else recallSavedValue(gui || this.getRoot(), controller);
+            if (controller.__onFinishChange) controller.__onFinishChange.call(controller, controller.getValue());
+        }, this);
+        Common.each(this.__folders, function(folder) {
+            folder.revert(folder);
+        });
+        if (!gui) markPresetModified(this.getRoot(), false);
+    },
+    listen: function listen(controller) {
+        var init = this.__listening.length === 0;
+        this.__listening.push(controller);
+        if (init) updateDisplays(this.__listening);
+    },
+    updateDisplay: function updateDisplay() {
+        Common.each(this.__controllers, function(controller) {
+            controller.updateDisplay();
+        });
+        Common.each(this.__folders, function(folder) {
+            folder.updateDisplay();
+        });
+    }
+});
+function addRow(gui, newDom, liBefore) {
+    var li = document.createElement("li");
+    if (newDom) li.appendChild(newDom);
+    if (liBefore) gui.__ul.insertBefore(li, liBefore);
+    else gui.__ul.appendChild(li);
+    gui.onResize();
+    return li;
+}
+function removeListeners(gui) {
+    dom.unbind(window, "resize", gui.__resizeHandler);
+    if (gui.saveToLocalStorageIfPossible) dom.unbind(window, "unload", gui.saveToLocalStorageIfPossible);
+}
+function markPresetModified(gui, modified) {
+    var opt = gui.__preset_select[gui.__preset_select.selectedIndex];
+    if (modified) opt.innerHTML = opt.value + "*";
+    else opt.innerHTML = opt.value;
+}
+function augmentController(gui, li, controller) {
+    controller.__li = li;
+    controller.__gui = gui;
+    Common.extend(controller, {
+        options: function options(_options) {
+            if (arguments.length > 1) {
+                var nextSibling = controller.__li.nextElementSibling;
+                controller.remove();
+                return _add(gui, controller.object, controller.property, {
+                    before: nextSibling,
+                    factoryArgs: [
+                        Common.toArray(arguments)
+                    ]
+                });
+            }
+            if (Common.isArray(_options) || Common.isObject(_options)) {
+                var _nextSibling = controller.__li.nextElementSibling;
+                controller.remove();
+                return _add(gui, controller.object, controller.property, {
+                    before: _nextSibling,
+                    factoryArgs: [
+                        _options
+                    ]
+                });
+            }
+        },
+        name: function name(_name) {
+            controller.__li.firstElementChild.firstElementChild.innerHTML = _name;
+            return controller;
+        },
+        listen: function listen() {
+            controller.__gui.listen(controller);
+            return controller;
+        },
+        remove: function remove() {
+            controller.__gui.remove(controller);
+            return controller;
+        }
+    });
+    if (controller instanceof NumberControllerSlider) {
+        var box = new NumberControllerBox(controller.object, controller.property, {
+            min: controller.__min,
+            max: controller.__max,
+            step: controller.__step
+        });
+        Common.each([
+            "updateDisplay",
+            "onChange",
+            "onFinishChange",
+            "step",
+            "min",
+            "max"
+        ], function(method) {
+            var pc = controller[method];
+            var pb = box[method];
+            controller[method] = box[method] = function() {
+                var args = Array.prototype.slice.call(arguments);
+                pb.apply(box, args);
+                return pc.apply(controller, args);
+            };
+        });
+        dom.addClass(li, "has-slider");
+        controller.domElement.insertBefore(box.domElement, controller.domElement.firstElementChild);
+    } else if (controller instanceof NumberControllerBox) {
+        var r = function r(returned) {
+            if (Common.isNumber(controller.__min) && Common.isNumber(controller.__max)) {
+                var oldName = controller.__li.firstElementChild.firstElementChild.innerHTML;
+                var wasListening = controller.__gui.__listening.indexOf(controller) > -1;
+                controller.remove();
+                var newController = _add(gui, controller.object, controller.property, {
+                    before: controller.__li.nextElementSibling,
+                    factoryArgs: [
+                        controller.__min,
+                        controller.__max,
+                        controller.__step
+                    ]
+                });
+                newController.name(oldName);
+                if (wasListening) newController.listen();
+                return newController;
+            }
+            return returned;
+        };
+        controller.min = Common.compose(r, controller.min);
+        controller.max = Common.compose(r, controller.max);
+    } else if (controller instanceof BooleanController) {
+        dom.bind(li, "click", function() {
+            dom.fakeEvent(controller.__checkbox, "click");
+        });
+        dom.bind(controller.__checkbox, "click", function(e) {
+            e.stopPropagation();
+        });
+    } else if (controller instanceof FunctionController) {
+        dom.bind(li, "click", function() {
+            dom.fakeEvent(controller.__button, "click");
+        });
+        dom.bind(li, "mouseover", function() {
+            dom.addClass(controller.__button, "hover");
+        });
+        dom.bind(li, "mouseout", function() {
+            dom.removeClass(controller.__button, "hover");
+        });
+    } else if (controller instanceof ColorController) {
+        dom.addClass(li, "color");
+        controller.updateDisplay = Common.compose(function(val) {
+            li.style.borderLeftColor = controller.__color.toString();
+            return val;
+        }, controller.updateDisplay);
+        controller.updateDisplay();
+    }
+    controller.setValue = Common.compose(function(val) {
+        if (gui.getRoot().__preset_select && controller.isModified()) markPresetModified(gui.getRoot(), true);
+        return val;
+    }, controller.setValue);
+}
+function recallSavedValue(gui, controller) {
+    var root = gui.getRoot();
+    var matchedIndex = root.__rememberedObjects.indexOf(controller.object);
+    if (matchedIndex !== -1) {
+        var controllerMap = root.__rememberedObjectIndecesToControllers[matchedIndex];
+        if (controllerMap === undefined) {
+            controllerMap = {};
+            root.__rememberedObjectIndecesToControllers[matchedIndex] = controllerMap;
+        }
+        controllerMap[controller.property] = controller;
+        if (root.load && root.load.remembered) {
+            var presetMap = root.load.remembered;
+            var preset = void 0;
+            if (presetMap[gui.preset]) preset = presetMap[gui.preset];
+            else if (presetMap[DEFAULT_DEFAULT_PRESET_NAME]) preset = presetMap[DEFAULT_DEFAULT_PRESET_NAME];
+            else return;
+            if (preset[matchedIndex] && preset[matchedIndex][controller.property] !== undefined) {
+                var value = preset[matchedIndex][controller.property];
+                controller.initialValue = value;
+                controller.setValue(value);
+            }
+        }
+    }
+}
+function _add(gui, object, property, params) {
+    if (object[property] === undefined) throw new Error('Object "' + object + '" has no property "' + property + '"');
+    var controller = void 0;
+    if (params.color) controller = new ColorController(object, property);
+    else {
+        var factoryArgs = [
+            object,
+            property
+        ].concat(params.factoryArgs);
+        controller = ControllerFactory.apply(gui, factoryArgs);
+    }
+    if (params.before instanceof Controller) params.before = params.before.__li;
+    recallSavedValue(gui, controller);
+    dom.addClass(controller.domElement, "c");
+    var name = document.createElement("span");
+    dom.addClass(name, "property-name");
+    name.innerHTML = controller.property;
+    var container = document.createElement("div");
+    container.appendChild(name);
+    container.appendChild(controller.domElement);
+    var li = addRow(gui, container, params.before);
+    dom.addClass(li, GUI.CLASS_CONTROLLER_ROW);
+    if (controller instanceof ColorController) dom.addClass(li, "color");
+    else dom.addClass(li, _typeof(controller.getValue()));
+    augmentController(gui, li, controller);
+    gui.__controllers.push(controller);
+    return controller;
+}
+function getLocalStorageHash(gui, key) {
+    return document.location.href + "." + key;
+}
+function addPresetOption(gui, name, setSelected) {
+    var opt = document.createElement("option");
+    opt.innerHTML = name;
+    opt.value = name;
+    gui.__preset_select.appendChild(opt);
+    if (setSelected) gui.__preset_select.selectedIndex = gui.__preset_select.length - 1;
+}
+function showHideExplain(gui, explain) {
+    explain.style.display = gui.useLocalStorage ? "block" : "none";
+}
+function addSaveMenu(gui) {
+    var div = gui.__save_row = document.createElement("li");
+    dom.addClass(gui.domElement, "has-save");
+    gui.__ul.insertBefore(div, gui.__ul.firstChild);
+    dom.addClass(div, "save-row");
+    var gears = document.createElement("span");
+    gears.innerHTML = "&nbsp;";
+    dom.addClass(gears, "button gears");
+    var button = document.createElement("span");
+    button.innerHTML = "Save";
+    dom.addClass(button, "button");
+    dom.addClass(button, "save");
+    var button2 = document.createElement("span");
+    button2.innerHTML = "New";
+    dom.addClass(button2, "button");
+    dom.addClass(button2, "save-as");
+    var button3 = document.createElement("span");
+    button3.innerHTML = "Revert";
+    dom.addClass(button3, "button");
+    dom.addClass(button3, "revert");
+    var select = gui.__preset_select = document.createElement("select");
+    if (gui.load && gui.load.remembered) Common.each(gui.load.remembered, function(value, key) {
+        addPresetOption(gui, key, key === gui.preset);
+    });
+    else addPresetOption(gui, DEFAULT_DEFAULT_PRESET_NAME, false);
+    dom.bind(select, "change", function() {
+        for(var index = 0; index < gui.__preset_select.length; index++)gui.__preset_select[index].innerHTML = gui.__preset_select[index].value;
+        gui.preset = this.value;
+    });
+    div.appendChild(select);
+    div.appendChild(gears);
+    div.appendChild(button);
+    div.appendChild(button2);
+    div.appendChild(button3);
+    if (SUPPORTS_LOCAL_STORAGE) {
+        var explain = document.getElementById("dg-local-explain");
+        var localStorageCheckBox = document.getElementById("dg-local-storage");
+        var saveLocally = document.getElementById("dg-save-locally");
+        saveLocally.style.display = "block";
+        if (localStorage.getItem(getLocalStorageHash(gui, "isLocal")) === "true") localStorageCheckBox.setAttribute("checked", "checked");
+        showHideExplain(gui, explain);
+        dom.bind(localStorageCheckBox, "change", function() {
+            gui.useLocalStorage = !gui.useLocalStorage;
+            showHideExplain(gui, explain);
+        });
+    }
+    var newConstructorTextArea = document.getElementById("dg-new-constructor");
+    dom.bind(newConstructorTextArea, "keydown", function(e) {
+        if (e.metaKey && (e.which === 67 || e.keyCode === 67)) SAVE_DIALOGUE.hide();
+    });
+    dom.bind(gears, "click", function() {
+        newConstructorTextArea.innerHTML = JSON.stringify(gui.getSaveObject(), undefined, 2);
+        SAVE_DIALOGUE.show();
+        newConstructorTextArea.focus();
+        newConstructorTextArea.select();
+    });
+    dom.bind(button, "click", function() {
+        gui.save();
+    });
+    dom.bind(button2, "click", function() {
+        var presetName = prompt("Enter a new preset name.");
+        if (presetName) gui.saveAs(presetName);
+    });
+    dom.bind(button3, "click", function() {
+        gui.revert();
+    });
+}
+function addResizeHandle(gui) {
+    var pmouseX = void 0;
+    gui.__resize_handle = document.createElement("div");
+    Common.extend(gui.__resize_handle.style, {
+        width: "6px",
+        marginLeft: "-3px",
+        height: "200px",
+        cursor: "ew-resize",
+        position: "absolute"
+    });
+    function drag(e) {
+        e.preventDefault();
+        gui.width += pmouseX - e.clientX;
+        gui.onResize();
+        pmouseX = e.clientX;
+        return false;
+    }
+    function dragStop() {
+        dom.removeClass(gui.__closeButton, GUI.CLASS_DRAG);
+        dom.unbind(window, "mousemove", drag);
+        dom.unbind(window, "mouseup", dragStop);
+    }
+    function dragStart(e) {
+        e.preventDefault();
+        pmouseX = e.clientX;
+        dom.addClass(gui.__closeButton, GUI.CLASS_DRAG);
+        dom.bind(window, "mousemove", drag);
+        dom.bind(window, "mouseup", dragStop);
+        return false;
+    }
+    dom.bind(gui.__resize_handle, "mousedown", dragStart);
+    dom.bind(gui.__closeButton, "mousedown", dragStart);
+    gui.domElement.insertBefore(gui.__resize_handle, gui.domElement.firstElementChild);
+}
+function setWidth(gui, w) {
+    gui.domElement.style.width = w + "px";
+    if (gui.__save_row && gui.autoPlace) gui.__save_row.style.width = w + "px";
+    if (gui.__closeButton) gui.__closeButton.style.width = w + "px";
+}
+function getCurrentPreset(gui, useInitialValues) {
+    var toReturn = {};
+    Common.each(gui.__rememberedObjects, function(val, index) {
+        var savedValues = {};
+        var controllerMap = gui.__rememberedObjectIndecesToControllers[index];
+        Common.each(controllerMap, function(controller, property) {
+            savedValues[property] = useInitialValues ? controller.initialValue : controller.getValue();
+        });
+        toReturn[index] = savedValues;
+    });
+    return toReturn;
+}
+function setPresetSelectIndex(gui) {
+    for(var index = 0; index < gui.__preset_select.length; index++)if (gui.__preset_select[index].value === gui.preset) gui.__preset_select.selectedIndex = index;
+}
+function updateDisplays(controllerArray) {
+    if (controllerArray.length !== 0) requestAnimationFrame$1.call(window, function() {
+        updateDisplays(controllerArray);
+    });
+    Common.each(controllerArray, function(c) {
+        c.updateDisplay();
+    });
+}
+var color = {
+    Color: Color,
+    math: ColorMath,
+    interpret: interpret
+};
+var controllers = {
+    Controller: Controller,
+    BooleanController: BooleanController,
+    OptionController: OptionController,
+    StringController: StringController,
+    NumberController: NumberController,
+    NumberControllerBox: NumberControllerBox,
+    NumberControllerSlider: NumberControllerSlider,
+    FunctionController: FunctionController,
+    ColorController: ColorController
+};
+var dom$1 = {
+    dom: dom
+};
+var gui = {
+    GUI: GUI
+};
+var GUI$1 = GUI;
+var index = {
+    color: color,
+    controllers: controllers,
+    dom: dom$1,
+    gui: gui,
+    GUI: GUI$1
+};
+exports.default = index;
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"dVRsF":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "GLTFLoader", ()=>GLTFLoader);
@@ -34644,14883 +38134,6 @@ function mergeGroups(geometry) {
     return resultGeometry;
 }
 
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"knVsP":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "GLTFExporter", ()=>GLTFExporter);
-var _three = require("three");
-var _textureUtilsJs = require("./../utils/TextureUtils.js");
-/**
- * The KHR_mesh_quantization extension allows these extra attribute component types
- *
- * @see https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md#extending-mesh-attributes
- */ const KHR_mesh_quantization_ExtraAttrTypes = {
-    POSITION: [
-        "byte",
-        "byte normalized",
-        "unsigned byte",
-        "unsigned byte normalized",
-        "short",
-        "short normalized",
-        "unsigned short",
-        "unsigned short normalized"
-    ],
-    NORMAL: [
-        "byte normalized",
-        "short normalized"
-    ],
-    TANGENT: [
-        "byte normalized",
-        "short normalized"
-    ],
-    TEXCOORD: [
-        "byte",
-        "byte normalized",
-        "unsigned byte",
-        "short",
-        "short normalized",
-        "unsigned short"
-    ]
-};
-class GLTFExporter {
-    constructor(){
-        this.pluginCallbacks = [];
-        this.register(function(writer) {
-            return new GLTFLightExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsUnlitExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsTransmissionExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsVolumeExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsIorExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsSpecularExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsClearcoatExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsDispersionExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsIridescenceExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsSheenExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsAnisotropyExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsEmissiveStrengthExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMaterialsBumpExtension(writer);
-        });
-        this.register(function(writer) {
-            return new GLTFMeshGpuInstancing(writer);
-        });
-    }
-    register(callback) {
-        if (this.pluginCallbacks.indexOf(callback) === -1) this.pluginCallbacks.push(callback);
-        return this;
-    }
-    unregister(callback) {
-        if (this.pluginCallbacks.indexOf(callback) !== -1) this.pluginCallbacks.splice(this.pluginCallbacks.indexOf(callback), 1);
-        return this;
-    }
-    /**
-	 * Parse scenes and generate GLTF output
-	 * @param  {Scene or [THREE.Scenes]} input   Scene or Array of THREE.Scenes
-	 * @param  {Function} onDone  Callback on completed
-	 * @param  {Function} onError  Callback on errors
-	 * @param  {Object} options options
-	 */ parse(input, onDone, onError, options) {
-        const writer = new GLTFWriter();
-        const plugins = [];
-        for(let i = 0, il = this.pluginCallbacks.length; i < il; i++)plugins.push(this.pluginCallbacks[i](writer));
-        writer.setPlugins(plugins);
-        writer.write(input, onDone, options).catch(onError);
-    }
-    parseAsync(input, options) {
-        const scope = this;
-        return new Promise(function(resolve, reject) {
-            scope.parse(input, resolve, reject, options);
-        });
-    }
-}
-//------------------------------------------------------------------------------
-// Constants
-//------------------------------------------------------------------------------
-const WEBGL_CONSTANTS = {
-    POINTS: 0x0000,
-    LINES: 0x0001,
-    LINE_LOOP: 0x0002,
-    LINE_STRIP: 0x0003,
-    TRIANGLES: 0x0004,
-    TRIANGLE_STRIP: 0x0005,
-    TRIANGLE_FAN: 0x0006,
-    BYTE: 0x1400,
-    UNSIGNED_BYTE: 0x1401,
-    SHORT: 0x1402,
-    UNSIGNED_SHORT: 0x1403,
-    INT: 0x1404,
-    UNSIGNED_INT: 0x1405,
-    FLOAT: 0x1406,
-    ARRAY_BUFFER: 0x8892,
-    ELEMENT_ARRAY_BUFFER: 0x8893,
-    NEAREST: 0x2600,
-    LINEAR: 0x2601,
-    NEAREST_MIPMAP_NEAREST: 0x2700,
-    LINEAR_MIPMAP_NEAREST: 0x2701,
-    NEAREST_MIPMAP_LINEAR: 0x2702,
-    LINEAR_MIPMAP_LINEAR: 0x2703,
-    CLAMP_TO_EDGE: 33071,
-    MIRRORED_REPEAT: 33648,
-    REPEAT: 10497
-};
-const KHR_MESH_QUANTIZATION = "KHR_mesh_quantization";
-const THREE_TO_WEBGL = {};
-THREE_TO_WEBGL[0, _three.NearestFilter] = WEBGL_CONSTANTS.NEAREST;
-THREE_TO_WEBGL[0, _three.NearestMipmapNearestFilter] = WEBGL_CONSTANTS.NEAREST_MIPMAP_NEAREST;
-THREE_TO_WEBGL[0, _three.NearestMipmapLinearFilter] = WEBGL_CONSTANTS.NEAREST_MIPMAP_LINEAR;
-THREE_TO_WEBGL[0, _three.LinearFilter] = WEBGL_CONSTANTS.LINEAR;
-THREE_TO_WEBGL[0, _three.LinearMipmapNearestFilter] = WEBGL_CONSTANTS.LINEAR_MIPMAP_NEAREST;
-THREE_TO_WEBGL[0, _three.LinearMipmapLinearFilter] = WEBGL_CONSTANTS.LINEAR_MIPMAP_LINEAR;
-THREE_TO_WEBGL[0, _three.ClampToEdgeWrapping] = WEBGL_CONSTANTS.CLAMP_TO_EDGE;
-THREE_TO_WEBGL[0, _three.RepeatWrapping] = WEBGL_CONSTANTS.REPEAT;
-THREE_TO_WEBGL[0, _three.MirroredRepeatWrapping] = WEBGL_CONSTANTS.MIRRORED_REPEAT;
-const PATH_PROPERTIES = {
-    scale: "scale",
-    position: "translation",
-    quaternion: "rotation",
-    morphTargetInfluences: "weights"
-};
-const DEFAULT_SPECULAR_COLOR = new (0, _three.Color)();
-// GLB constants
-// https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#glb-file-format-specification
-const GLB_HEADER_BYTES = 12;
-const GLB_HEADER_MAGIC = 0x46546C67;
-const GLB_VERSION = 2;
-const GLB_CHUNK_PREFIX_BYTES = 8;
-const GLB_CHUNK_TYPE_JSON = 0x4E4F534A;
-const GLB_CHUNK_TYPE_BIN = 0x004E4942;
-//------------------------------------------------------------------------------
-// Utility functions
-//------------------------------------------------------------------------------
-/**
- * Compare two arrays
- * @param  {Array} array1 Array 1 to compare
- * @param  {Array} array2 Array 2 to compare
- * @return {Boolean}        Returns true if both arrays are equal
- */ function equalArray(array1, array2) {
-    return array1.length === array2.length && array1.every(function(element, index) {
-        return element === array2[index];
-    });
-}
-/**
- * Converts a string to an ArrayBuffer.
- * @param  {string} text
- * @return {ArrayBuffer}
- */ function stringToArrayBuffer(text) {
-    return new TextEncoder().encode(text).buffer;
-}
-/**
- * Is identity matrix
- *
- * @param {Matrix4} matrix
- * @returns {Boolean} Returns true, if parameter is identity matrix
- */ function isIdentityMatrix(matrix) {
-    return equalArray(matrix.elements, [
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1
-    ]);
-}
-/**
- * Get the min and max vectors from the given attribute
- * @param  {BufferAttribute} attribute Attribute to find the min/max in range from start to start + count
- * @param  {Integer} start
- * @param  {Integer} count
- * @return {Object} Object containing the `min` and `max` values (As an array of attribute.itemSize components)
- */ function getMinMax(attribute, start, count) {
-    const output = {
-        min: new Array(attribute.itemSize).fill(Number.POSITIVE_INFINITY),
-        max: new Array(attribute.itemSize).fill(Number.NEGATIVE_INFINITY)
-    };
-    for(let i = start; i < start + count; i++)for(let a = 0; a < attribute.itemSize; a++){
-        let value;
-        if (attribute.itemSize > 4) // no support for interleaved data for itemSize > 4
-        value = attribute.array[i * attribute.itemSize + a];
-        else {
-            if (a === 0) value = attribute.getX(i);
-            else if (a === 1) value = attribute.getY(i);
-            else if (a === 2) value = attribute.getZ(i);
-            else if (a === 3) value = attribute.getW(i);
-            if (attribute.normalized === true) value = (0, _three.MathUtils).normalize(value, attribute.array);
-        }
-        output.min[a] = Math.min(output.min[a], value);
-        output.max[a] = Math.max(output.max[a], value);
-    }
-    return output;
-}
-/**
- * Get the required size + padding for a buffer, rounded to the next 4-byte boundary.
- * https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#data-alignment
- *
- * @param {Integer} bufferSize The size the original buffer.
- * @returns {Integer} new buffer size with required padding.
- *
- */ function getPaddedBufferSize(bufferSize) {
-    return Math.ceil(bufferSize / 4) * 4;
-}
-/**
- * Returns a buffer aligned to 4-byte boundary.
- *
- * @param {ArrayBuffer} arrayBuffer Buffer to pad
- * @param {Integer} paddingByte (Optional)
- * @returns {ArrayBuffer} The same buffer if it's already aligned to 4-byte boundary or a new buffer
- */ function getPaddedArrayBuffer(arrayBuffer, paddingByte = 0) {
-    const paddedLength = getPaddedBufferSize(arrayBuffer.byteLength);
-    if (paddedLength !== arrayBuffer.byteLength) {
-        const array = new Uint8Array(paddedLength);
-        array.set(new Uint8Array(arrayBuffer));
-        if (paddingByte !== 0) for(let i = arrayBuffer.byteLength; i < paddedLength; i++)array[i] = paddingByte;
-        return array.buffer;
-    }
-    return arrayBuffer;
-}
-function getCanvas() {
-    if (typeof document === "undefined" && typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(1, 1);
-    return document.createElement("canvas");
-}
-function getToBlobPromise(canvas, mimeType) {
-    if (canvas.toBlob !== undefined) return new Promise((resolve)=>canvas.toBlob(resolve, mimeType));
-    let quality;
-    // Blink's implementation of convertToBlob seems to default to a quality level of 100%
-    // Use the Blink default quality levels of toBlob instead so that file sizes are comparable.
-    if (mimeType === "image/jpeg") quality = 0.92;
-    else if (mimeType === "image/webp") quality = 0.8;
-    return canvas.convertToBlob({
-        type: mimeType,
-        quality: quality
-    });
-}
-/**
- * Writer
- */ class GLTFWriter {
-    constructor(){
-        this.plugins = [];
-        this.options = {};
-        this.pending = [];
-        this.buffers = [];
-        this.byteOffset = 0;
-        this.buffers = [];
-        this.nodeMap = new Map();
-        this.skins = [];
-        this.extensionsUsed = {};
-        this.extensionsRequired = {};
-        this.uids = new Map();
-        this.uid = 0;
-        this.json = {
-            asset: {
-                version: "2.0",
-                generator: "THREE.GLTFExporter r" + (0, _three.REVISION)
-            }
-        };
-        this.cache = {
-            meshes: new Map(),
-            attributes: new Map(),
-            attributesNormalized: new Map(),
-            materials: new Map(),
-            textures: new Map(),
-            images: new Map()
-        };
-    }
-    setPlugins(plugins) {
-        this.plugins = plugins;
-    }
-    /**
-	 * Parse scenes and generate GLTF output
-	 * @param  {Scene or [THREE.Scenes]} input   Scene or Array of THREE.Scenes
-	 * @param  {Function} onDone  Callback on completed
-	 * @param  {Object} options options
-	 */ async write(input, onDone, options = {}) {
-        this.options = Object.assign({
-            // default options
-            binary: false,
-            trs: false,
-            onlyVisible: true,
-            maxTextureSize: Infinity,
-            animations: [],
-            includeCustomExtensions: false
-        }, options);
-        if (this.options.animations.length > 0) // Only TRS properties, and not matrices, may be targeted by animation.
-        this.options.trs = true;
-        this.processInput(input);
-        await Promise.all(this.pending);
-        const writer = this;
-        const buffers = writer.buffers;
-        const json = writer.json;
-        options = writer.options;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionsRequired = writer.extensionsRequired;
-        // Merge buffers.
-        const blob = new Blob(buffers, {
-            type: "application/octet-stream"
-        });
-        // Declare extensions.
-        const extensionsUsedList = Object.keys(extensionsUsed);
-        const extensionsRequiredList = Object.keys(extensionsRequired);
-        if (extensionsUsedList.length > 0) json.extensionsUsed = extensionsUsedList;
-        if (extensionsRequiredList.length > 0) json.extensionsRequired = extensionsRequiredList;
-        // Update bytelength of the single buffer.
-        if (json.buffers && json.buffers.length > 0) json.buffers[0].byteLength = blob.size;
-        if (options.binary === true) {
-            // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md#glb-file-format-specification
-            const reader = new FileReader();
-            reader.readAsArrayBuffer(blob);
-            reader.onloadend = function() {
-                // Binary chunk.
-                const binaryChunk = getPaddedArrayBuffer(reader.result);
-                const binaryChunkPrefix = new DataView(new ArrayBuffer(GLB_CHUNK_PREFIX_BYTES));
-                binaryChunkPrefix.setUint32(0, binaryChunk.byteLength, true);
-                binaryChunkPrefix.setUint32(4, GLB_CHUNK_TYPE_BIN, true);
-                // JSON chunk.
-                const jsonChunk = getPaddedArrayBuffer(stringToArrayBuffer(JSON.stringify(json)), 0x20);
-                const jsonChunkPrefix = new DataView(new ArrayBuffer(GLB_CHUNK_PREFIX_BYTES));
-                jsonChunkPrefix.setUint32(0, jsonChunk.byteLength, true);
-                jsonChunkPrefix.setUint32(4, GLB_CHUNK_TYPE_JSON, true);
-                // GLB header.
-                const header = new ArrayBuffer(GLB_HEADER_BYTES);
-                const headerView = new DataView(header);
-                headerView.setUint32(0, GLB_HEADER_MAGIC, true);
-                headerView.setUint32(4, GLB_VERSION, true);
-                const totalByteLength = GLB_HEADER_BYTES + jsonChunkPrefix.byteLength + jsonChunk.byteLength + binaryChunkPrefix.byteLength + binaryChunk.byteLength;
-                headerView.setUint32(8, totalByteLength, true);
-                const glbBlob = new Blob([
-                    header,
-                    jsonChunkPrefix,
-                    jsonChunk,
-                    binaryChunkPrefix,
-                    binaryChunk
-                ], {
-                    type: "application/octet-stream"
-                });
-                const glbReader = new FileReader();
-                glbReader.readAsArrayBuffer(glbBlob);
-                glbReader.onloadend = function() {
-                    onDone(glbReader.result);
-                };
-            };
-        } else if (json.buffers && json.buffers.length > 0) {
-            const reader = new FileReader();
-            reader.readAsDataURL(blob);
-            reader.onloadend = function() {
-                const base64data = reader.result;
-                json.buffers[0].uri = base64data;
-                onDone(json);
-            };
-        } else onDone(json);
-    }
-    /**
-	 * Serializes a userData.
-	 *
-	 * @param {THREE.Object3D|THREE.Material} object
-	 * @param {Object} objectDef
-	 */ serializeUserData(object, objectDef) {
-        if (Object.keys(object.userData).length === 0) return;
-        const options = this.options;
-        const extensionsUsed = this.extensionsUsed;
-        try {
-            const json = JSON.parse(JSON.stringify(object.userData));
-            if (options.includeCustomExtensions && json.gltfExtensions) {
-                if (objectDef.extensions === undefined) objectDef.extensions = {};
-                for(const extensionName in json.gltfExtensions){
-                    objectDef.extensions[extensionName] = json.gltfExtensions[extensionName];
-                    extensionsUsed[extensionName] = true;
-                }
-                delete json.gltfExtensions;
-            }
-            if (Object.keys(json).length > 0) objectDef.extras = json;
-        } catch (error) {
-            console.warn("THREE.GLTFExporter: userData of '" + object.name + "' " + "won't be serialized because of JSON.stringify error - " + error.message);
-        }
-    }
-    /**
-	 * Returns ids for buffer attributes.
-	 * @param  {Object} object
-	 * @return {Integer}
-	 */ getUID(attribute, isRelativeCopy = false) {
-        if (this.uids.has(attribute) === false) {
-            const uids = new Map();
-            uids.set(true, this.uid++);
-            uids.set(false, this.uid++);
-            this.uids.set(attribute, uids);
-        }
-        const uids = this.uids.get(attribute);
-        return uids.get(isRelativeCopy);
-    }
-    /**
-	 * Checks if normal attribute values are normalized.
-	 *
-	 * @param {BufferAttribute} normal
-	 * @returns {Boolean}
-	 */ isNormalizedNormalAttribute(normal) {
-        const cache = this.cache;
-        if (cache.attributesNormalized.has(normal)) return false;
-        const v = new (0, _three.Vector3)();
-        for(let i = 0, il = normal.count; i < il; i++){
-            // 0.0005 is from glTF-validator
-            if (Math.abs(v.fromBufferAttribute(normal, i).length() - 1.0) > 0.0005) return false;
-        }
-        return true;
-    }
-    /**
-	 * Creates normalized normal buffer attribute.
-	 *
-	 * @param {BufferAttribute} normal
-	 * @returns {BufferAttribute}
-	 *
-	 */ createNormalizedNormalAttribute(normal) {
-        const cache = this.cache;
-        if (cache.attributesNormalized.has(normal)) return cache.attributesNormalized.get(normal);
-        const attribute = normal.clone();
-        const v = new (0, _three.Vector3)();
-        for(let i = 0, il = attribute.count; i < il; i++){
-            v.fromBufferAttribute(attribute, i);
-            if (v.x === 0 && v.y === 0 && v.z === 0) // if values can't be normalized set (1, 0, 0)
-            v.setX(1.0);
-            else v.normalize();
-            attribute.setXYZ(i, v.x, v.y, v.z);
-        }
-        cache.attributesNormalized.set(normal, attribute);
-        return attribute;
-    }
-    /**
-	 * Applies a texture transform, if present, to the map definition. Requires
-	 * the KHR_texture_transform extension.
-	 *
-	 * @param {Object} mapDef
-	 * @param {THREE.Texture} texture
-	 */ applyTextureTransform(mapDef, texture) {
-        let didTransform = false;
-        const transformDef = {};
-        if (texture.offset.x !== 0 || texture.offset.y !== 0) {
-            transformDef.offset = texture.offset.toArray();
-            didTransform = true;
-        }
-        if (texture.rotation !== 0) {
-            transformDef.rotation = texture.rotation;
-            didTransform = true;
-        }
-        if (texture.repeat.x !== 1 || texture.repeat.y !== 1) {
-            transformDef.scale = texture.repeat.toArray();
-            didTransform = true;
-        }
-        if (didTransform) {
-            mapDef.extensions = mapDef.extensions || {};
-            mapDef.extensions["KHR_texture_transform"] = transformDef;
-            this.extensionsUsed["KHR_texture_transform"] = true;
-        }
-    }
-    buildMetalRoughTexture(metalnessMap, roughnessMap) {
-        if (metalnessMap === roughnessMap) return metalnessMap;
-        function getEncodingConversion(map) {
-            if (map.colorSpace === (0, _three.SRGBColorSpace)) return function SRGBToLinear(c) {
-                return c < 0.04045 ? c * 0.0773993808 : Math.pow(c * 0.9478672986 + 0.0521327014, 2.4);
-            };
-            return function LinearToLinear(c) {
-                return c;
-            };
-        }
-        console.warn("THREE.GLTFExporter: Merged metalnessMap and roughnessMap textures.");
-        if (metalnessMap instanceof (0, _three.CompressedTexture)) metalnessMap = (0, _textureUtilsJs.decompress)(metalnessMap);
-        if (roughnessMap instanceof (0, _three.CompressedTexture)) roughnessMap = (0, _textureUtilsJs.decompress)(roughnessMap);
-        const metalness = metalnessMap ? metalnessMap.image : null;
-        const roughness = roughnessMap ? roughnessMap.image : null;
-        const width = Math.max(metalness ? metalness.width : 0, roughness ? roughness.width : 0);
-        const height = Math.max(metalness ? metalness.height : 0, roughness ? roughness.height : 0);
-        const canvas = getCanvas();
-        canvas.width = width;
-        canvas.height = height;
-        const context = canvas.getContext("2d");
-        context.fillStyle = "#00ffff";
-        context.fillRect(0, 0, width, height);
-        const composite = context.getImageData(0, 0, width, height);
-        if (metalness) {
-            context.drawImage(metalness, 0, 0, width, height);
-            const convert = getEncodingConversion(metalnessMap);
-            const data = context.getImageData(0, 0, width, height).data;
-            for(let i = 2; i < data.length; i += 4)composite.data[i] = convert(data[i] / 256) * 256;
-        }
-        if (roughness) {
-            context.drawImage(roughness, 0, 0, width, height);
-            const convert = getEncodingConversion(roughnessMap);
-            const data = context.getImageData(0, 0, width, height).data;
-            for(let i = 1; i < data.length; i += 4)composite.data[i] = convert(data[i] / 256) * 256;
-        }
-        context.putImageData(composite, 0, 0);
-        //
-        const reference = metalnessMap || roughnessMap;
-        const texture = reference.clone();
-        texture.source = new (0, _three.Source)(canvas);
-        texture.colorSpace = (0, _three.NoColorSpace);
-        texture.channel = (metalnessMap || roughnessMap).channel;
-        if (metalnessMap && roughnessMap && metalnessMap.channel !== roughnessMap.channel) console.warn("THREE.GLTFExporter: UV channels for metalnessMap and roughnessMap textures must match.");
-        return texture;
-    }
-    /**
-	 * Process a buffer to append to the default one.
-	 * @param  {ArrayBuffer} buffer
-	 * @return {Integer}
-	 */ processBuffer(buffer) {
-        const json = this.json;
-        const buffers = this.buffers;
-        if (!json.buffers) json.buffers = [
-            {
-                byteLength: 0
-            }
-        ];
-        // All buffers are merged before export.
-        buffers.push(buffer);
-        return 0;
-    }
-    /**
-	 * Process and generate a BufferView
-	 * @param  {BufferAttribute} attribute
-	 * @param  {number} componentType
-	 * @param  {number} start
-	 * @param  {number} count
-	 * @param  {number} target (Optional) Target usage of the BufferView
-	 * @return {Object}
-	 */ processBufferView(attribute, componentType, start, count, target) {
-        const json = this.json;
-        if (!json.bufferViews) json.bufferViews = [];
-        // Create a new dataview and dump the attribute's array into it
-        let componentSize;
-        switch(componentType){
-            case WEBGL_CONSTANTS.BYTE:
-            case WEBGL_CONSTANTS.UNSIGNED_BYTE:
-                componentSize = 1;
-                break;
-            case WEBGL_CONSTANTS.SHORT:
-            case WEBGL_CONSTANTS.UNSIGNED_SHORT:
-                componentSize = 2;
-                break;
-            default:
-                componentSize = 4;
-        }
-        let byteStride = attribute.itemSize * componentSize;
-        if (target === WEBGL_CONSTANTS.ARRAY_BUFFER) // Each element of a vertex attribute MUST be aligned to 4-byte boundaries
-        // inside a bufferView
-        byteStride = Math.ceil(byteStride / 4) * 4;
-        const byteLength = getPaddedBufferSize(count * byteStride);
-        const dataView = new DataView(new ArrayBuffer(byteLength));
-        let offset = 0;
-        for(let i = start; i < start + count; i++){
-            for(let a = 0; a < attribute.itemSize; a++){
-                let value;
-                if (attribute.itemSize > 4) // no support for interleaved data for itemSize > 4
-                value = attribute.array[i * attribute.itemSize + a];
-                else {
-                    if (a === 0) value = attribute.getX(i);
-                    else if (a === 1) value = attribute.getY(i);
-                    else if (a === 2) value = attribute.getZ(i);
-                    else if (a === 3) value = attribute.getW(i);
-                    if (attribute.normalized === true) value = (0, _three.MathUtils).normalize(value, attribute.array);
-                }
-                if (componentType === WEBGL_CONSTANTS.FLOAT) dataView.setFloat32(offset, value, true);
-                else if (componentType === WEBGL_CONSTANTS.INT) dataView.setInt32(offset, value, true);
-                else if (componentType === WEBGL_CONSTANTS.UNSIGNED_INT) dataView.setUint32(offset, value, true);
-                else if (componentType === WEBGL_CONSTANTS.SHORT) dataView.setInt16(offset, value, true);
-                else if (componentType === WEBGL_CONSTANTS.UNSIGNED_SHORT) dataView.setUint16(offset, value, true);
-                else if (componentType === WEBGL_CONSTANTS.BYTE) dataView.setInt8(offset, value);
-                else if (componentType === WEBGL_CONSTANTS.UNSIGNED_BYTE) dataView.setUint8(offset, value);
-                offset += componentSize;
-            }
-            if (offset % byteStride !== 0) offset += byteStride - offset % byteStride;
-        }
-        const bufferViewDef = {
-            buffer: this.processBuffer(dataView.buffer),
-            byteOffset: this.byteOffset,
-            byteLength: byteLength
-        };
-        if (target !== undefined) bufferViewDef.target = target;
-        if (target === WEBGL_CONSTANTS.ARRAY_BUFFER) // Only define byteStride for vertex attributes.
-        bufferViewDef.byteStride = byteStride;
-        this.byteOffset += byteLength;
-        json.bufferViews.push(bufferViewDef);
-        // @TODO Merge bufferViews where possible.
-        const output = {
-            id: json.bufferViews.length - 1,
-            byteLength: 0
-        };
-        return output;
-    }
-    /**
-	 * Process and generate a BufferView from an image Blob.
-	 * @param {Blob} blob
-	 * @return {Promise<Integer>}
-	 */ processBufferViewImage(blob) {
-        const writer = this;
-        const json = writer.json;
-        if (!json.bufferViews) json.bufferViews = [];
-        return new Promise(function(resolve) {
-            const reader = new FileReader();
-            reader.readAsArrayBuffer(blob);
-            reader.onloadend = function() {
-                const buffer = getPaddedArrayBuffer(reader.result);
-                const bufferViewDef = {
-                    buffer: writer.processBuffer(buffer),
-                    byteOffset: writer.byteOffset,
-                    byteLength: buffer.byteLength
-                };
-                writer.byteOffset += buffer.byteLength;
-                resolve(json.bufferViews.push(bufferViewDef) - 1);
-            };
-        });
-    }
-    /**
-	 * Process attribute to generate an accessor
-	 * @param  {BufferAttribute} attribute Attribute to process
-	 * @param  {THREE.BufferGeometry} geometry (Optional) Geometry used for truncated draw range
-	 * @param  {Integer} start (Optional)
-	 * @param  {Integer} count (Optional)
-	 * @return {Integer|null} Index of the processed accessor on the "accessors" array
-	 */ processAccessor(attribute, geometry, start, count) {
-        const json = this.json;
-        const types = {
-            1: "SCALAR",
-            2: "VEC2",
-            3: "VEC3",
-            4: "VEC4",
-            9: "MAT3",
-            16: "MAT4"
-        };
-        let componentType;
-        // Detect the component type of the attribute array
-        if (attribute.array.constructor === Float32Array) componentType = WEBGL_CONSTANTS.FLOAT;
-        else if (attribute.array.constructor === Int32Array) componentType = WEBGL_CONSTANTS.INT;
-        else if (attribute.array.constructor === Uint32Array) componentType = WEBGL_CONSTANTS.UNSIGNED_INT;
-        else if (attribute.array.constructor === Int16Array) componentType = WEBGL_CONSTANTS.SHORT;
-        else if (attribute.array.constructor === Uint16Array) componentType = WEBGL_CONSTANTS.UNSIGNED_SHORT;
-        else if (attribute.array.constructor === Int8Array) componentType = WEBGL_CONSTANTS.BYTE;
-        else if (attribute.array.constructor === Uint8Array) componentType = WEBGL_CONSTANTS.UNSIGNED_BYTE;
-        else throw new Error("THREE.GLTFExporter: Unsupported bufferAttribute component type: " + attribute.array.constructor.name);
-        if (start === undefined) start = 0;
-        if (count === undefined || count === Infinity) count = attribute.count;
-        // Skip creating an accessor if the attribute doesn't have data to export
-        if (count === 0) return null;
-        const minMax = getMinMax(attribute, start, count);
-        let bufferViewTarget;
-        // If geometry isn't provided, don't infer the target usage of the bufferView. For
-        // animation samplers, target must not be set.
-        if (geometry !== undefined) bufferViewTarget = attribute === geometry.index ? WEBGL_CONSTANTS.ELEMENT_ARRAY_BUFFER : WEBGL_CONSTANTS.ARRAY_BUFFER;
-        const bufferView = this.processBufferView(attribute, componentType, start, count, bufferViewTarget);
-        const accessorDef = {
-            bufferView: bufferView.id,
-            byteOffset: bufferView.byteOffset,
-            componentType: componentType,
-            count: count,
-            max: minMax.max,
-            min: minMax.min,
-            type: types[attribute.itemSize]
-        };
-        if (attribute.normalized === true) accessorDef.normalized = true;
-        if (!json.accessors) json.accessors = [];
-        return json.accessors.push(accessorDef) - 1;
-    }
-    /**
-	 * Process image
-	 * @param  {Image} image to process
-	 * @param  {Integer} format of the image (RGBAFormat)
-	 * @param  {Boolean} flipY before writing out the image
-	 * @param  {String} mimeType export format
-	 * @return {Integer}     Index of the processed texture in the "images" array
-	 */ processImage(image, format, flipY, mimeType = "image/png") {
-        if (image !== null) {
-            const writer = this;
-            const cache = writer.cache;
-            const json = writer.json;
-            const options = writer.options;
-            const pending = writer.pending;
-            if (!cache.images.has(image)) cache.images.set(image, {});
-            const cachedImages = cache.images.get(image);
-            const key = mimeType + ":flipY/" + flipY.toString();
-            if (cachedImages[key] !== undefined) return cachedImages[key];
-            if (!json.images) json.images = [];
-            const imageDef = {
-                mimeType: mimeType
-            };
-            const canvas = getCanvas();
-            canvas.width = Math.min(image.width, options.maxTextureSize);
-            canvas.height = Math.min(image.height, options.maxTextureSize);
-            const ctx = canvas.getContext("2d");
-            if (flipY === true) {
-                ctx.translate(0, canvas.height);
-                ctx.scale(1, -1);
-            }
-            if (image.data !== undefined) {
-                if (format !== (0, _three.RGBAFormat)) console.error("GLTFExporter: Only RGBAFormat is supported.", format);
-                if (image.width > options.maxTextureSize || image.height > options.maxTextureSize) console.warn("GLTFExporter: Image size is bigger than maxTextureSize", image);
-                const data = new Uint8ClampedArray(image.height * image.width * 4);
-                for(let i = 0; i < data.length; i += 4){
-                    data[i + 0] = image.data[i + 0];
-                    data[i + 1] = image.data[i + 1];
-                    data[i + 2] = image.data[i + 2];
-                    data[i + 3] = image.data[i + 3];
-                }
-                ctx.putImageData(new ImageData(data, image.width, image.height), 0, 0);
-            } else {
-                if (typeof HTMLImageElement !== "undefined" && image instanceof HTMLImageElement || typeof HTMLCanvasElement !== "undefined" && image instanceof HTMLCanvasElement || typeof ImageBitmap !== "undefined" && image instanceof ImageBitmap || typeof OffscreenCanvas !== "undefined" && image instanceof OffscreenCanvas) ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-                else throw new Error("THREE.GLTFExporter: Invalid image type. Use HTMLImageElement, HTMLCanvasElement, ImageBitmap or OffscreenCanvas.");
-            }
-            if (options.binary === true) pending.push(getToBlobPromise(canvas, mimeType).then((blob)=>writer.processBufferViewImage(blob)).then((bufferViewIndex)=>{
-                imageDef.bufferView = bufferViewIndex;
-            }));
-            else if (canvas.toDataURL !== undefined) imageDef.uri = canvas.toDataURL(mimeType);
-            else pending.push(getToBlobPromise(canvas, mimeType).then((blob)=>new FileReader().readAsDataURL(blob)).then((dataURL)=>{
-                imageDef.uri = dataURL;
-            }));
-            const index = json.images.push(imageDef) - 1;
-            cachedImages[key] = index;
-            return index;
-        } else throw new Error("THREE.GLTFExporter: No valid image data found. Unable to process texture.");
-    }
-    /**
-	 * Process sampler
-	 * @param  {Texture} map Texture to process
-	 * @return {Integer}     Index of the processed texture in the "samplers" array
-	 */ processSampler(map) {
-        const json = this.json;
-        if (!json.samplers) json.samplers = [];
-        const samplerDef = {
-            magFilter: THREE_TO_WEBGL[map.magFilter],
-            minFilter: THREE_TO_WEBGL[map.minFilter],
-            wrapS: THREE_TO_WEBGL[map.wrapS],
-            wrapT: THREE_TO_WEBGL[map.wrapT]
-        };
-        return json.samplers.push(samplerDef) - 1;
-    }
-    /**
-	 * Process texture
-	 * @param  {Texture} map Map to process
-	 * @return {Integer} Index of the processed texture in the "textures" array
-	 */ processTexture(map) {
-        const writer = this;
-        const options = writer.options;
-        const cache = this.cache;
-        const json = this.json;
-        if (cache.textures.has(map)) return cache.textures.get(map);
-        if (!json.textures) json.textures = [];
-        // make non-readable textures (e.g. CompressedTexture) readable by blitting them into a new texture
-        if (map instanceof (0, _three.CompressedTexture)) map = (0, _textureUtilsJs.decompress)(map, options.maxTextureSize);
-        let mimeType = map.userData.mimeType;
-        if (mimeType === "image/webp") mimeType = "image/png";
-        const textureDef = {
-            sampler: this.processSampler(map),
-            source: this.processImage(map.image, map.format, map.flipY, mimeType)
-        };
-        if (map.name) textureDef.name = map.name;
-        this._invokeAll(function(ext) {
-            ext.writeTexture && ext.writeTexture(map, textureDef);
-        });
-        const index = json.textures.push(textureDef) - 1;
-        cache.textures.set(map, index);
-        return index;
-    }
-    /**
-	 * Process material
-	 * @param  {THREE.Material} material Material to process
-	 * @return {Integer|null} Index of the processed material in the "materials" array
-	 */ processMaterial(material) {
-        const cache = this.cache;
-        const json = this.json;
-        if (cache.materials.has(material)) return cache.materials.get(material);
-        if (material.isShaderMaterial) {
-            console.warn("GLTFExporter: THREE.ShaderMaterial not supported.");
-            return null;
-        }
-        if (!json.materials) json.materials = [];
-        // @QUESTION Should we avoid including any attribute that has the default value?
-        const materialDef = {
-            pbrMetallicRoughness: {}
-        };
-        if (material.isMeshStandardMaterial !== true && material.isMeshBasicMaterial !== true) console.warn("GLTFExporter: Use MeshStandardMaterial or MeshBasicMaterial for best results.");
-        // pbrMetallicRoughness.baseColorFactor
-        const color = material.color.toArray().concat([
-            material.opacity
-        ]);
-        if (!equalArray(color, [
-            1,
-            1,
-            1,
-            1
-        ])) materialDef.pbrMetallicRoughness.baseColorFactor = color;
-        if (material.isMeshStandardMaterial) {
-            materialDef.pbrMetallicRoughness.metallicFactor = material.metalness;
-            materialDef.pbrMetallicRoughness.roughnessFactor = material.roughness;
-        } else {
-            materialDef.pbrMetallicRoughness.metallicFactor = 0.5;
-            materialDef.pbrMetallicRoughness.roughnessFactor = 0.5;
-        }
-        // pbrMetallicRoughness.metallicRoughnessTexture
-        if (material.metalnessMap || material.roughnessMap) {
-            const metalRoughTexture = this.buildMetalRoughTexture(material.metalnessMap, material.roughnessMap);
-            const metalRoughMapDef = {
-                index: this.processTexture(metalRoughTexture),
-                channel: metalRoughTexture.channel
-            };
-            this.applyTextureTransform(metalRoughMapDef, metalRoughTexture);
-            materialDef.pbrMetallicRoughness.metallicRoughnessTexture = metalRoughMapDef;
-        }
-        // pbrMetallicRoughness.baseColorTexture
-        if (material.map) {
-            const baseColorMapDef = {
-                index: this.processTexture(material.map),
-                texCoord: material.map.channel
-            };
-            this.applyTextureTransform(baseColorMapDef, material.map);
-            materialDef.pbrMetallicRoughness.baseColorTexture = baseColorMapDef;
-        }
-        if (material.emissive) {
-            const emissive = material.emissive;
-            const maxEmissiveComponent = Math.max(emissive.r, emissive.g, emissive.b);
-            if (maxEmissiveComponent > 0) materialDef.emissiveFactor = material.emissive.toArray();
-            // emissiveTexture
-            if (material.emissiveMap) {
-                const emissiveMapDef = {
-                    index: this.processTexture(material.emissiveMap),
-                    texCoord: material.emissiveMap.channel
-                };
-                this.applyTextureTransform(emissiveMapDef, material.emissiveMap);
-                materialDef.emissiveTexture = emissiveMapDef;
-            }
-        }
-        // normalTexture
-        if (material.normalMap) {
-            const normalMapDef = {
-                index: this.processTexture(material.normalMap),
-                texCoord: material.normalMap.channel
-            };
-            if (material.normalScale && material.normalScale.x !== 1) // glTF normal scale is univariate. Ignore `y`, which may be flipped.
-            // Context: https://github.com/mrdoob/three.js/issues/11438#issuecomment-507003995
-            normalMapDef.scale = material.normalScale.x;
-            this.applyTextureTransform(normalMapDef, material.normalMap);
-            materialDef.normalTexture = normalMapDef;
-        }
-        // occlusionTexture
-        if (material.aoMap) {
-            const occlusionMapDef = {
-                index: this.processTexture(material.aoMap),
-                texCoord: material.aoMap.channel
-            };
-            if (material.aoMapIntensity !== 1.0) occlusionMapDef.strength = material.aoMapIntensity;
-            this.applyTextureTransform(occlusionMapDef, material.aoMap);
-            materialDef.occlusionTexture = occlusionMapDef;
-        }
-        // alphaMode
-        if (material.transparent) materialDef.alphaMode = "BLEND";
-        else if (material.alphaTest > 0.0) {
-            materialDef.alphaMode = "MASK";
-            materialDef.alphaCutoff = material.alphaTest;
-        }
-        // doubleSided
-        if (material.side === (0, _three.DoubleSide)) materialDef.doubleSided = true;
-        if (material.name !== "") materialDef.name = material.name;
-        this.serializeUserData(material, materialDef);
-        this._invokeAll(function(ext) {
-            ext.writeMaterial && ext.writeMaterial(material, materialDef);
-        });
-        const index = json.materials.push(materialDef) - 1;
-        cache.materials.set(material, index);
-        return index;
-    }
-    /**
-	 * Process mesh
-	 * @param  {THREE.Mesh} mesh Mesh to process
-	 * @return {Integer|null} Index of the processed mesh in the "meshes" array
-	 */ processMesh(mesh) {
-        const cache = this.cache;
-        const json = this.json;
-        const meshCacheKeyParts = [
-            mesh.geometry.uuid
-        ];
-        if (Array.isArray(mesh.material)) for(let i = 0, l = mesh.material.length; i < l; i++)meshCacheKeyParts.push(mesh.material[i].uuid);
-        else meshCacheKeyParts.push(mesh.material.uuid);
-        const meshCacheKey = meshCacheKeyParts.join(":");
-        if (cache.meshes.has(meshCacheKey)) return cache.meshes.get(meshCacheKey);
-        const geometry = mesh.geometry;
-        let mode;
-        // Use the correct mode
-        if (mesh.isLineSegments) mode = WEBGL_CONSTANTS.LINES;
-        else if (mesh.isLineLoop) mode = WEBGL_CONSTANTS.LINE_LOOP;
-        else if (mesh.isLine) mode = WEBGL_CONSTANTS.LINE_STRIP;
-        else if (mesh.isPoints) mode = WEBGL_CONSTANTS.POINTS;
-        else mode = mesh.material.wireframe ? WEBGL_CONSTANTS.LINES : WEBGL_CONSTANTS.TRIANGLES;
-        const meshDef = {};
-        const attributes = {};
-        const primitives = [];
-        const targets = [];
-        // Conversion between attributes names in threejs and gltf spec
-        const nameConversion = {
-            uv: "TEXCOORD_0",
-            uv1: "TEXCOORD_1",
-            uv2: "TEXCOORD_2",
-            uv3: "TEXCOORD_3",
-            color: "COLOR_0",
-            skinWeight: "WEIGHTS_0",
-            skinIndex: "JOINTS_0"
-        };
-        const originalNormal = geometry.getAttribute("normal");
-        if (originalNormal !== undefined && !this.isNormalizedNormalAttribute(originalNormal)) {
-            console.warn("THREE.GLTFExporter: Creating normalized normal attribute from the non-normalized one.");
-            geometry.setAttribute("normal", this.createNormalizedNormalAttribute(originalNormal));
-        }
-        // @QUESTION Detect if .vertexColors = true?
-        // For every attribute create an accessor
-        let modifiedAttribute = null;
-        for(let attributeName in geometry.attributes){
-            // Ignore morph target attributes, which are exported later.
-            if (attributeName.slice(0, 5) === "morph") continue;
-            const attribute = geometry.attributes[attributeName];
-            attributeName = nameConversion[attributeName] || attributeName.toUpperCase();
-            // Prefix all geometry attributes except the ones specifically
-            // listed in the spec; non-spec attributes are considered custom.
-            const validVertexAttributes = /^(POSITION|NORMAL|TANGENT|TEXCOORD_\d+|COLOR_\d+|JOINTS_\d+|WEIGHTS_\d+)$/;
-            if (!validVertexAttributes.test(attributeName)) attributeName = "_" + attributeName;
-            if (cache.attributes.has(this.getUID(attribute))) {
-                attributes[attributeName] = cache.attributes.get(this.getUID(attribute));
-                continue;
-            }
-            // JOINTS_0 must be UNSIGNED_BYTE or UNSIGNED_SHORT.
-            modifiedAttribute = null;
-            const array = attribute.array;
-            if (attributeName === "JOINTS_0" && !(array instanceof Uint16Array) && !(array instanceof Uint8Array)) {
-                console.warn('GLTFExporter: Attribute "skinIndex" converted to type UNSIGNED_SHORT.');
-                modifiedAttribute = new (0, _three.BufferAttribute)(new Uint16Array(array), attribute.itemSize, attribute.normalized);
-            }
-            const accessor = this.processAccessor(modifiedAttribute || attribute, geometry);
-            if (accessor !== null) {
-                if (!attributeName.startsWith("_")) this.detectMeshQuantization(attributeName, attribute);
-                attributes[attributeName] = accessor;
-                cache.attributes.set(this.getUID(attribute), accessor);
-            }
-        }
-        if (originalNormal !== undefined) geometry.setAttribute("normal", originalNormal);
-        // Skip if no exportable attributes found
-        if (Object.keys(attributes).length === 0) return null;
-        // Morph targets
-        if (mesh.morphTargetInfluences !== undefined && mesh.morphTargetInfluences.length > 0) {
-            const weights = [];
-            const targetNames = [];
-            const reverseDictionary = {};
-            if (mesh.morphTargetDictionary !== undefined) for(const key in mesh.morphTargetDictionary)reverseDictionary[mesh.morphTargetDictionary[key]] = key;
-            for(let i = 0; i < mesh.morphTargetInfluences.length; ++i){
-                const target = {};
-                let warned = false;
-                for(const attributeName in geometry.morphAttributes){
-                    // glTF 2.0 morph supports only POSITION/NORMAL/TANGENT.
-                    // Three.js doesn't support TANGENT yet.
-                    if (attributeName !== "position" && attributeName !== "normal") {
-                        if (!warned) {
-                            console.warn("GLTFExporter: Only POSITION and NORMAL morph are supported.");
-                            warned = true;
-                        }
-                        continue;
-                    }
-                    const attribute = geometry.morphAttributes[attributeName][i];
-                    const gltfAttributeName = attributeName.toUpperCase();
-                    // Three.js morph attribute has absolute values while the one of glTF has relative values.
-                    //
-                    // glTF 2.0 Specification:
-                    // https://github.com/KhronosGroup/glTF/tree/master/specification/2.0#morph-targets
-                    const baseAttribute = geometry.attributes[attributeName];
-                    if (cache.attributes.has(this.getUID(attribute, true))) {
-                        target[gltfAttributeName] = cache.attributes.get(this.getUID(attribute, true));
-                        continue;
-                    }
-                    // Clones attribute not to override
-                    const relativeAttribute = attribute.clone();
-                    if (!geometry.morphTargetsRelative) {
-                        for(let j = 0, jl = attribute.count; j < jl; j++)for(let a = 0; a < attribute.itemSize; a++){
-                            if (a === 0) relativeAttribute.setX(j, attribute.getX(j) - baseAttribute.getX(j));
-                            if (a === 1) relativeAttribute.setY(j, attribute.getY(j) - baseAttribute.getY(j));
-                            if (a === 2) relativeAttribute.setZ(j, attribute.getZ(j) - baseAttribute.getZ(j));
-                            if (a === 3) relativeAttribute.setW(j, attribute.getW(j) - baseAttribute.getW(j));
-                        }
-                    }
-                    target[gltfAttributeName] = this.processAccessor(relativeAttribute, geometry);
-                    cache.attributes.set(this.getUID(baseAttribute, true), target[gltfAttributeName]);
-                }
-                targets.push(target);
-                weights.push(mesh.morphTargetInfluences[i]);
-                if (mesh.morphTargetDictionary !== undefined) targetNames.push(reverseDictionary[i]);
-            }
-            meshDef.weights = weights;
-            if (targetNames.length > 0) {
-                meshDef.extras = {};
-                meshDef.extras.targetNames = targetNames;
-            }
-        }
-        const isMultiMaterial = Array.isArray(mesh.material);
-        if (isMultiMaterial && geometry.groups.length === 0) return null;
-        let didForceIndices = false;
-        if (isMultiMaterial && geometry.index === null) {
-            const indices = [];
-            for(let i = 0, il = geometry.attributes.position.count; i < il; i++)indices[i] = i;
-            geometry.setIndex(indices);
-            didForceIndices = true;
-        }
-        const materials = isMultiMaterial ? mesh.material : [
-            mesh.material
-        ];
-        const groups = isMultiMaterial ? geometry.groups : [
-            {
-                materialIndex: 0,
-                start: undefined,
-                count: undefined
-            }
-        ];
-        for(let i = 0, il = groups.length; i < il; i++){
-            const primitive = {
-                mode: mode,
-                attributes: attributes
-            };
-            this.serializeUserData(geometry, primitive);
-            if (targets.length > 0) primitive.targets = targets;
-            if (geometry.index !== null) {
-                let cacheKey = this.getUID(geometry.index);
-                if (groups[i].start !== undefined || groups[i].count !== undefined) cacheKey += ":" + groups[i].start + ":" + groups[i].count;
-                if (cache.attributes.has(cacheKey)) primitive.indices = cache.attributes.get(cacheKey);
-                else {
-                    primitive.indices = this.processAccessor(geometry.index, geometry, groups[i].start, groups[i].count);
-                    cache.attributes.set(cacheKey, primitive.indices);
-                }
-                if (primitive.indices === null) delete primitive.indices;
-            }
-            const material = this.processMaterial(materials[groups[i].materialIndex]);
-            if (material !== null) primitive.material = material;
-            primitives.push(primitive);
-        }
-        if (didForceIndices === true) geometry.setIndex(null);
-        meshDef.primitives = primitives;
-        if (!json.meshes) json.meshes = [];
-        this._invokeAll(function(ext) {
-            ext.writeMesh && ext.writeMesh(mesh, meshDef);
-        });
-        const index = json.meshes.push(meshDef) - 1;
-        cache.meshes.set(meshCacheKey, index);
-        return index;
-    }
-    /**
-	 * If a vertex attribute with a
-	 * [non-standard data type](https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#meshes-overview)
-	 * is used, it is checked whether it is a valid data type according to the
-	 * [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md)
-	 * extension.
-	 * In this case the extension is automatically added to the list of used extensions.
-	 *
-	 * @param {string} attributeName
-	 * @param {THREE.BufferAttribute} attribute
-	 */ detectMeshQuantization(attributeName, attribute) {
-        if (this.extensionsUsed[KHR_MESH_QUANTIZATION]) return;
-        let attrType = undefined;
-        switch(attribute.array.constructor){
-            case Int8Array:
-                attrType = "byte";
-                break;
-            case Uint8Array:
-                attrType = "unsigned byte";
-                break;
-            case Int16Array:
-                attrType = "short";
-                break;
-            case Uint16Array:
-                attrType = "unsigned short";
-                break;
-            default:
-                return;
-        }
-        if (attribute.normalized) attrType += " normalized";
-        const attrNamePrefix = attributeName.split("_", 1)[0];
-        if (KHR_mesh_quantization_ExtraAttrTypes[attrNamePrefix] && KHR_mesh_quantization_ExtraAttrTypes[attrNamePrefix].includes(attrType)) {
-            this.extensionsUsed[KHR_MESH_QUANTIZATION] = true;
-            this.extensionsRequired[KHR_MESH_QUANTIZATION] = true;
-        }
-    }
-    /**
-	 * Process camera
-	 * @param  {THREE.Camera} camera Camera to process
-	 * @return {Integer}      Index of the processed mesh in the "camera" array
-	 */ processCamera(camera) {
-        const json = this.json;
-        if (!json.cameras) json.cameras = [];
-        const isOrtho = camera.isOrthographicCamera;
-        const cameraDef = {
-            type: isOrtho ? "orthographic" : "perspective"
-        };
-        if (isOrtho) cameraDef.orthographic = {
-            xmag: camera.right * 2,
-            ymag: camera.top * 2,
-            zfar: camera.far <= 0 ? 0.001 : camera.far,
-            znear: camera.near < 0 ? 0 : camera.near
-        };
-        else cameraDef.perspective = {
-            aspectRatio: camera.aspect,
-            yfov: (0, _three.MathUtils).degToRad(camera.fov),
-            zfar: camera.far <= 0 ? 0.001 : camera.far,
-            znear: camera.near < 0 ? 0 : camera.near
-        };
-        // Question: Is saving "type" as name intentional?
-        if (camera.name !== "") cameraDef.name = camera.type;
-        return json.cameras.push(cameraDef) - 1;
-    }
-    /**
-	 * Creates glTF animation entry from AnimationClip object.
-	 *
-	 * Status:
-	 * - Only properties listed in PATH_PROPERTIES may be animated.
-	 *
-	 * @param {THREE.AnimationClip} clip
-	 * @param {THREE.Object3D} root
-	 * @return {number|null}
-	 */ processAnimation(clip, root) {
-        const json = this.json;
-        const nodeMap = this.nodeMap;
-        if (!json.animations) json.animations = [];
-        clip = GLTFExporter.Utils.mergeMorphTargetTracks(clip.clone(), root);
-        const tracks = clip.tracks;
-        const channels = [];
-        const samplers = [];
-        for(let i = 0; i < tracks.length; ++i){
-            const track = tracks[i];
-            const trackBinding = (0, _three.PropertyBinding).parseTrackName(track.name);
-            let trackNode = (0, _three.PropertyBinding).findNode(root, trackBinding.nodeName);
-            const trackProperty = PATH_PROPERTIES[trackBinding.propertyName];
-            if (trackBinding.objectName === "bones") {
-                if (trackNode.isSkinnedMesh === true) trackNode = trackNode.skeleton.getBoneByName(trackBinding.objectIndex);
-                else trackNode = undefined;
-            }
-            if (!trackNode || !trackProperty) {
-                console.warn('THREE.GLTFExporter: Could not export animation track "%s".', track.name);
-                return null;
-            }
-            const inputItemSize = 1;
-            let outputItemSize = track.values.length / track.times.length;
-            if (trackProperty === PATH_PROPERTIES.morphTargetInfluences) outputItemSize /= trackNode.morphTargetInfluences.length;
-            let interpolation;
-            // @TODO export CubicInterpolant(InterpolateSmooth) as CUBICSPLINE
-            // Detecting glTF cubic spline interpolant by checking factory method's special property
-            // GLTFCubicSplineInterpolant is a custom interpolant and track doesn't return
-            // valid value from .getInterpolation().
-            if (track.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline === true) {
-                interpolation = "CUBICSPLINE";
-                // itemSize of CUBICSPLINE keyframe is 9
-                // (VEC3 * 3: inTangent, splineVertex, and outTangent)
-                // but needs to be stored as VEC3 so dividing by 3 here.
-                outputItemSize /= 3;
-            } else if (track.getInterpolation() === (0, _three.InterpolateDiscrete)) interpolation = "STEP";
-            else interpolation = "LINEAR";
-            samplers.push({
-                input: this.processAccessor(new (0, _three.BufferAttribute)(track.times, inputItemSize)),
-                output: this.processAccessor(new (0, _three.BufferAttribute)(track.values, outputItemSize)),
-                interpolation: interpolation
-            });
-            channels.push({
-                sampler: samplers.length - 1,
-                target: {
-                    node: nodeMap.get(trackNode),
-                    path: trackProperty
-                }
-            });
-        }
-        json.animations.push({
-            name: clip.name || "clip_" + json.animations.length,
-            samplers: samplers,
-            channels: channels
-        });
-        return json.animations.length - 1;
-    }
-    /**
-	 * @param {THREE.Object3D} object
-	 * @return {number|null}
-	 */ processSkin(object) {
-        const json = this.json;
-        const nodeMap = this.nodeMap;
-        const node = json.nodes[nodeMap.get(object)];
-        const skeleton = object.skeleton;
-        if (skeleton === undefined) return null;
-        const rootJoint = object.skeleton.bones[0];
-        if (rootJoint === undefined) return null;
-        const joints = [];
-        const inverseBindMatrices = new Float32Array(skeleton.bones.length * 16);
-        const temporaryBoneInverse = new (0, _three.Matrix4)();
-        for(let i = 0; i < skeleton.bones.length; ++i){
-            joints.push(nodeMap.get(skeleton.bones[i]));
-            temporaryBoneInverse.copy(skeleton.boneInverses[i]);
-            temporaryBoneInverse.multiply(object.bindMatrix).toArray(inverseBindMatrices, i * 16);
-        }
-        if (json.skins === undefined) json.skins = [];
-        json.skins.push({
-            inverseBindMatrices: this.processAccessor(new (0, _three.BufferAttribute)(inverseBindMatrices, 16)),
-            joints: joints,
-            skeleton: nodeMap.get(rootJoint)
-        });
-        const skinIndex = node.skin = json.skins.length - 1;
-        return skinIndex;
-    }
-    /**
-	 * Process Object3D node
-	 * @param  {THREE.Object3D} node Object3D to processNode
-	 * @return {Integer} Index of the node in the nodes list
-	 */ processNode(object) {
-        const json = this.json;
-        const options = this.options;
-        const nodeMap = this.nodeMap;
-        if (!json.nodes) json.nodes = [];
-        const nodeDef = {};
-        if (options.trs) {
-            const rotation = object.quaternion.toArray();
-            const position = object.position.toArray();
-            const scale = object.scale.toArray();
-            if (!equalArray(rotation, [
-                0,
-                0,
-                0,
-                1
-            ])) nodeDef.rotation = rotation;
-            if (!equalArray(position, [
-                0,
-                0,
-                0
-            ])) nodeDef.translation = position;
-            if (!equalArray(scale, [
-                1,
-                1,
-                1
-            ])) nodeDef.scale = scale;
-        } else {
-            if (object.matrixAutoUpdate) object.updateMatrix();
-            if (isIdentityMatrix(object.matrix) === false) nodeDef.matrix = object.matrix.elements;
-        }
-        // We don't export empty strings name because it represents no-name in Three.js.
-        if (object.name !== "") nodeDef.name = String(object.name);
-        this.serializeUserData(object, nodeDef);
-        if (object.isMesh || object.isLine || object.isPoints) {
-            const meshIndex = this.processMesh(object);
-            if (meshIndex !== null) nodeDef.mesh = meshIndex;
-        } else if (object.isCamera) nodeDef.camera = this.processCamera(object);
-        if (object.isSkinnedMesh) this.skins.push(object);
-        if (object.children.length > 0) {
-            const children = [];
-            for(let i = 0, l = object.children.length; i < l; i++){
-                const child = object.children[i];
-                if (child.visible || options.onlyVisible === false) {
-                    const nodeIndex = this.processNode(child);
-                    if (nodeIndex !== null) children.push(nodeIndex);
-                }
-            }
-            if (children.length > 0) nodeDef.children = children;
-        }
-        this._invokeAll(function(ext) {
-            ext.writeNode && ext.writeNode(object, nodeDef);
-        });
-        const nodeIndex = json.nodes.push(nodeDef) - 1;
-        nodeMap.set(object, nodeIndex);
-        return nodeIndex;
-    }
-    /**
-	 * Process Scene
-	 * @param  {Scene} node Scene to process
-	 */ processScene(scene) {
-        const json = this.json;
-        const options = this.options;
-        if (!json.scenes) {
-            json.scenes = [];
-            json.scene = 0;
-        }
-        const sceneDef = {};
-        if (scene.name !== "") sceneDef.name = scene.name;
-        json.scenes.push(sceneDef);
-        const nodes = [];
-        for(let i = 0, l = scene.children.length; i < l; i++){
-            const child = scene.children[i];
-            if (child.visible || options.onlyVisible === false) {
-                const nodeIndex = this.processNode(child);
-                if (nodeIndex !== null) nodes.push(nodeIndex);
-            }
-        }
-        if (nodes.length > 0) sceneDef.nodes = nodes;
-        this.serializeUserData(scene, sceneDef);
-    }
-    /**
-	 * Creates a Scene to hold a list of objects and parse it
-	 * @param  {Array} objects List of objects to process
-	 */ processObjects(objects) {
-        const scene = new (0, _three.Scene)();
-        scene.name = "AuxScene";
-        for(let i = 0; i < objects.length; i++)// We push directly to children instead of calling `add` to prevent
-        // modify the .parent and break its original scene and hierarchy
-        scene.children.push(objects[i]);
-        this.processScene(scene);
-    }
-    /**
-	 * @param {THREE.Object3D|Array<THREE.Object3D>} input
-	 */ processInput(input) {
-        const options = this.options;
-        input = input instanceof Array ? input : [
-            input
-        ];
-        this._invokeAll(function(ext) {
-            ext.beforeParse && ext.beforeParse(input);
-        });
-        const objectsWithoutScene = [];
-        for(let i = 0; i < input.length; i++)if (input[i] instanceof (0, _three.Scene)) this.processScene(input[i]);
-        else objectsWithoutScene.push(input[i]);
-        if (objectsWithoutScene.length > 0) this.processObjects(objectsWithoutScene);
-        for(let i = 0; i < this.skins.length; ++i)this.processSkin(this.skins[i]);
-        for(let i = 0; i < options.animations.length; ++i)this.processAnimation(options.animations[i], input[0]);
-        this._invokeAll(function(ext) {
-            ext.afterParse && ext.afterParse(input);
-        });
-    }
-    _invokeAll(func) {
-        for(let i = 0, il = this.plugins.length; i < il; i++)func(this.plugins[i]);
-    }
-}
-/**
- * Punctual Lights Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_lights_punctual
- */ class GLTFLightExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_lights_punctual";
-    }
-    writeNode(light, nodeDef) {
-        if (!light.isLight) return;
-        if (!light.isDirectionalLight && !light.isPointLight && !light.isSpotLight) {
-            console.warn("THREE.GLTFExporter: Only directional, point, and spot lights are supported.", light);
-            return;
-        }
-        const writer = this.writer;
-        const json = writer.json;
-        const extensionsUsed = writer.extensionsUsed;
-        const lightDef = {};
-        if (light.name) lightDef.name = light.name;
-        lightDef.color = light.color.toArray();
-        lightDef.intensity = light.intensity;
-        if (light.isDirectionalLight) lightDef.type = "directional";
-        else if (light.isPointLight) {
-            lightDef.type = "point";
-            if (light.distance > 0) lightDef.range = light.distance;
-        } else if (light.isSpotLight) {
-            lightDef.type = "spot";
-            if (light.distance > 0) lightDef.range = light.distance;
-            lightDef.spot = {};
-            lightDef.spot.innerConeAngle = (1.0 - light.penumbra) * light.angle;
-            lightDef.spot.outerConeAngle = light.angle;
-        }
-        if (light.decay !== undefined && light.decay !== 2) console.warn("THREE.GLTFExporter: Light decay may be lost. glTF is physically-based, and expects light.decay=2.");
-        if (light.target && (light.target.parent !== light || light.target.position.x !== 0 || light.target.position.y !== 0 || light.target.position.z !== -1)) console.warn("THREE.GLTFExporter: Light direction may be lost. For best results, make light.target a child of the light with position 0,0,-1.");
-        if (!extensionsUsed[this.name]) {
-            json.extensions = json.extensions || {};
-            json.extensions[this.name] = {
-                lights: []
-            };
-            extensionsUsed[this.name] = true;
-        }
-        const lights = json.extensions[this.name].lights;
-        lights.push(lightDef);
-        nodeDef.extensions = nodeDef.extensions || {};
-        nodeDef.extensions[this.name] = {
-            light: lights.length - 1
-        };
-    }
-}
-/**
- * Unlit Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_unlit
- */ class GLTFMaterialsUnlitExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_unlit";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshBasicMaterial) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = {};
-        extensionsUsed[this.name] = true;
-        materialDef.pbrMetallicRoughness.metallicFactor = 0.0;
-        materialDef.pbrMetallicRoughness.roughnessFactor = 0.9;
-    }
-}
-/**
- * Clearcoat Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_clearcoat
- */ class GLTFMaterialsClearcoatExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_clearcoat";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshPhysicalMaterial || material.clearcoat === 0) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        extensionDef.clearcoatFactor = material.clearcoat;
-        if (material.clearcoatMap) {
-            const clearcoatMapDef = {
-                index: writer.processTexture(material.clearcoatMap),
-                texCoord: material.clearcoatMap.channel
-            };
-            writer.applyTextureTransform(clearcoatMapDef, material.clearcoatMap);
-            extensionDef.clearcoatTexture = clearcoatMapDef;
-        }
-        extensionDef.clearcoatRoughnessFactor = material.clearcoatRoughness;
-        if (material.clearcoatRoughnessMap) {
-            const clearcoatRoughnessMapDef = {
-                index: writer.processTexture(material.clearcoatRoughnessMap),
-                texCoord: material.clearcoatRoughnessMap.channel
-            };
-            writer.applyTextureTransform(clearcoatRoughnessMapDef, material.clearcoatRoughnessMap);
-            extensionDef.clearcoatRoughnessTexture = clearcoatRoughnessMapDef;
-        }
-        if (material.clearcoatNormalMap) {
-            const clearcoatNormalMapDef = {
-                index: writer.processTexture(material.clearcoatNormalMap),
-                texCoord: material.clearcoatNormalMap.channel
-            };
-            if (material.clearcoatNormalScale.x !== 1) clearcoatNormalMapDef.scale = material.clearcoatNormalScale.x;
-            writer.applyTextureTransform(clearcoatNormalMapDef, material.clearcoatNormalMap);
-            extensionDef.clearcoatNormalTexture = clearcoatNormalMapDef;
-        }
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Materials dispersion Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_dispersion
- */ class GLTFMaterialsDispersionExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_dispersion";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshPhysicalMaterial || material.dispersion === 0) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        extensionDef.dispersion = material.dispersion;
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Iridescence Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_iridescence
- */ class GLTFMaterialsIridescenceExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_iridescence";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshPhysicalMaterial || material.iridescence === 0) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        extensionDef.iridescenceFactor = material.iridescence;
-        if (material.iridescenceMap) {
-            const iridescenceMapDef = {
-                index: writer.processTexture(material.iridescenceMap),
-                texCoord: material.iridescenceMap.channel
-            };
-            writer.applyTextureTransform(iridescenceMapDef, material.iridescenceMap);
-            extensionDef.iridescenceTexture = iridescenceMapDef;
-        }
-        extensionDef.iridescenceIor = material.iridescenceIOR;
-        extensionDef.iridescenceThicknessMinimum = material.iridescenceThicknessRange[0];
-        extensionDef.iridescenceThicknessMaximum = material.iridescenceThicknessRange[1];
-        if (material.iridescenceThicknessMap) {
-            const iridescenceThicknessMapDef = {
-                index: writer.processTexture(material.iridescenceThicknessMap),
-                texCoord: material.iridescenceThicknessMap.channel
-            };
-            writer.applyTextureTransform(iridescenceThicknessMapDef, material.iridescenceThicknessMap);
-            extensionDef.iridescenceThicknessTexture = iridescenceThicknessMapDef;
-        }
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Transmission Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_transmission
- */ class GLTFMaterialsTransmissionExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_transmission";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshPhysicalMaterial || material.transmission === 0) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        extensionDef.transmissionFactor = material.transmission;
-        if (material.transmissionMap) {
-            const transmissionMapDef = {
-                index: writer.processTexture(material.transmissionMap),
-                texCoord: material.transmissionMap.channel
-            };
-            writer.applyTextureTransform(transmissionMapDef, material.transmissionMap);
-            extensionDef.transmissionTexture = transmissionMapDef;
-        }
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Materials Volume Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_volume
- */ class GLTFMaterialsVolumeExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_volume";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshPhysicalMaterial || material.transmission === 0) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        extensionDef.thicknessFactor = material.thickness;
-        if (material.thicknessMap) {
-            const thicknessMapDef = {
-                index: writer.processTexture(material.thicknessMap),
-                texCoord: material.thicknessMap.channel
-            };
-            writer.applyTextureTransform(thicknessMapDef, material.thicknessMap);
-            extensionDef.thicknessTexture = thicknessMapDef;
-        }
-        extensionDef.attenuationDistance = material.attenuationDistance;
-        extensionDef.attenuationColor = material.attenuationColor.toArray();
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Materials ior Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_ior
- */ class GLTFMaterialsIorExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_ior";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshPhysicalMaterial || material.ior === 1.5) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        extensionDef.ior = material.ior;
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Materials specular Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_specular
- */ class GLTFMaterialsSpecularExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_specular";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshPhysicalMaterial || material.specularIntensity === 1.0 && material.specularColor.equals(DEFAULT_SPECULAR_COLOR) && !material.specularIntensityMap && !material.specularColorMap) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        if (material.specularIntensityMap) {
-            const specularIntensityMapDef = {
-                index: writer.processTexture(material.specularIntensityMap),
-                texCoord: material.specularIntensityMap.channel
-            };
-            writer.applyTextureTransform(specularIntensityMapDef, material.specularIntensityMap);
-            extensionDef.specularTexture = specularIntensityMapDef;
-        }
-        if (material.specularColorMap) {
-            const specularColorMapDef = {
-                index: writer.processTexture(material.specularColorMap),
-                texCoord: material.specularColorMap.channel
-            };
-            writer.applyTextureTransform(specularColorMapDef, material.specularColorMap);
-            extensionDef.specularColorTexture = specularColorMapDef;
-        }
-        extensionDef.specularFactor = material.specularIntensity;
-        extensionDef.specularColorFactor = material.specularColor.toArray();
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Sheen Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_sheen
- */ class GLTFMaterialsSheenExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_sheen";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshPhysicalMaterial || material.sheen == 0.0) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        if (material.sheenRoughnessMap) {
-            const sheenRoughnessMapDef = {
-                index: writer.processTexture(material.sheenRoughnessMap),
-                texCoord: material.sheenRoughnessMap.channel
-            };
-            writer.applyTextureTransform(sheenRoughnessMapDef, material.sheenRoughnessMap);
-            extensionDef.sheenRoughnessTexture = sheenRoughnessMapDef;
-        }
-        if (material.sheenColorMap) {
-            const sheenColorMapDef = {
-                index: writer.processTexture(material.sheenColorMap),
-                texCoord: material.sheenColorMap.channel
-            };
-            writer.applyTextureTransform(sheenColorMapDef, material.sheenColorMap);
-            extensionDef.sheenColorTexture = sheenColorMapDef;
-        }
-        extensionDef.sheenRoughnessFactor = material.sheenRoughness;
-        extensionDef.sheenColorFactor = material.sheenColor.toArray();
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Anisotropy Materials Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_anisotropy
- */ class GLTFMaterialsAnisotropyExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_anisotropy";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshPhysicalMaterial || material.anisotropy == 0.0) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        if (material.anisotropyMap) {
-            const anisotropyMapDef = {
-                index: writer.processTexture(material.anisotropyMap)
-            };
-            writer.applyTextureTransform(anisotropyMapDef, material.anisotropyMap);
-            extensionDef.anisotropyTexture = anisotropyMapDef;
-        }
-        extensionDef.anisotropyStrength = material.anisotropy;
-        extensionDef.anisotropyRotation = material.anisotropyRotation;
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Materials Emissive Strength Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/blob/5768b3ce0ef32bc39cdf1bef10b948586635ead3/extensions/2.0/Khronos/KHR_materials_emissive_strength/README.md
- */ class GLTFMaterialsEmissiveStrengthExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "KHR_materials_emissive_strength";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshStandardMaterial || material.emissiveIntensity === 1.0) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        extensionDef.emissiveStrength = material.emissiveIntensity;
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * Materials bump Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/EXT_materials_bump
- */ class GLTFMaterialsBumpExtension {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "EXT_materials_bump";
-    }
-    writeMaterial(material, materialDef) {
-        if (!material.isMeshStandardMaterial || material.bumpScale === 1 && !material.bumpMap) return;
-        const writer = this.writer;
-        const extensionsUsed = writer.extensionsUsed;
-        const extensionDef = {};
-        if (material.bumpMap) {
-            const bumpMapDef = {
-                index: writer.processTexture(material.bumpMap),
-                texCoord: material.bumpMap.channel
-            };
-            writer.applyTextureTransform(bumpMapDef, material.bumpMap);
-            extensionDef.bumpTexture = bumpMapDef;
-        }
-        extensionDef.bumpFactor = material.bumpScale;
-        materialDef.extensions = materialDef.extensions || {};
-        materialDef.extensions[this.name] = extensionDef;
-        extensionsUsed[this.name] = true;
-    }
-}
-/**
- * GPU Instancing Extension
- *
- * Specification: https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/EXT_mesh_gpu_instancing
- */ class GLTFMeshGpuInstancing {
-    constructor(writer){
-        this.writer = writer;
-        this.name = "EXT_mesh_gpu_instancing";
-    }
-    writeNode(object, nodeDef) {
-        if (!object.isInstancedMesh) return;
-        const writer = this.writer;
-        const mesh = object;
-        const translationAttr = new Float32Array(mesh.count * 3);
-        const rotationAttr = new Float32Array(mesh.count * 4);
-        const scaleAttr = new Float32Array(mesh.count * 3);
-        const matrix = new (0, _three.Matrix4)();
-        const position = new (0, _three.Vector3)();
-        const quaternion = new (0, _three.Quaternion)();
-        const scale = new (0, _three.Vector3)();
-        for(let i = 0; i < mesh.count; i++){
-            mesh.getMatrixAt(i, matrix);
-            matrix.decompose(position, quaternion, scale);
-            position.toArray(translationAttr, i * 3);
-            quaternion.toArray(rotationAttr, i * 4);
-            scale.toArray(scaleAttr, i * 3);
-        }
-        const attributes = {
-            TRANSLATION: writer.processAccessor(new (0, _three.BufferAttribute)(translationAttr, 3)),
-            ROTATION: writer.processAccessor(new (0, _three.BufferAttribute)(rotationAttr, 4)),
-            SCALE: writer.processAccessor(new (0, _three.BufferAttribute)(scaleAttr, 3))
-        };
-        if (mesh.instanceColor) attributes._COLOR_0 = writer.processAccessor(mesh.instanceColor);
-        nodeDef.extensions = nodeDef.extensions || {};
-        nodeDef.extensions[this.name] = {
-            attributes
-        };
-        writer.extensionsUsed[this.name] = true;
-        writer.extensionsRequired[this.name] = true;
-    }
-}
-/**
- * Static utility functions
- */ GLTFExporter.Utils = {
-    insertKeyframe: function(track, time) {
-        const tolerance = 0.001; // 1ms
-        const valueSize = track.getValueSize();
-        const times = new track.TimeBufferType(track.times.length + 1);
-        const values = new track.ValueBufferType(track.values.length + valueSize);
-        const interpolant = track.createInterpolant(new track.ValueBufferType(valueSize));
-        let index;
-        if (track.times.length === 0) {
-            times[0] = time;
-            for(let i = 0; i < valueSize; i++)values[i] = 0;
-            index = 0;
-        } else if (time < track.times[0]) {
-            if (Math.abs(track.times[0] - time) < tolerance) return 0;
-            times[0] = time;
-            times.set(track.times, 1);
-            values.set(interpolant.evaluate(time), 0);
-            values.set(track.values, valueSize);
-            index = 0;
-        } else if (time > track.times[track.times.length - 1]) {
-            if (Math.abs(track.times[track.times.length - 1] - time) < tolerance) return track.times.length - 1;
-            times[times.length - 1] = time;
-            times.set(track.times, 0);
-            values.set(track.values, 0);
-            values.set(interpolant.evaluate(time), track.values.length);
-            index = times.length - 1;
-        } else for(let i = 0; i < track.times.length; i++){
-            if (Math.abs(track.times[i] - time) < tolerance) return i;
-            if (track.times[i] < time && track.times[i + 1] > time) {
-                times.set(track.times.slice(0, i + 1), 0);
-                times[i + 1] = time;
-                times.set(track.times.slice(i + 1), i + 2);
-                values.set(track.values.slice(0, (i + 1) * valueSize), 0);
-                values.set(interpolant.evaluate(time), (i + 1) * valueSize);
-                values.set(track.values.slice((i + 1) * valueSize), (i + 2) * valueSize);
-                index = i + 1;
-                break;
-            }
-        }
-        track.times = times;
-        track.values = values;
-        return index;
-    },
-    mergeMorphTargetTracks: function(clip, root) {
-        const tracks = [];
-        const mergedTracks = {};
-        const sourceTracks = clip.tracks;
-        for(let i = 0; i < sourceTracks.length; ++i){
-            let sourceTrack = sourceTracks[i];
-            const sourceTrackBinding = (0, _three.PropertyBinding).parseTrackName(sourceTrack.name);
-            const sourceTrackNode = (0, _three.PropertyBinding).findNode(root, sourceTrackBinding.nodeName);
-            if (sourceTrackBinding.propertyName !== "morphTargetInfluences" || sourceTrackBinding.propertyIndex === undefined) {
-                // Tracks that don't affect morph targets, or that affect all morph targets together, can be left as-is.
-                tracks.push(sourceTrack);
-                continue;
-            }
-            if (sourceTrack.createInterpolant !== sourceTrack.InterpolantFactoryMethodDiscrete && sourceTrack.createInterpolant !== sourceTrack.InterpolantFactoryMethodLinear) {
-                if (sourceTrack.createInterpolant.isInterpolantFactoryMethodGLTFCubicSpline) // This should never happen, because glTF morph target animations
-                // affect all targets already.
-                throw new Error("THREE.GLTFExporter: Cannot merge tracks with glTF CUBICSPLINE interpolation.");
-                console.warn("THREE.GLTFExporter: Morph target interpolation mode not yet supported. Using LINEAR instead.");
-                sourceTrack = sourceTrack.clone();
-                sourceTrack.setInterpolation((0, _three.InterpolateLinear));
-            }
-            const targetCount = sourceTrackNode.morphTargetInfluences.length;
-            const targetIndex = sourceTrackNode.morphTargetDictionary[sourceTrackBinding.propertyIndex];
-            if (targetIndex === undefined) throw new Error("THREE.GLTFExporter: Morph target name not found: " + sourceTrackBinding.propertyIndex);
-            let mergedTrack;
-            // If this is the first time we've seen this object, create a new
-            // track to store merged keyframe data for each morph target.
-            if (mergedTracks[sourceTrackNode.uuid] === undefined) {
-                mergedTrack = sourceTrack.clone();
-                const values = new mergedTrack.ValueBufferType(targetCount * mergedTrack.times.length);
-                for(let j = 0; j < mergedTrack.times.length; j++)values[j * targetCount + targetIndex] = mergedTrack.values[j];
-                // We need to take into consideration the intended target node
-                // of our original un-merged morphTarget animation.
-                mergedTrack.name = (sourceTrackBinding.nodeName || "") + ".morphTargetInfluences";
-                mergedTrack.values = values;
-                mergedTracks[sourceTrackNode.uuid] = mergedTrack;
-                tracks.push(mergedTrack);
-                continue;
-            }
-            const sourceInterpolant = sourceTrack.createInterpolant(new sourceTrack.ValueBufferType(1));
-            mergedTrack = mergedTracks[sourceTrackNode.uuid];
-            // For every existing keyframe of the merged track, write a (possibly
-            // interpolated) value from the source track.
-            for(let j = 0; j < mergedTrack.times.length; j++)mergedTrack.values[j * targetCount + targetIndex] = sourceInterpolant.evaluate(mergedTrack.times[j]);
-            // For every existing keyframe of the source track, write a (possibly
-            // new) keyframe to the merged track. Values from the previous loop may
-            // be written again, but keyframes are de-duplicated.
-            for(let j = 0; j < sourceTrack.times.length; j++){
-                const keyframeIndex = this.insertKeyframe(mergedTrack, sourceTrack.times[j]);
-                mergedTrack.values[keyframeIndex * targetCount + targetIndex] = sourceTrack.values[j];
-            }
-        }
-        clip.tracks = tracks;
-        return clip;
-    }
-};
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["X6XGv","inLWO"], "inLWO", "parcelRequiref22f")
 
-},{"three":"ktPTu","./../utils/TextureUtils.js":"8xcGb","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8xcGb":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "decompress", ()=>decompress);
-var _three = require("three");
-let _renderer;
-let fullscreenQuadGeometry;
-let fullscreenQuadMaterial;
-let fullscreenQuad;
-function decompress(texture, maxTextureSize = Infinity, renderer = null) {
-    if (!fullscreenQuadGeometry) fullscreenQuadGeometry = new (0, _three.PlaneGeometry)(2, 2, 1, 1);
-    if (!fullscreenQuadMaterial) fullscreenQuadMaterial = new (0, _three.ShaderMaterial)({
-        uniforms: {
-            blitTexture: new (0, _three.Uniform)(texture)
-        },
-        vertexShader: `
-			varying vec2 vUv;
-			void main(){
-				vUv = uv;
-				gl_Position = vec4(position.xy * 1.0,0.,.999999);
-			}`,
-        fragmentShader: `
-			uniform sampler2D blitTexture; 
-			varying vec2 vUv;
-
-			void main(){ 
-				gl_FragColor = vec4(vUv.xy, 0, 1);
-				
-				#ifdef IS_SRGB
-				gl_FragColor = LinearTosRGB( texture2D( blitTexture, vUv) );
-				#else
-				gl_FragColor = texture2D( blitTexture, vUv);
-				#endif
-			}`
-    });
-    fullscreenQuadMaterial.uniforms.blitTexture.value = texture;
-    fullscreenQuadMaterial.defines.IS_SRGB = texture.colorSpace == (0, _three.SRGBColorSpace);
-    fullscreenQuadMaterial.needsUpdate = true;
-    if (!fullscreenQuad) {
-        fullscreenQuad = new (0, _three.Mesh)(fullscreenQuadGeometry, fullscreenQuadMaterial);
-        fullscreenQuad.frustumCulled = false;
-    }
-    const _camera = new (0, _three.PerspectiveCamera)();
-    const _scene = new (0, _three.Scene)();
-    _scene.add(fullscreenQuad);
-    if (renderer === null) renderer = _renderer = new (0, _three.WebGLRenderer)({
-        antialias: false
-    });
-    const width = Math.min(texture.image.width, maxTextureSize);
-    const height = Math.min(texture.image.height, maxTextureSize);
-    renderer.setSize(width, height);
-    renderer.clear();
-    renderer.render(_scene, _camera);
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-    canvas.width = width;
-    canvas.height = height;
-    context.drawImage(renderer.domElement, 0, 0, width, height);
-    const readableTexture = new (0, _three.CanvasTexture)(canvas);
-    readableTexture.minFilter = texture.minFilter;
-    readableTexture.magFilter = texture.magFilter;
-    readableTexture.wrapS = texture.wrapS;
-    readableTexture.wrapT = texture.wrapT;
-    readableTexture.name = texture.name;
-    if (_renderer) {
-        _renderer.forceContextLoss();
-        _renderer.dispose();
-        _renderer = null;
-    }
-    return readableTexture;
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"k3xQk":[function(require,module,exports) {
-/**
- * dat-gui JavaScript Controller Library
- * https://github.com/dataarts/dat.gui
- *
- * Copyright 2011 Data Arts Team, Google Creative Lab
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "color", ()=>color);
-parcelHelpers.export(exports, "controllers", ()=>controllers);
-parcelHelpers.export(exports, "dom", ()=>dom$1);
-parcelHelpers.export(exports, "gui", ()=>gui);
-parcelHelpers.export(exports, "GUI", ()=>GUI$1);
-function ___$insertStyle(css) {
-    if (!css) return;
-    if (typeof window === "undefined") return;
-    var style = document.createElement("style");
-    style.setAttribute("type", "text/css");
-    style.innerHTML = css;
-    document.head.appendChild(style);
-    return css;
-}
-function colorToString(color, forceCSSHex) {
-    var colorFormat = color.__state.conversionName.toString();
-    var r = Math.round(color.r);
-    var g = Math.round(color.g);
-    var b = Math.round(color.b);
-    var a = color.a;
-    var h = Math.round(color.h);
-    var s = color.s.toFixed(1);
-    var v = color.v.toFixed(1);
-    if (forceCSSHex || colorFormat === "THREE_CHAR_HEX" || colorFormat === "SIX_CHAR_HEX") {
-        var str = color.hex.toString(16);
-        while(str.length < 6)str = "0" + str;
-        return "#" + str;
-    } else if (colorFormat === "CSS_RGB") return "rgb(" + r + "," + g + "," + b + ")";
-    else if (colorFormat === "CSS_RGBA") return "rgba(" + r + "," + g + "," + b + "," + a + ")";
-    else if (colorFormat === "HEX") return "0x" + color.hex.toString(16);
-    else if (colorFormat === "RGB_ARRAY") return "[" + r + "," + g + "," + b + "]";
-    else if (colorFormat === "RGBA_ARRAY") return "[" + r + "," + g + "," + b + "," + a + "]";
-    else if (colorFormat === "RGB_OBJ") return "{r:" + r + ",g:" + g + ",b:" + b + "}";
-    else if (colorFormat === "RGBA_OBJ") return "{r:" + r + ",g:" + g + ",b:" + b + ",a:" + a + "}";
-    else if (colorFormat === "HSV_OBJ") return "{h:" + h + ",s:" + s + ",v:" + v + "}";
-    else if (colorFormat === "HSVA_OBJ") return "{h:" + h + ",s:" + s + ",v:" + v + ",a:" + a + "}";
-    return "unknown format";
-}
-var ARR_EACH = Array.prototype.forEach;
-var ARR_SLICE = Array.prototype.slice;
-var Common = {
-    BREAK: {},
-    extend: function extend(target) {
-        this.each(ARR_SLICE.call(arguments, 1), function(obj) {
-            var keys = this.isObject(obj) ? Object.keys(obj) : [];
-            keys.forEach((function(key) {
-                if (!this.isUndefined(obj[key])) target[key] = obj[key];
-            }).bind(this));
-        }, this);
-        return target;
-    },
-    defaults: function defaults(target) {
-        this.each(ARR_SLICE.call(arguments, 1), function(obj) {
-            var keys = this.isObject(obj) ? Object.keys(obj) : [];
-            keys.forEach((function(key) {
-                if (this.isUndefined(target[key])) target[key] = obj[key];
-            }).bind(this));
-        }, this);
-        return target;
-    },
-    compose: function compose() {
-        var toCall = ARR_SLICE.call(arguments);
-        return function() {
-            var args = ARR_SLICE.call(arguments);
-            for(var i = toCall.length - 1; i >= 0; i--)args = [
-                toCall[i].apply(this, args)
-            ];
-            return args[0];
-        };
-    },
-    each: function each(obj, itr, scope) {
-        if (!obj) return;
-        if (ARR_EACH && obj.forEach && obj.forEach === ARR_EACH) obj.forEach(itr, scope);
-        else if (obj.length === obj.length + 0) {
-            var key = void 0;
-            var l = void 0;
-            for(key = 0, l = obj.length; key < l; key++){
-                if (key in obj && itr.call(scope, obj[key], key) === this.BREAK) return;
-            }
-        } else for(var _key in obj){
-            if (itr.call(scope, obj[_key], _key) === this.BREAK) return;
-        }
-    },
-    defer: function defer(fnc) {
-        setTimeout(fnc, 0);
-    },
-    debounce: function debounce(func, threshold, callImmediately) {
-        var timeout = void 0;
-        return function() {
-            var obj = this;
-            var args = arguments;
-            function delayed() {
-                timeout = null;
-                if (!callImmediately) func.apply(obj, args);
-            }
-            var callNow = callImmediately || !timeout;
-            clearTimeout(timeout);
-            timeout = setTimeout(delayed, threshold);
-            if (callNow) func.apply(obj, args);
-        };
-    },
-    toArray: function toArray(obj) {
-        if (obj.toArray) return obj.toArray();
-        return ARR_SLICE.call(obj);
-    },
-    isUndefined: function isUndefined(obj) {
-        return obj === undefined;
-    },
-    isNull: function isNull(obj) {
-        return obj === null;
-    },
-    isNaN: function(_isNaN) {
-        function isNaN1(_x) {
-            return _isNaN.apply(this, arguments);
-        }
-        isNaN1.toString = function() {
-            return _isNaN.toString();
-        };
-        return isNaN1;
-    }(function(obj) {
-        return isNaN(obj);
-    }),
-    isArray: Array.isArray || function(obj) {
-        return obj.constructor === Array;
-    },
-    isObject: function isObject(obj) {
-        return obj === Object(obj);
-    },
-    isNumber: function isNumber(obj) {
-        return obj === obj + 0;
-    },
-    isString: function isString(obj) {
-        return obj === obj + "";
-    },
-    isBoolean: function isBoolean(obj) {
-        return obj === false || obj === true;
-    },
-    isFunction: function isFunction(obj) {
-        return obj instanceof Function;
-    }
-};
-var INTERPRETATIONS = [
-    {
-        litmus: Common.isString,
-        conversions: {
-            THREE_CHAR_HEX: {
-                read: function read(original) {
-                    var test = original.match(/^#([A-F0-9])([A-F0-9])([A-F0-9])$/i);
-                    if (test === null) return false;
-                    return {
-                        space: "HEX",
-                        hex: parseInt("0x" + test[1].toString() + test[1].toString() + test[2].toString() + test[2].toString() + test[3].toString() + test[3].toString(), 0)
-                    };
-                },
-                write: colorToString
-            },
-            SIX_CHAR_HEX: {
-                read: function read(original) {
-                    var test = original.match(/^#([A-F0-9]{6})$/i);
-                    if (test === null) return false;
-                    return {
-                        space: "HEX",
-                        hex: parseInt("0x" + test[1].toString(), 0)
-                    };
-                },
-                write: colorToString
-            },
-            CSS_RGB: {
-                read: function read(original) {
-                    var test = original.match(/^rgb\(\s*(\S+)\s*,\s*(\S+)\s*,\s*(\S+)\s*\)/);
-                    if (test === null) return false;
-                    return {
-                        space: "RGB",
-                        r: parseFloat(test[1]),
-                        g: parseFloat(test[2]),
-                        b: parseFloat(test[3])
-                    };
-                },
-                write: colorToString
-            },
-            CSS_RGBA: {
-                read: function read(original) {
-                    var test = original.match(/^rgba\(\s*(\S+)\s*,\s*(\S+)\s*,\s*(\S+)\s*,\s*(\S+)\s*\)/);
-                    if (test === null) return false;
-                    return {
-                        space: "RGB",
-                        r: parseFloat(test[1]),
-                        g: parseFloat(test[2]),
-                        b: parseFloat(test[3]),
-                        a: parseFloat(test[4])
-                    };
-                },
-                write: colorToString
-            }
-        }
-    },
-    {
-        litmus: Common.isNumber,
-        conversions: {
-            HEX: {
-                read: function read(original) {
-                    return {
-                        space: "HEX",
-                        hex: original,
-                        conversionName: "HEX"
-                    };
-                },
-                write: function write(color) {
-                    return color.hex;
-                }
-            }
-        }
-    },
-    {
-        litmus: Common.isArray,
-        conversions: {
-            RGB_ARRAY: {
-                read: function read(original) {
-                    if (original.length !== 3) return false;
-                    return {
-                        space: "RGB",
-                        r: original[0],
-                        g: original[1],
-                        b: original[2]
-                    };
-                },
-                write: function write(color) {
-                    return [
-                        color.r,
-                        color.g,
-                        color.b
-                    ];
-                }
-            },
-            RGBA_ARRAY: {
-                read: function read(original) {
-                    if (original.length !== 4) return false;
-                    return {
-                        space: "RGB",
-                        r: original[0],
-                        g: original[1],
-                        b: original[2],
-                        a: original[3]
-                    };
-                },
-                write: function write(color) {
-                    return [
-                        color.r,
-                        color.g,
-                        color.b,
-                        color.a
-                    ];
-                }
-            }
-        }
-    },
-    {
-        litmus: Common.isObject,
-        conversions: {
-            RGBA_OBJ: {
-                read: function read(original) {
-                    if (Common.isNumber(original.r) && Common.isNumber(original.g) && Common.isNumber(original.b) && Common.isNumber(original.a)) return {
-                        space: "RGB",
-                        r: original.r,
-                        g: original.g,
-                        b: original.b,
-                        a: original.a
-                    };
-                    return false;
-                },
-                write: function write(color) {
-                    return {
-                        r: color.r,
-                        g: color.g,
-                        b: color.b,
-                        a: color.a
-                    };
-                }
-            },
-            RGB_OBJ: {
-                read: function read(original) {
-                    if (Common.isNumber(original.r) && Common.isNumber(original.g) && Common.isNumber(original.b)) return {
-                        space: "RGB",
-                        r: original.r,
-                        g: original.g,
-                        b: original.b
-                    };
-                    return false;
-                },
-                write: function write(color) {
-                    return {
-                        r: color.r,
-                        g: color.g,
-                        b: color.b
-                    };
-                }
-            },
-            HSVA_OBJ: {
-                read: function read(original) {
-                    if (Common.isNumber(original.h) && Common.isNumber(original.s) && Common.isNumber(original.v) && Common.isNumber(original.a)) return {
-                        space: "HSV",
-                        h: original.h,
-                        s: original.s,
-                        v: original.v,
-                        a: original.a
-                    };
-                    return false;
-                },
-                write: function write(color) {
-                    return {
-                        h: color.h,
-                        s: color.s,
-                        v: color.v,
-                        a: color.a
-                    };
-                }
-            },
-            HSV_OBJ: {
-                read: function read(original) {
-                    if (Common.isNumber(original.h) && Common.isNumber(original.s) && Common.isNumber(original.v)) return {
-                        space: "HSV",
-                        h: original.h,
-                        s: original.s,
-                        v: original.v
-                    };
-                    return false;
-                },
-                write: function write(color) {
-                    return {
-                        h: color.h,
-                        s: color.s,
-                        v: color.v
-                    };
-                }
-            }
-        }
-    }
-];
-var result = void 0;
-var toReturn = void 0;
-var interpret = function interpret() {
-    toReturn = false;
-    var original = arguments.length > 1 ? Common.toArray(arguments) : arguments[0];
-    Common.each(INTERPRETATIONS, function(family) {
-        if (family.litmus(original)) {
-            Common.each(family.conversions, function(conversion, conversionName) {
-                result = conversion.read(original);
-                if (toReturn === false && result !== false) {
-                    toReturn = result;
-                    result.conversionName = conversionName;
-                    result.conversion = conversion;
-                    return Common.BREAK;
-                }
-            });
-            return Common.BREAK;
-        }
-    });
-    return toReturn;
-};
-var tmpComponent = void 0;
-var ColorMath = {
-    hsv_to_rgb: function hsv_to_rgb(h, s, v) {
-        var hi = Math.floor(h / 60) % 6;
-        var f = h / 60 - Math.floor(h / 60);
-        var p = v * (1.0 - s);
-        var q = v * (1.0 - f * s);
-        var t = v * (1.0 - (1.0 - f) * s);
-        var c = [
-            [
-                v,
-                t,
-                p
-            ],
-            [
-                q,
-                v,
-                p
-            ],
-            [
-                p,
-                v,
-                t
-            ],
-            [
-                p,
-                q,
-                v
-            ],
-            [
-                t,
-                p,
-                v
-            ],
-            [
-                v,
-                p,
-                q
-            ]
-        ][hi];
-        return {
-            r: c[0] * 255,
-            g: c[1] * 255,
-            b: c[2] * 255
-        };
-    },
-    rgb_to_hsv: function rgb_to_hsv(r, g, b) {
-        var min = Math.min(r, g, b);
-        var max = Math.max(r, g, b);
-        var delta = max - min;
-        var h = void 0;
-        var s = void 0;
-        if (max !== 0) s = delta / max;
-        else return {
-            h: NaN,
-            s: 0,
-            v: 0
-        };
-        if (r === max) h = (g - b) / delta;
-        else if (g === max) h = 2 + (b - r) / delta;
-        else h = 4 + (r - g) / delta;
-        h /= 6;
-        if (h < 0) h += 1;
-        return {
-            h: h * 360,
-            s: s,
-            v: max / 255
-        };
-    },
-    rgb_to_hex: function rgb_to_hex(r, g, b) {
-        var hex = this.hex_with_component(0, 2, r);
-        hex = this.hex_with_component(hex, 1, g);
-        hex = this.hex_with_component(hex, 0, b);
-        return hex;
-    },
-    component_from_hex: function component_from_hex(hex, componentIndex) {
-        return hex >> componentIndex * 8 & 0xFF;
-    },
-    hex_with_component: function hex_with_component(hex, componentIndex, value) {
-        return value << (tmpComponent = componentIndex * 8) | hex & ~(0xFF << tmpComponent);
-    }
-};
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
-    return typeof obj;
-} : function(obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
-};
-var classCallCheck = function(instance, Constructor) {
-    if (!(instance instanceof Constructor)) throw new TypeError("Cannot call a class as a function");
-};
-var createClass = function() {
-    function defineProperties(target, props) {
-        for(var i = 0; i < props.length; i++){
-            var descriptor = props[i];
-            descriptor.enumerable = descriptor.enumerable || false;
-            descriptor.configurable = true;
-            if ("value" in descriptor) descriptor.writable = true;
-            Object.defineProperty(target, descriptor.key, descriptor);
-        }
-    }
-    return function(Constructor, protoProps, staticProps) {
-        if (protoProps) defineProperties(Constructor.prototype, protoProps);
-        if (staticProps) defineProperties(Constructor, staticProps);
-        return Constructor;
-    };
-}();
-var get = function get(object, property, receiver) {
-    if (object === null) object = Function.prototype;
-    var desc = Object.getOwnPropertyDescriptor(object, property);
-    if (desc === undefined) {
-        var parent = Object.getPrototypeOf(object);
-        if (parent === null) return undefined;
-        else return get(parent, property, receiver);
-    } else if ("value" in desc) return desc.value;
-    else {
-        var getter = desc.get;
-        if (getter === undefined) return undefined;
-        return getter.call(receiver);
-    }
-};
-var inherits = function(subClass, superClass) {
-    if (typeof superClass !== "function" && superClass !== null) throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-    subClass.prototype = Object.create(superClass && superClass.prototype, {
-        constructor: {
-            value: subClass,
-            enumerable: false,
-            writable: true,
-            configurable: true
-        }
-    });
-    if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-};
-var possibleConstructorReturn = function(self, call) {
-    if (!self) throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-    return call && (typeof call === "object" || typeof call === "function") ? call : self;
-};
-var Color = function() {
-    function Color() {
-        classCallCheck(this, Color);
-        this.__state = interpret.apply(this, arguments);
-        if (this.__state === false) throw new Error("Failed to interpret color arguments");
-        this.__state.a = this.__state.a || 1;
-    }
-    createClass(Color, [
-        {
-            key: "toString",
-            value: function toString() {
-                return colorToString(this);
-            }
-        },
-        {
-            key: "toHexString",
-            value: function toHexString() {
-                return colorToString(this, true);
-            }
-        },
-        {
-            key: "toOriginal",
-            value: function toOriginal() {
-                return this.__state.conversion.write(this);
-            }
-        }
-    ]);
-    return Color;
-}();
-function defineRGBComponent(target, component, componentHexIndex) {
-    Object.defineProperty(target, component, {
-        get: function get$$1() {
-            if (this.__state.space === "RGB") return this.__state[component];
-            Color.recalculateRGB(this, component, componentHexIndex);
-            return this.__state[component];
-        },
-        set: function set$$1(v) {
-            if (this.__state.space !== "RGB") {
-                Color.recalculateRGB(this, component, componentHexIndex);
-                this.__state.space = "RGB";
-            }
-            this.__state[component] = v;
-        }
-    });
-}
-function defineHSVComponent(target, component) {
-    Object.defineProperty(target, component, {
-        get: function get$$1() {
-            if (this.__state.space === "HSV") return this.__state[component];
-            Color.recalculateHSV(this);
-            return this.__state[component];
-        },
-        set: function set$$1(v) {
-            if (this.__state.space !== "HSV") {
-                Color.recalculateHSV(this);
-                this.__state.space = "HSV";
-            }
-            this.__state[component] = v;
-        }
-    });
-}
-Color.recalculateRGB = function(color, component, componentHexIndex) {
-    if (color.__state.space === "HEX") color.__state[component] = ColorMath.component_from_hex(color.__state.hex, componentHexIndex);
-    else if (color.__state.space === "HSV") Common.extend(color.__state, ColorMath.hsv_to_rgb(color.__state.h, color.__state.s, color.__state.v));
-    else throw new Error("Corrupted color state");
-};
-Color.recalculateHSV = function(color) {
-    var result = ColorMath.rgb_to_hsv(color.r, color.g, color.b);
-    Common.extend(color.__state, {
-        s: result.s,
-        v: result.v
-    });
-    if (!Common.isNaN(result.h)) color.__state.h = result.h;
-    else if (Common.isUndefined(color.__state.h)) color.__state.h = 0;
-};
-Color.COMPONENTS = [
-    "r",
-    "g",
-    "b",
-    "h",
-    "s",
-    "v",
-    "hex",
-    "a"
-];
-defineRGBComponent(Color.prototype, "r", 2);
-defineRGBComponent(Color.prototype, "g", 1);
-defineRGBComponent(Color.prototype, "b", 0);
-defineHSVComponent(Color.prototype, "h");
-defineHSVComponent(Color.prototype, "s");
-defineHSVComponent(Color.prototype, "v");
-Object.defineProperty(Color.prototype, "a", {
-    get: function get$$1() {
-        return this.__state.a;
-    },
-    set: function set$$1(v) {
-        this.__state.a = v;
-    }
-});
-Object.defineProperty(Color.prototype, "hex", {
-    get: function get$$1() {
-        if (this.__state.space !== "HEX") {
-            this.__state.hex = ColorMath.rgb_to_hex(this.r, this.g, this.b);
-            this.__state.space = "HEX";
-        }
-        return this.__state.hex;
-    },
-    set: function set$$1(v) {
-        this.__state.space = "HEX";
-        this.__state.hex = v;
-    }
-});
-var Controller = function() {
-    function Controller(object, property) {
-        classCallCheck(this, Controller);
-        this.initialValue = object[property];
-        this.domElement = document.createElement("div");
-        this.object = object;
-        this.property = property;
-        this.__onChange = undefined;
-        this.__onFinishChange = undefined;
-    }
-    createClass(Controller, [
-        {
-            key: "onChange",
-            value: function onChange(fnc) {
-                this.__onChange = fnc;
-                return this;
-            }
-        },
-        {
-            key: "onFinishChange",
-            value: function onFinishChange(fnc) {
-                this.__onFinishChange = fnc;
-                return this;
-            }
-        },
-        {
-            key: "setValue",
-            value: function setValue(newValue) {
-                this.object[this.property] = newValue;
-                if (this.__onChange) this.__onChange.call(this, newValue);
-                this.updateDisplay();
-                return this;
-            }
-        },
-        {
-            key: "getValue",
-            value: function getValue() {
-                return this.object[this.property];
-            }
-        },
-        {
-            key: "updateDisplay",
-            value: function updateDisplay() {
-                return this;
-            }
-        },
-        {
-            key: "isModified",
-            value: function isModified() {
-                return this.initialValue !== this.getValue();
-            }
-        }
-    ]);
-    return Controller;
-}();
-var EVENT_MAP = {
-    HTMLEvents: [
-        "change"
-    ],
-    MouseEvents: [
-        "click",
-        "mousemove",
-        "mousedown",
-        "mouseup",
-        "mouseover"
-    ],
-    KeyboardEvents: [
-        "keydown"
-    ]
-};
-var EVENT_MAP_INV = {};
-Common.each(EVENT_MAP, function(v, k) {
-    Common.each(v, function(e) {
-        EVENT_MAP_INV[e] = k;
-    });
-});
-var CSS_VALUE_PIXELS = /(\d+(\.\d+)?)px/;
-function cssValueToPixels(val) {
-    if (val === "0" || Common.isUndefined(val)) return 0;
-    var match = val.match(CSS_VALUE_PIXELS);
-    if (!Common.isNull(match)) return parseFloat(match[1]);
-    return 0;
-}
-var dom = {
-    makeSelectable: function makeSelectable(elem, selectable) {
-        if (elem === undefined || elem.style === undefined) return;
-        elem.onselectstart = selectable ? function() {
-            return false;
-        } : function() {};
-        elem.style.MozUserSelect = selectable ? "auto" : "none";
-        elem.style.KhtmlUserSelect = selectable ? "auto" : "none";
-        elem.unselectable = selectable ? "on" : "off";
-    },
-    makeFullscreen: function makeFullscreen(elem, hor, vert) {
-        var vertical = vert;
-        var horizontal = hor;
-        if (Common.isUndefined(horizontal)) horizontal = true;
-        if (Common.isUndefined(vertical)) vertical = true;
-        elem.style.position = "absolute";
-        if (horizontal) {
-            elem.style.left = 0;
-            elem.style.right = 0;
-        }
-        if (vertical) {
-            elem.style.top = 0;
-            elem.style.bottom = 0;
-        }
-    },
-    fakeEvent: function fakeEvent(elem, eventType, pars, aux) {
-        var params = pars || {};
-        var className = EVENT_MAP_INV[eventType];
-        if (!className) throw new Error("Event type " + eventType + " not supported.");
-        var evt = document.createEvent(className);
-        switch(className){
-            case "MouseEvents":
-                var clientX = params.x || params.clientX || 0;
-                var clientY = params.y || params.clientY || 0;
-                evt.initMouseEvent(eventType, params.bubbles || false, params.cancelable || true, window, params.clickCount || 1, 0, 0, clientX, clientY, false, false, false, false, 0, null);
-                break;
-            case "KeyboardEvents":
-                var init = evt.initKeyboardEvent || evt.initKeyEvent;
-                Common.defaults(params, {
-                    cancelable: true,
-                    ctrlKey: false,
-                    altKey: false,
-                    shiftKey: false,
-                    metaKey: false,
-                    keyCode: undefined,
-                    charCode: undefined
-                });
-                init(eventType, params.bubbles || false, params.cancelable, window, params.ctrlKey, params.altKey, params.shiftKey, params.metaKey, params.keyCode, params.charCode);
-                break;
-            default:
-                evt.initEvent(eventType, params.bubbles || false, params.cancelable || true);
-                break;
-        }
-        Common.defaults(evt, aux);
-        elem.dispatchEvent(evt);
-    },
-    bind: function bind(elem, event, func, newBool) {
-        var bool = newBool || false;
-        if (elem.addEventListener) elem.addEventListener(event, func, bool);
-        else if (elem.attachEvent) elem.attachEvent("on" + event, func);
-        return dom;
-    },
-    unbind: function unbind(elem, event, func, newBool) {
-        var bool = newBool || false;
-        if (elem.removeEventListener) elem.removeEventListener(event, func, bool);
-        else if (elem.detachEvent) elem.detachEvent("on" + event, func);
-        return dom;
-    },
-    addClass: function addClass(elem, className) {
-        if (elem.className === undefined) elem.className = className;
-        else if (elem.className !== className) {
-            var classes = elem.className.split(/ +/);
-            if (classes.indexOf(className) === -1) {
-                classes.push(className);
-                elem.className = classes.join(" ").replace(/^\s+/, "").replace(/\s+$/, "");
-            }
-        }
-        return dom;
-    },
-    removeClass: function removeClass(elem, className) {
-        if (className) {
-            if (elem.className === className) elem.removeAttribute("class");
-            else {
-                var classes = elem.className.split(/ +/);
-                var index = classes.indexOf(className);
-                if (index !== -1) {
-                    classes.splice(index, 1);
-                    elem.className = classes.join(" ");
-                }
-            }
-        } else elem.className = undefined;
-        return dom;
-    },
-    hasClass: function hasClass(elem, className) {
-        return new RegExp("(?:^|\\s+)" + className + "(?:\\s+|$)").test(elem.className) || false;
-    },
-    getWidth: function getWidth(elem) {
-        var style = getComputedStyle(elem);
-        return cssValueToPixels(style["border-left-width"]) + cssValueToPixels(style["border-right-width"]) + cssValueToPixels(style["padding-left"]) + cssValueToPixels(style["padding-right"]) + cssValueToPixels(style.width);
-    },
-    getHeight: function getHeight(elem) {
-        var style = getComputedStyle(elem);
-        return cssValueToPixels(style["border-top-width"]) + cssValueToPixels(style["border-bottom-width"]) + cssValueToPixels(style["padding-top"]) + cssValueToPixels(style["padding-bottom"]) + cssValueToPixels(style.height);
-    },
-    getOffset: function getOffset(el) {
-        var elem = el;
-        var offset = {
-            left: 0,
-            top: 0
-        };
-        if (elem.offsetParent) do {
-            offset.left += elem.offsetLeft;
-            offset.top += elem.offsetTop;
-            elem = elem.offsetParent;
-        }while (elem);
-        return offset;
-    },
-    isActive: function isActive(elem) {
-        return elem === document.activeElement && (elem.type || elem.href);
-    }
-};
-var BooleanController = function(_Controller) {
-    inherits(BooleanController, _Controller);
-    function BooleanController(object, property) {
-        classCallCheck(this, BooleanController);
-        var _this2 = possibleConstructorReturn(this, (BooleanController.__proto__ || Object.getPrototypeOf(BooleanController)).call(this, object, property));
-        var _this = _this2;
-        _this2.__prev = _this2.getValue();
-        _this2.__checkbox = document.createElement("input");
-        _this2.__checkbox.setAttribute("type", "checkbox");
-        function onChange() {
-            _this.setValue(!_this.__prev);
-        }
-        dom.bind(_this2.__checkbox, "change", onChange, false);
-        _this2.domElement.appendChild(_this2.__checkbox);
-        _this2.updateDisplay();
-        return _this2;
-    }
-    createClass(BooleanController, [
-        {
-            key: "setValue",
-            value: function setValue(v) {
-                var toReturn = get(BooleanController.prototype.__proto__ || Object.getPrototypeOf(BooleanController.prototype), "setValue", this).call(this, v);
-                if (this.__onFinishChange) this.__onFinishChange.call(this, this.getValue());
-                this.__prev = this.getValue();
-                return toReturn;
-            }
-        },
-        {
-            key: "updateDisplay",
-            value: function updateDisplay() {
-                if (this.getValue() === true) {
-                    this.__checkbox.setAttribute("checked", "checked");
-                    this.__checkbox.checked = true;
-                    this.__prev = true;
-                } else {
-                    this.__checkbox.checked = false;
-                    this.__prev = false;
-                }
-                return get(BooleanController.prototype.__proto__ || Object.getPrototypeOf(BooleanController.prototype), "updateDisplay", this).call(this);
-            }
-        }
-    ]);
-    return BooleanController;
-}(Controller);
-var OptionController = function(_Controller) {
-    inherits(OptionController, _Controller);
-    function OptionController(object, property, opts) {
-        classCallCheck(this, OptionController);
-        var _this2 = possibleConstructorReturn(this, (OptionController.__proto__ || Object.getPrototypeOf(OptionController)).call(this, object, property));
-        var options = opts;
-        var _this = _this2;
-        _this2.__select = document.createElement("select");
-        if (Common.isArray(options)) {
-            var map = {};
-            Common.each(options, function(element) {
-                map[element] = element;
-            });
-            options = map;
-        }
-        Common.each(options, function(value, key) {
-            var opt = document.createElement("option");
-            opt.innerHTML = key;
-            opt.setAttribute("value", value);
-            _this.__select.appendChild(opt);
-        });
-        _this2.updateDisplay();
-        dom.bind(_this2.__select, "change", function() {
-            var desiredValue = this.options[this.selectedIndex].value;
-            _this.setValue(desiredValue);
-        });
-        _this2.domElement.appendChild(_this2.__select);
-        return _this2;
-    }
-    createClass(OptionController, [
-        {
-            key: "setValue",
-            value: function setValue(v) {
-                var toReturn = get(OptionController.prototype.__proto__ || Object.getPrototypeOf(OptionController.prototype), "setValue", this).call(this, v);
-                if (this.__onFinishChange) this.__onFinishChange.call(this, this.getValue());
-                return toReturn;
-            }
-        },
-        {
-            key: "updateDisplay",
-            value: function updateDisplay() {
-                if (dom.isActive(this.__select)) return this;
-                this.__select.value = this.getValue();
-                return get(OptionController.prototype.__proto__ || Object.getPrototypeOf(OptionController.prototype), "updateDisplay", this).call(this);
-            }
-        }
-    ]);
-    return OptionController;
-}(Controller);
-var StringController = function(_Controller) {
-    inherits(StringController, _Controller);
-    function StringController(object, property) {
-        classCallCheck(this, StringController);
-        var _this2 = possibleConstructorReturn(this, (StringController.__proto__ || Object.getPrototypeOf(StringController)).call(this, object, property));
-        var _this = _this2;
-        function onChange() {
-            _this.setValue(_this.__input.value);
-        }
-        function onBlur() {
-            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.getValue());
-        }
-        _this2.__input = document.createElement("input");
-        _this2.__input.setAttribute("type", "text");
-        dom.bind(_this2.__input, "keyup", onChange);
-        dom.bind(_this2.__input, "change", onChange);
-        dom.bind(_this2.__input, "blur", onBlur);
-        dom.bind(_this2.__input, "keydown", function(e) {
-            if (e.keyCode === 13) this.blur();
-        });
-        _this2.updateDisplay();
-        _this2.domElement.appendChild(_this2.__input);
-        return _this2;
-    }
-    createClass(StringController, [
-        {
-            key: "updateDisplay",
-            value: function updateDisplay() {
-                if (!dom.isActive(this.__input)) this.__input.value = this.getValue();
-                return get(StringController.prototype.__proto__ || Object.getPrototypeOf(StringController.prototype), "updateDisplay", this).call(this);
-            }
-        }
-    ]);
-    return StringController;
-}(Controller);
-function numDecimals(x) {
-    var _x = x.toString();
-    if (_x.indexOf(".") > -1) return _x.length - _x.indexOf(".") - 1;
-    return 0;
-}
-var NumberController = function(_Controller) {
-    inherits(NumberController, _Controller);
-    function NumberController(object, property, params) {
-        classCallCheck(this, NumberController);
-        var _this = possibleConstructorReturn(this, (NumberController.__proto__ || Object.getPrototypeOf(NumberController)).call(this, object, property));
-        var _params = params || {};
-        _this.__min = _params.min;
-        _this.__max = _params.max;
-        _this.__step = _params.step;
-        if (Common.isUndefined(_this.__step)) {
-            if (_this.initialValue === 0) _this.__impliedStep = 1;
-            else _this.__impliedStep = Math.pow(10, Math.floor(Math.log(Math.abs(_this.initialValue)) / Math.LN10)) / 10;
-        } else _this.__impliedStep = _this.__step;
-        _this.__precision = numDecimals(_this.__impliedStep);
-        return _this;
-    }
-    createClass(NumberController, [
-        {
-            key: "setValue",
-            value: function setValue(v) {
-                var _v = v;
-                if (this.__min !== undefined && _v < this.__min) _v = this.__min;
-                else if (this.__max !== undefined && _v > this.__max) _v = this.__max;
-                if (this.__step !== undefined && _v % this.__step !== 0) _v = Math.round(_v / this.__step) * this.__step;
-                return get(NumberController.prototype.__proto__ || Object.getPrototypeOf(NumberController.prototype), "setValue", this).call(this, _v);
-            }
-        },
-        {
-            key: "min",
-            value: function min(minValue) {
-                this.__min = minValue;
-                return this;
-            }
-        },
-        {
-            key: "max",
-            value: function max(maxValue) {
-                this.__max = maxValue;
-                return this;
-            }
-        },
-        {
-            key: "step",
-            value: function step(stepValue) {
-                this.__step = stepValue;
-                this.__impliedStep = stepValue;
-                this.__precision = numDecimals(stepValue);
-                return this;
-            }
-        }
-    ]);
-    return NumberController;
-}(Controller);
-function roundToDecimal(value, decimals) {
-    var tenTo = Math.pow(10, decimals);
-    return Math.round(value * tenTo) / tenTo;
-}
-var NumberControllerBox = function(_NumberController) {
-    inherits(NumberControllerBox, _NumberController);
-    function NumberControllerBox(object, property, params) {
-        classCallCheck(this, NumberControllerBox);
-        var _this2 = possibleConstructorReturn(this, (NumberControllerBox.__proto__ || Object.getPrototypeOf(NumberControllerBox)).call(this, object, property, params));
-        _this2.__truncationSuspended = false;
-        var _this = _this2;
-        var prevY = void 0;
-        function onChange() {
-            var attempted = parseFloat(_this.__input.value);
-            if (!Common.isNaN(attempted)) _this.setValue(attempted);
-        }
-        function onFinish() {
-            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.getValue());
-        }
-        function onBlur() {
-            onFinish();
-        }
-        function onMouseDrag(e) {
-            var diff = prevY - e.clientY;
-            _this.setValue(_this.getValue() + diff * _this.__impliedStep);
-            prevY = e.clientY;
-        }
-        function onMouseUp() {
-            dom.unbind(window, "mousemove", onMouseDrag);
-            dom.unbind(window, "mouseup", onMouseUp);
-            onFinish();
-        }
-        function onMouseDown(e) {
-            dom.bind(window, "mousemove", onMouseDrag);
-            dom.bind(window, "mouseup", onMouseUp);
-            prevY = e.clientY;
-        }
-        _this2.__input = document.createElement("input");
-        _this2.__input.setAttribute("type", "text");
-        dom.bind(_this2.__input, "change", onChange);
-        dom.bind(_this2.__input, "blur", onBlur);
-        dom.bind(_this2.__input, "mousedown", onMouseDown);
-        dom.bind(_this2.__input, "keydown", function(e) {
-            if (e.keyCode === 13) {
-                _this.__truncationSuspended = true;
-                this.blur();
-                _this.__truncationSuspended = false;
-                onFinish();
-            }
-        });
-        _this2.updateDisplay();
-        _this2.domElement.appendChild(_this2.__input);
-        return _this2;
-    }
-    createClass(NumberControllerBox, [
-        {
-            key: "updateDisplay",
-            value: function updateDisplay() {
-                this.__input.value = this.__truncationSuspended ? this.getValue() : roundToDecimal(this.getValue(), this.__precision);
-                return get(NumberControllerBox.prototype.__proto__ || Object.getPrototypeOf(NumberControllerBox.prototype), "updateDisplay", this).call(this);
-            }
-        }
-    ]);
-    return NumberControllerBox;
-}(NumberController);
-function map(v, i1, i2, o1, o2) {
-    return o1 + (o2 - o1) * ((v - i1) / (i2 - i1));
-}
-var NumberControllerSlider = function(_NumberController) {
-    inherits(NumberControllerSlider, _NumberController);
-    function NumberControllerSlider(object, property, min, max, step) {
-        classCallCheck(this, NumberControllerSlider);
-        var _this2 = possibleConstructorReturn(this, (NumberControllerSlider.__proto__ || Object.getPrototypeOf(NumberControllerSlider)).call(this, object, property, {
-            min: min,
-            max: max,
-            step: step
-        }));
-        var _this = _this2;
-        _this2.__background = document.createElement("div");
-        _this2.__foreground = document.createElement("div");
-        dom.bind(_this2.__background, "mousedown", onMouseDown);
-        dom.bind(_this2.__background, "touchstart", onTouchStart);
-        dom.addClass(_this2.__background, "slider");
-        dom.addClass(_this2.__foreground, "slider-fg");
-        function onMouseDown(e) {
-            document.activeElement.blur();
-            dom.bind(window, "mousemove", onMouseDrag);
-            dom.bind(window, "mouseup", onMouseUp);
-            onMouseDrag(e);
-        }
-        function onMouseDrag(e) {
-            e.preventDefault();
-            var bgRect = _this.__background.getBoundingClientRect();
-            _this.setValue(map(e.clientX, bgRect.left, bgRect.right, _this.__min, _this.__max));
-            return false;
-        }
-        function onMouseUp() {
-            dom.unbind(window, "mousemove", onMouseDrag);
-            dom.unbind(window, "mouseup", onMouseUp);
-            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.getValue());
-        }
-        function onTouchStart(e) {
-            if (e.touches.length !== 1) return;
-            dom.bind(window, "touchmove", onTouchMove);
-            dom.bind(window, "touchend", onTouchEnd);
-            onTouchMove(e);
-        }
-        function onTouchMove(e) {
-            var clientX = e.touches[0].clientX;
-            var bgRect = _this.__background.getBoundingClientRect();
-            _this.setValue(map(clientX, bgRect.left, bgRect.right, _this.__min, _this.__max));
-        }
-        function onTouchEnd() {
-            dom.unbind(window, "touchmove", onTouchMove);
-            dom.unbind(window, "touchend", onTouchEnd);
-            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.getValue());
-        }
-        _this2.updateDisplay();
-        _this2.__background.appendChild(_this2.__foreground);
-        _this2.domElement.appendChild(_this2.__background);
-        return _this2;
-    }
-    createClass(NumberControllerSlider, [
-        {
-            key: "updateDisplay",
-            value: function updateDisplay() {
-                var pct = (this.getValue() - this.__min) / (this.__max - this.__min);
-                this.__foreground.style.width = pct * 100 + "%";
-                return get(NumberControllerSlider.prototype.__proto__ || Object.getPrototypeOf(NumberControllerSlider.prototype), "updateDisplay", this).call(this);
-            }
-        }
-    ]);
-    return NumberControllerSlider;
-}(NumberController);
-var FunctionController = function(_Controller) {
-    inherits(FunctionController, _Controller);
-    function FunctionController(object, property, text) {
-        classCallCheck(this, FunctionController);
-        var _this2 = possibleConstructorReturn(this, (FunctionController.__proto__ || Object.getPrototypeOf(FunctionController)).call(this, object, property));
-        var _this = _this2;
-        _this2.__button = document.createElement("div");
-        _this2.__button.innerHTML = text === undefined ? "Fire" : text;
-        dom.bind(_this2.__button, "click", function(e) {
-            e.preventDefault();
-            _this.fire();
-            return false;
-        });
-        dom.addClass(_this2.__button, "button");
-        _this2.domElement.appendChild(_this2.__button);
-        return _this2;
-    }
-    createClass(FunctionController, [
-        {
-            key: "fire",
-            value: function fire() {
-                if (this.__onChange) this.__onChange.call(this);
-                this.getValue().call(this.object);
-                if (this.__onFinishChange) this.__onFinishChange.call(this, this.getValue());
-            }
-        }
-    ]);
-    return FunctionController;
-}(Controller);
-var ColorController = function(_Controller) {
-    inherits(ColorController, _Controller);
-    function ColorController(object, property) {
-        classCallCheck(this, ColorController);
-        var _this2 = possibleConstructorReturn(this, (ColorController.__proto__ || Object.getPrototypeOf(ColorController)).call(this, object, property));
-        _this2.__color = new Color(_this2.getValue());
-        _this2.__temp = new Color(0);
-        var _this = _this2;
-        _this2.domElement = document.createElement("div");
-        dom.makeSelectable(_this2.domElement, false);
-        _this2.__selector = document.createElement("div");
-        _this2.__selector.className = "selector";
-        _this2.__saturation_field = document.createElement("div");
-        _this2.__saturation_field.className = "saturation-field";
-        _this2.__field_knob = document.createElement("div");
-        _this2.__field_knob.className = "field-knob";
-        _this2.__field_knob_border = "2px solid ";
-        _this2.__hue_knob = document.createElement("div");
-        _this2.__hue_knob.className = "hue-knob";
-        _this2.__hue_field = document.createElement("div");
-        _this2.__hue_field.className = "hue-field";
-        _this2.__input = document.createElement("input");
-        _this2.__input.type = "text";
-        _this2.__input_textShadow = "0 1px 1px ";
-        dom.bind(_this2.__input, "keydown", function(e) {
-            if (e.keyCode === 13) onBlur.call(this);
-        });
-        dom.bind(_this2.__input, "blur", onBlur);
-        dom.bind(_this2.__selector, "mousedown", function() {
-            dom.addClass(this, "drag").bind(window, "mouseup", function() {
-                dom.removeClass(_this.__selector, "drag");
-            });
-        });
-        dom.bind(_this2.__selector, "touchstart", function() {
-            dom.addClass(this, "drag").bind(window, "touchend", function() {
-                dom.removeClass(_this.__selector, "drag");
-            });
-        });
-        var valueField = document.createElement("div");
-        Common.extend(_this2.__selector.style, {
-            width: "122px",
-            height: "102px",
-            padding: "3px",
-            backgroundColor: "#222",
-            boxShadow: "0px 1px 3px rgba(0,0,0,0.3)"
-        });
-        Common.extend(_this2.__field_knob.style, {
-            position: "absolute",
-            width: "12px",
-            height: "12px",
-            border: _this2.__field_knob_border + (_this2.__color.v < 0.5 ? "#fff" : "#000"),
-            boxShadow: "0px 1px 3px rgba(0,0,0,0.5)",
-            borderRadius: "12px",
-            zIndex: 1
-        });
-        Common.extend(_this2.__hue_knob.style, {
-            position: "absolute",
-            width: "15px",
-            height: "2px",
-            borderRight: "4px solid #fff",
-            zIndex: 1
-        });
-        Common.extend(_this2.__saturation_field.style, {
-            width: "100px",
-            height: "100px",
-            border: "1px solid #555",
-            marginRight: "3px",
-            display: "inline-block",
-            cursor: "pointer"
-        });
-        Common.extend(valueField.style, {
-            width: "100%",
-            height: "100%",
-            background: "none"
-        });
-        linearGradient(valueField, "top", "rgba(0,0,0,0)", "#000");
-        Common.extend(_this2.__hue_field.style, {
-            width: "15px",
-            height: "100px",
-            border: "1px solid #555",
-            cursor: "ns-resize",
-            position: "absolute",
-            top: "3px",
-            right: "3px"
-        });
-        hueGradient(_this2.__hue_field);
-        Common.extend(_this2.__input.style, {
-            outline: "none",
-            textAlign: "center",
-            color: "#fff",
-            border: 0,
-            fontWeight: "bold",
-            textShadow: _this2.__input_textShadow + "rgba(0,0,0,0.7)"
-        });
-        dom.bind(_this2.__saturation_field, "mousedown", fieldDown);
-        dom.bind(_this2.__saturation_field, "touchstart", fieldDown);
-        dom.bind(_this2.__field_knob, "mousedown", fieldDown);
-        dom.bind(_this2.__field_knob, "touchstart", fieldDown);
-        dom.bind(_this2.__hue_field, "mousedown", fieldDownH);
-        dom.bind(_this2.__hue_field, "touchstart", fieldDownH);
-        function fieldDown(e) {
-            setSV(e);
-            dom.bind(window, "mousemove", setSV);
-            dom.bind(window, "touchmove", setSV);
-            dom.bind(window, "mouseup", fieldUpSV);
-            dom.bind(window, "touchend", fieldUpSV);
-        }
-        function fieldDownH(e) {
-            setH(e);
-            dom.bind(window, "mousemove", setH);
-            dom.bind(window, "touchmove", setH);
-            dom.bind(window, "mouseup", fieldUpH);
-            dom.bind(window, "touchend", fieldUpH);
-        }
-        function fieldUpSV() {
-            dom.unbind(window, "mousemove", setSV);
-            dom.unbind(window, "touchmove", setSV);
-            dom.unbind(window, "mouseup", fieldUpSV);
-            dom.unbind(window, "touchend", fieldUpSV);
-            onFinish();
-        }
-        function fieldUpH() {
-            dom.unbind(window, "mousemove", setH);
-            dom.unbind(window, "touchmove", setH);
-            dom.unbind(window, "mouseup", fieldUpH);
-            dom.unbind(window, "touchend", fieldUpH);
-            onFinish();
-        }
-        function onBlur() {
-            var i = interpret(this.value);
-            if (i !== false) {
-                _this.__color.__state = i;
-                _this.setValue(_this.__color.toOriginal());
-            } else this.value = _this.__color.toString();
-        }
-        function onFinish() {
-            if (_this.__onFinishChange) _this.__onFinishChange.call(_this, _this.__color.toOriginal());
-        }
-        _this2.__saturation_field.appendChild(valueField);
-        _this2.__selector.appendChild(_this2.__field_knob);
-        _this2.__selector.appendChild(_this2.__saturation_field);
-        _this2.__selector.appendChild(_this2.__hue_field);
-        _this2.__hue_field.appendChild(_this2.__hue_knob);
-        _this2.domElement.appendChild(_this2.__input);
-        _this2.domElement.appendChild(_this2.__selector);
-        _this2.updateDisplay();
-        function setSV(e) {
-            if (e.type.indexOf("touch") === -1) e.preventDefault();
-            var fieldRect = _this.__saturation_field.getBoundingClientRect();
-            var _ref = e.touches && e.touches[0] || e, clientX = _ref.clientX, clientY = _ref.clientY;
-            var s = (clientX - fieldRect.left) / (fieldRect.right - fieldRect.left);
-            var v = 1 - (clientY - fieldRect.top) / (fieldRect.bottom - fieldRect.top);
-            if (v > 1) v = 1;
-            else if (v < 0) v = 0;
-            if (s > 1) s = 1;
-            else if (s < 0) s = 0;
-            _this.__color.v = v;
-            _this.__color.s = s;
-            _this.setValue(_this.__color.toOriginal());
-            return false;
-        }
-        function setH(e) {
-            if (e.type.indexOf("touch") === -1) e.preventDefault();
-            var fieldRect = _this.__hue_field.getBoundingClientRect();
-            var _ref2 = e.touches && e.touches[0] || e, clientY = _ref2.clientY;
-            var h = 1 - (clientY - fieldRect.top) / (fieldRect.bottom - fieldRect.top);
-            if (h > 1) h = 1;
-            else if (h < 0) h = 0;
-            _this.__color.h = h * 360;
-            _this.setValue(_this.__color.toOriginal());
-            return false;
-        }
-        return _this2;
-    }
-    createClass(ColorController, [
-        {
-            key: "updateDisplay",
-            value: function updateDisplay() {
-                var i = interpret(this.getValue());
-                if (i !== false) {
-                    var mismatch = false;
-                    Common.each(Color.COMPONENTS, function(component) {
-                        if (!Common.isUndefined(i[component]) && !Common.isUndefined(this.__color.__state[component]) && i[component] !== this.__color.__state[component]) {
-                            mismatch = true;
-                            return {};
-                        }
-                    }, this);
-                    if (mismatch) Common.extend(this.__color.__state, i);
-                }
-                Common.extend(this.__temp.__state, this.__color.__state);
-                this.__temp.a = 1;
-                var flip = this.__color.v < 0.5 || this.__color.s > 0.5 ? 255 : 0;
-                var _flip = 255 - flip;
-                Common.extend(this.__field_knob.style, {
-                    marginLeft: 100 * this.__color.s - 7 + "px",
-                    marginTop: 100 * (1 - this.__color.v) - 7 + "px",
-                    backgroundColor: this.__temp.toHexString(),
-                    border: this.__field_knob_border + "rgb(" + flip + "," + flip + "," + flip + ")"
-                });
-                this.__hue_knob.style.marginTop = (1 - this.__color.h / 360) * 100 + "px";
-                this.__temp.s = 1;
-                this.__temp.v = 1;
-                linearGradient(this.__saturation_field, "left", "#fff", this.__temp.toHexString());
-                this.__input.value = this.__color.toString();
-                Common.extend(this.__input.style, {
-                    backgroundColor: this.__color.toHexString(),
-                    color: "rgb(" + flip + "," + flip + "," + flip + ")",
-                    textShadow: this.__input_textShadow + "rgba(" + _flip + "," + _flip + "," + _flip + ",.7)"
-                });
-            }
-        }
-    ]);
-    return ColorController;
-}(Controller);
-var vendors = [
-    "-moz-",
-    "-o-",
-    "-webkit-",
-    "-ms-",
-    ""
-];
-function linearGradient(elem, x, a, b) {
-    elem.style.background = "";
-    Common.each(vendors, function(vendor) {
-        elem.style.cssText += "background: " + vendor + "linear-gradient(" + x + ", " + a + " 0%, " + b + " 100%); ";
-    });
-}
-function hueGradient(elem) {
-    elem.style.background = "";
-    elem.style.cssText += "background: -moz-linear-gradient(top,  #ff0000 0%, #ff00ff 17%, #0000ff 34%, #00ffff 50%, #00ff00 67%, #ffff00 84%, #ff0000 100%);";
-    elem.style.cssText += "background: -webkit-linear-gradient(top,  #ff0000 0%,#ff00ff 17%,#0000ff 34%,#00ffff 50%,#00ff00 67%,#ffff00 84%,#ff0000 100%);";
-    elem.style.cssText += "background: -o-linear-gradient(top,  #ff0000 0%,#ff00ff 17%,#0000ff 34%,#00ffff 50%,#00ff00 67%,#ffff00 84%,#ff0000 100%);";
-    elem.style.cssText += "background: -ms-linear-gradient(top,  #ff0000 0%,#ff00ff 17%,#0000ff 34%,#00ffff 50%,#00ff00 67%,#ffff00 84%,#ff0000 100%);";
-    elem.style.cssText += "background: linear-gradient(top,  #ff0000 0%,#ff00ff 17%,#0000ff 34%,#00ffff 50%,#00ff00 67%,#ffff00 84%,#ff0000 100%);";
-}
-var css = {
-    load: function load(url, indoc) {
-        var doc = indoc || document;
-        var link = doc.createElement("link");
-        link.type = "text/css";
-        link.rel = "stylesheet";
-        link.href = url;
-        doc.getElementsByTagName("head")[0].appendChild(link);
-    },
-    inject: function inject(cssContent, indoc) {
-        var doc = indoc || document;
-        var injected = document.createElement("style");
-        injected.type = "text/css";
-        injected.innerHTML = cssContent;
-        var head = doc.getElementsByTagName("head")[0];
-        try {
-            head.appendChild(injected);
-        } catch (e) {}
-    }
-};
-var saveDialogContents = '<div id="dg-save" class="dg dialogue">\n\n  Here\'s the new load parameter for your <code>GUI</code>\'s constructor:\n\n  <textarea id="dg-new-constructor"></textarea>\n\n  <div id="dg-save-locally">\n\n    <input id="dg-local-storage" type="checkbox"/> Automatically save\n    values to <code>localStorage</code> on exit.\n\n    <div id="dg-local-explain">The values saved to <code>localStorage</code> will\n      override those passed to <code>dat.GUI</code>\'s constructor. This makes it\n      easier to work incrementally, but <code>localStorage</code> is fragile,\n      and your friends may not see the same values you do.\n\n    </div>\n\n  </div>\n\n</div>';
-var ControllerFactory = function ControllerFactory(object, property) {
-    var initialValue = object[property];
-    if (Common.isArray(arguments[2]) || Common.isObject(arguments[2])) return new OptionController(object, property, arguments[2]);
-    if (Common.isNumber(initialValue)) {
-        if (Common.isNumber(arguments[2]) && Common.isNumber(arguments[3])) {
-            if (Common.isNumber(arguments[4])) return new NumberControllerSlider(object, property, arguments[2], arguments[3], arguments[4]);
-            return new NumberControllerSlider(object, property, arguments[2], arguments[3]);
-        }
-        if (Common.isNumber(arguments[4])) return new NumberControllerBox(object, property, {
-            min: arguments[2],
-            max: arguments[3],
-            step: arguments[4]
-        });
-        return new NumberControllerBox(object, property, {
-            min: arguments[2],
-            max: arguments[3]
-        });
-    }
-    if (Common.isString(initialValue)) return new StringController(object, property);
-    if (Common.isFunction(initialValue)) return new FunctionController(object, property, "");
-    if (Common.isBoolean(initialValue)) return new BooleanController(object, property);
-    return null;
-};
-function requestAnimationFrame(callback) {
-    setTimeout(callback, 1000 / 60);
-}
-var requestAnimationFrame$1 = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || requestAnimationFrame;
-var CenteredDiv = function() {
-    function CenteredDiv() {
-        classCallCheck(this, CenteredDiv);
-        this.backgroundElement = document.createElement("div");
-        Common.extend(this.backgroundElement.style, {
-            backgroundColor: "rgba(0,0,0,0.8)",
-            top: 0,
-            left: 0,
-            display: "none",
-            zIndex: "1000",
-            opacity: 0,
-            WebkitTransition: "opacity 0.2s linear",
-            transition: "opacity 0.2s linear"
-        });
-        dom.makeFullscreen(this.backgroundElement);
-        this.backgroundElement.style.position = "fixed";
-        this.domElement = document.createElement("div");
-        Common.extend(this.domElement.style, {
-            position: "fixed",
-            display: "none",
-            zIndex: "1001",
-            opacity: 0,
-            WebkitTransition: "-webkit-transform 0.2s ease-out, opacity 0.2s linear",
-            transition: "transform 0.2s ease-out, opacity 0.2s linear"
-        });
-        document.body.appendChild(this.backgroundElement);
-        document.body.appendChild(this.domElement);
-        var _this = this;
-        dom.bind(this.backgroundElement, "click", function() {
-            _this.hide();
-        });
-    }
-    createClass(CenteredDiv, [
-        {
-            key: "show",
-            value: function show() {
-                var _this = this;
-                this.backgroundElement.style.display = "block";
-                this.domElement.style.display = "block";
-                this.domElement.style.opacity = 0;
-                this.domElement.style.webkitTransform = "scale(1.1)";
-                this.layout();
-                Common.defer(function() {
-                    _this.backgroundElement.style.opacity = 1;
-                    _this.domElement.style.opacity = 1;
-                    _this.domElement.style.webkitTransform = "scale(1)";
-                });
-            }
-        },
-        {
-            key: "hide",
-            value: function hide() {
-                var _this = this;
-                var hide = function hide() {
-                    _this.domElement.style.display = "none";
-                    _this.backgroundElement.style.display = "none";
-                    dom.unbind(_this.domElement, "webkitTransitionEnd", hide);
-                    dom.unbind(_this.domElement, "transitionend", hide);
-                    dom.unbind(_this.domElement, "oTransitionEnd", hide);
-                };
-                dom.bind(this.domElement, "webkitTransitionEnd", hide);
-                dom.bind(this.domElement, "transitionend", hide);
-                dom.bind(this.domElement, "oTransitionEnd", hide);
-                this.backgroundElement.style.opacity = 0;
-                this.domElement.style.opacity = 0;
-                this.domElement.style.webkitTransform = "scale(1.1)";
-            }
-        },
-        {
-            key: "layout",
-            value: function layout() {
-                this.domElement.style.left = window.innerWidth / 2 - dom.getWidth(this.domElement) / 2 + "px";
-                this.domElement.style.top = window.innerHeight / 2 - dom.getHeight(this.domElement) / 2 + "px";
-            }
-        }
-    ]);
-    return CenteredDiv;
-}();
-var styleSheet = ___$insertStyle(".dg ul{list-style:none;margin:0;padding:0;width:100%;clear:both}.dg.ac{position:fixed;top:0;left:0;right:0;height:0;z-index:0}.dg:not(.ac) .main{overflow:hidden}.dg.main{-webkit-transition:opacity .1s linear;-o-transition:opacity .1s linear;-moz-transition:opacity .1s linear;transition:opacity .1s linear}.dg.main.taller-than-window{overflow-y:auto}.dg.main.taller-than-window .close-button{opacity:1;margin-top:-1px;border-top:1px solid #2c2c2c}.dg.main ul.closed .close-button{opacity:1 !important}.dg.main:hover .close-button,.dg.main .close-button.drag{opacity:1}.dg.main .close-button{-webkit-transition:opacity .1s linear;-o-transition:opacity .1s linear;-moz-transition:opacity .1s linear;transition:opacity .1s linear;border:0;line-height:19px;height:20px;cursor:pointer;text-align:center;background-color:#000}.dg.main .close-button.close-top{position:relative}.dg.main .close-button.close-bottom{position:absolute}.dg.main .close-button:hover{background-color:#111}.dg.a{float:right;margin-right:15px;overflow-y:visible}.dg.a.has-save>ul.close-top{margin-top:0}.dg.a.has-save>ul.close-bottom{margin-top:27px}.dg.a.has-save>ul.closed{margin-top:0}.dg.a .save-row{top:0;z-index:1002}.dg.a .save-row.close-top{position:relative}.dg.a .save-row.close-bottom{position:fixed}.dg li{-webkit-transition:height .1s ease-out;-o-transition:height .1s ease-out;-moz-transition:height .1s ease-out;transition:height .1s ease-out;-webkit-transition:overflow .1s linear;-o-transition:overflow .1s linear;-moz-transition:overflow .1s linear;transition:overflow .1s linear}.dg li:not(.folder){cursor:auto;height:27px;line-height:27px;padding:0 4px 0 5px}.dg li.folder{padding:0;border-left:4px solid rgba(0,0,0,0)}.dg li.title{cursor:pointer;margin-left:-4px}.dg .closed li:not(.title),.dg .closed ul li,.dg .closed ul li>*{height:0;overflow:hidden;border:0}.dg .cr{clear:both;padding-left:3px;height:27px;overflow:hidden}.dg .property-name{cursor:default;float:left;clear:left;width:40%;overflow:hidden;text-overflow:ellipsis}.dg .cr.function .property-name{width:100%}.dg .c{float:left;width:60%;position:relative}.dg .c input[type=text]{border:0;margin-top:4px;padding:3px;width:100%;float:right}.dg .has-slider input[type=text]{width:30%;margin-left:0}.dg .slider{float:left;width:66%;margin-left:-5px;margin-right:0;height:19px;margin-top:4px}.dg .slider-fg{height:100%}.dg .c input[type=checkbox]{margin-top:7px}.dg .c select{margin-top:5px}.dg .cr.function,.dg .cr.function .property-name,.dg .cr.function *,.dg .cr.boolean,.dg .cr.boolean *{cursor:pointer}.dg .cr.color{overflow:visible}.dg .selector{display:none;position:absolute;margin-left:-9px;margin-top:23px;z-index:10}.dg .c:hover .selector,.dg .selector.drag{display:block}.dg li.save-row{padding:0}.dg li.save-row .button{display:inline-block;padding:0px 6px}.dg.dialogue{background-color:#222;width:460px;padding:15px;font-size:13px;line-height:15px}#dg-new-constructor{padding:10px;color:#222;font-family:Monaco, monospace;font-size:10px;border:0;resize:none;box-shadow:inset 1px 1px 1px #888;word-wrap:break-word;margin:12px 0;display:block;width:440px;overflow-y:scroll;height:100px;position:relative}#dg-local-explain{display:none;font-size:11px;line-height:17px;border-radius:3px;background-color:#333;padding:8px;margin-top:10px}#dg-local-explain code{font-size:10px}#dat-gui-save-locally{display:none}.dg{color:#eee;font:11px 'Lucida Grande', sans-serif;text-shadow:0 -1px 0 #111}.dg.main::-webkit-scrollbar{width:5px;background:#1a1a1a}.dg.main::-webkit-scrollbar-corner{height:0;display:none}.dg.main::-webkit-scrollbar-thumb{border-radius:5px;background:#676767}.dg li:not(.folder){background:#1a1a1a;border-bottom:1px solid #2c2c2c}.dg li.save-row{line-height:25px;background:#dad5cb;border:0}.dg li.save-row select{margin-left:5px;width:108px}.dg li.save-row .button{margin-left:5px;margin-top:1px;border-radius:2px;font-size:9px;line-height:7px;padding:4px 4px 5px 4px;background:#c5bdad;color:#fff;text-shadow:0 1px 0 #b0a58f;box-shadow:0 -1px 0 #b0a58f;cursor:pointer}.dg li.save-row .button.gears{background:#c5bdad url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAANCAYAAAB/9ZQ7AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAQJJREFUeNpiYKAU/P//PwGIC/ApCABiBSAW+I8AClAcgKxQ4T9hoMAEUrxx2QSGN6+egDX+/vWT4e7N82AMYoPAx/evwWoYoSYbACX2s7KxCxzcsezDh3evFoDEBYTEEqycggWAzA9AuUSQQgeYPa9fPv6/YWm/Acx5IPb7ty/fw+QZblw67vDs8R0YHyQhgObx+yAJkBqmG5dPPDh1aPOGR/eugW0G4vlIoTIfyFcA+QekhhHJhPdQxbiAIguMBTQZrPD7108M6roWYDFQiIAAv6Aow/1bFwXgis+f2LUAynwoIaNcz8XNx3Dl7MEJUDGQpx9gtQ8YCueB+D26OECAAQDadt7e46D42QAAAABJRU5ErkJggg==) 2px 1px no-repeat;height:7px;width:8px}.dg li.save-row .button:hover{background-color:#bab19e;box-shadow:0 -1px 0 #b0a58f}.dg li.folder{border-bottom:0}.dg li.title{padding-left:16px;background:#000 url(data:image/gif;base64,R0lGODlhBQAFAJEAAP////Pz8////////yH5BAEAAAIALAAAAAAFAAUAAAIIlI+hKgFxoCgAOw==) 6px 10px no-repeat;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.2)}.dg .closed li.title{background-image:url(data:image/gif;base64,R0lGODlhBQAFAJEAAP////Pz8////////yH5BAEAAAIALAAAAAAFAAUAAAIIlGIWqMCbWAEAOw==)}.dg .cr.boolean{border-left:3px solid #806787}.dg .cr.color{border-left:3px solid}.dg .cr.function{border-left:3px solid #e61d5f}.dg .cr.number{border-left:3px solid #2FA1D6}.dg .cr.number input[type=text]{color:#2FA1D6}.dg .cr.string{border-left:3px solid #1ed36f}.dg .cr.string input[type=text]{color:#1ed36f}.dg .cr.function:hover,.dg .cr.boolean:hover{background:#111}.dg .c input[type=text]{background:#303030;outline:none}.dg .c input[type=text]:hover{background:#3c3c3c}.dg .c input[type=text]:focus{background:#494949;color:#fff}.dg .c .slider{background:#303030;cursor:ew-resize}.dg .c .slider-fg{background:#2FA1D6;max-width:100%}.dg .c .slider:hover{background:#3c3c3c}.dg .c .slider:hover .slider-fg{background:#44abda}\n");
-css.inject(styleSheet);
-var CSS_NAMESPACE = "dg";
-var HIDE_KEY_CODE = 72;
-var CLOSE_BUTTON_HEIGHT = 20;
-var DEFAULT_DEFAULT_PRESET_NAME = "Default";
-var SUPPORTS_LOCAL_STORAGE = function() {
-    try {
-        return !!window.localStorage;
-    } catch (e) {
-        return false;
-    }
-}();
-var SAVE_DIALOGUE = void 0;
-var autoPlaceVirgin = true;
-var autoPlaceContainer = void 0;
-var hide = false;
-var hideableGuis = [];
-var GUI = function GUI(pars) {
-    var _this = this;
-    var params = pars || {};
-    this.domElement = document.createElement("div");
-    this.__ul = document.createElement("ul");
-    this.domElement.appendChild(this.__ul);
-    dom.addClass(this.domElement, CSS_NAMESPACE);
-    this.__folders = {};
-    this.__controllers = [];
-    this.__rememberedObjects = [];
-    this.__rememberedObjectIndecesToControllers = [];
-    this.__listening = [];
-    params = Common.defaults(params, {
-        closeOnTop: false,
-        autoPlace: true,
-        width: GUI.DEFAULT_WIDTH
-    });
-    params = Common.defaults(params, {
-        resizable: params.autoPlace,
-        hideable: params.autoPlace
-    });
-    if (!Common.isUndefined(params.load)) {
-        if (params.preset) params.load.preset = params.preset;
-    } else params.load = {
-        preset: DEFAULT_DEFAULT_PRESET_NAME
-    };
-    if (Common.isUndefined(params.parent) && params.hideable) hideableGuis.push(this);
-    params.resizable = Common.isUndefined(params.parent) && params.resizable;
-    if (params.autoPlace && Common.isUndefined(params.scrollable)) params.scrollable = true;
-    var useLocalStorage = SUPPORTS_LOCAL_STORAGE && localStorage.getItem(getLocalStorageHash(this, "isLocal")) === "true";
-    var saveToLocalStorage = void 0;
-    var titleRow = void 0;
-    Object.defineProperties(this, {
-        parent: {
-            get: function get$$1() {
-                return params.parent;
-            }
-        },
-        scrollable: {
-            get: function get$$1() {
-                return params.scrollable;
-            }
-        },
-        autoPlace: {
-            get: function get$$1() {
-                return params.autoPlace;
-            }
-        },
-        closeOnTop: {
-            get: function get$$1() {
-                return params.closeOnTop;
-            }
-        },
-        preset: {
-            get: function get$$1() {
-                if (_this.parent) return _this.getRoot().preset;
-                return params.load.preset;
-            },
-            set: function set$$1(v) {
-                if (_this.parent) _this.getRoot().preset = v;
-                else params.load.preset = v;
-                setPresetSelectIndex(this);
-                _this.revert();
-            }
-        },
-        width: {
-            get: function get$$1() {
-                return params.width;
-            },
-            set: function set$$1(v) {
-                params.width = v;
-                setWidth(_this, v);
-            }
-        },
-        name: {
-            get: function get$$1() {
-                return params.name;
-            },
-            set: function set$$1(v) {
-                params.name = v;
-                if (titleRow) titleRow.innerHTML = params.name;
-            }
-        },
-        closed: {
-            get: function get$$1() {
-                return params.closed;
-            },
-            set: function set$$1(v) {
-                params.closed = v;
-                if (params.closed) dom.addClass(_this.__ul, GUI.CLASS_CLOSED);
-                else dom.removeClass(_this.__ul, GUI.CLASS_CLOSED);
-                this.onResize();
-                if (_this.__closeButton) _this.__closeButton.innerHTML = v ? GUI.TEXT_OPEN : GUI.TEXT_CLOSED;
-            }
-        },
-        load: {
-            get: function get$$1() {
-                return params.load;
-            }
-        },
-        useLocalStorage: {
-            get: function get$$1() {
-                return useLocalStorage;
-            },
-            set: function set$$1(bool) {
-                if (SUPPORTS_LOCAL_STORAGE) {
-                    useLocalStorage = bool;
-                    if (bool) dom.bind(window, "unload", saveToLocalStorage);
-                    else dom.unbind(window, "unload", saveToLocalStorage);
-                    localStorage.setItem(getLocalStorageHash(_this, "isLocal"), bool);
-                }
-            }
-        }
-    });
-    if (Common.isUndefined(params.parent)) {
-        this.closed = params.closed || false;
-        dom.addClass(this.domElement, GUI.CLASS_MAIN);
-        dom.makeSelectable(this.domElement, false);
-        if (SUPPORTS_LOCAL_STORAGE) {
-            if (useLocalStorage) {
-                _this.useLocalStorage = true;
-                var savedGui = localStorage.getItem(getLocalStorageHash(this, "gui"));
-                if (savedGui) params.load = JSON.parse(savedGui);
-            }
-        }
-        this.__closeButton = document.createElement("div");
-        this.__closeButton.innerHTML = GUI.TEXT_CLOSED;
-        dom.addClass(this.__closeButton, GUI.CLASS_CLOSE_BUTTON);
-        if (params.closeOnTop) {
-            dom.addClass(this.__closeButton, GUI.CLASS_CLOSE_TOP);
-            this.domElement.insertBefore(this.__closeButton, this.domElement.childNodes[0]);
-        } else {
-            dom.addClass(this.__closeButton, GUI.CLASS_CLOSE_BOTTOM);
-            this.domElement.appendChild(this.__closeButton);
-        }
-        dom.bind(this.__closeButton, "click", function() {
-            _this.closed = !_this.closed;
-        });
-    } else {
-        if (params.closed === undefined) params.closed = true;
-        var titleRowName = document.createTextNode(params.name);
-        dom.addClass(titleRowName, "controller-name");
-        titleRow = addRow(_this, titleRowName);
-        var onClickTitle = function onClickTitle(e) {
-            e.preventDefault();
-            _this.closed = !_this.closed;
-            return false;
-        };
-        dom.addClass(this.__ul, GUI.CLASS_CLOSED);
-        dom.addClass(titleRow, "title");
-        dom.bind(titleRow, "click", onClickTitle);
-        if (!params.closed) this.closed = false;
-    }
-    if (params.autoPlace) {
-        if (Common.isUndefined(params.parent)) {
-            if (autoPlaceVirgin) {
-                autoPlaceContainer = document.createElement("div");
-                dom.addClass(autoPlaceContainer, CSS_NAMESPACE);
-                dom.addClass(autoPlaceContainer, GUI.CLASS_AUTO_PLACE_CONTAINER);
-                document.body.appendChild(autoPlaceContainer);
-                autoPlaceVirgin = false;
-            }
-            autoPlaceContainer.appendChild(this.domElement);
-            dom.addClass(this.domElement, GUI.CLASS_AUTO_PLACE);
-        }
-        if (!this.parent) setWidth(_this, params.width);
-    }
-    this.__resizeHandler = function() {
-        _this.onResizeDebounced();
-    };
-    dom.bind(window, "resize", this.__resizeHandler);
-    dom.bind(this.__ul, "webkitTransitionEnd", this.__resizeHandler);
-    dom.bind(this.__ul, "transitionend", this.__resizeHandler);
-    dom.bind(this.__ul, "oTransitionEnd", this.__resizeHandler);
-    this.onResize();
-    if (params.resizable) addResizeHandle(this);
-    saveToLocalStorage = function saveToLocalStorage() {
-        if (SUPPORTS_LOCAL_STORAGE && localStorage.getItem(getLocalStorageHash(_this, "isLocal")) === "true") localStorage.setItem(getLocalStorageHash(_this, "gui"), JSON.stringify(_this.getSaveObject()));
-    };
-    this.saveToLocalStorageIfPossible = saveToLocalStorage;
-    function resetWidth() {
-        var root = _this.getRoot();
-        root.width += 1;
-        Common.defer(function() {
-            root.width -= 1;
-        });
-    }
-    if (!params.parent) resetWidth();
-};
-GUI.toggleHide = function() {
-    hide = !hide;
-    Common.each(hideableGuis, function(gui) {
-        gui.domElement.style.display = hide ? "none" : "";
-    });
-};
-GUI.CLASS_AUTO_PLACE = "a";
-GUI.CLASS_AUTO_PLACE_CONTAINER = "ac";
-GUI.CLASS_MAIN = "main";
-GUI.CLASS_CONTROLLER_ROW = "cr";
-GUI.CLASS_TOO_TALL = "taller-than-window";
-GUI.CLASS_CLOSED = "closed";
-GUI.CLASS_CLOSE_BUTTON = "close-button";
-GUI.CLASS_CLOSE_TOP = "close-top";
-GUI.CLASS_CLOSE_BOTTOM = "close-bottom";
-GUI.CLASS_DRAG = "drag";
-GUI.DEFAULT_WIDTH = 245;
-GUI.TEXT_CLOSED = "Close Controls";
-GUI.TEXT_OPEN = "Open Controls";
-GUI._keydownHandler = function(e) {
-    if (document.activeElement.type !== "text" && (e.which === HIDE_KEY_CODE || e.keyCode === HIDE_KEY_CODE)) GUI.toggleHide();
-};
-dom.bind(window, "keydown", GUI._keydownHandler, false);
-Common.extend(GUI.prototype, {
-    add: function add(object, property) {
-        return _add(this, object, property, {
-            factoryArgs: Array.prototype.slice.call(arguments, 2)
-        });
-    },
-    addColor: function addColor(object, property) {
-        return _add(this, object, property, {
-            color: true
-        });
-    },
-    remove: function remove(controller) {
-        this.__ul.removeChild(controller.__li);
-        this.__controllers.splice(this.__controllers.indexOf(controller), 1);
-        var _this = this;
-        Common.defer(function() {
-            _this.onResize();
-        });
-    },
-    destroy: function destroy() {
-        if (this.parent) throw new Error("Only the root GUI should be removed with .destroy(). For subfolders, use gui.removeFolder(folder) instead.");
-        if (this.autoPlace) autoPlaceContainer.removeChild(this.domElement);
-        var _this = this;
-        Common.each(this.__folders, function(subfolder) {
-            _this.removeFolder(subfolder);
-        });
-        dom.unbind(window, "keydown", GUI._keydownHandler, false);
-        removeListeners(this);
-    },
-    addFolder: function addFolder(name) {
-        if (this.__folders[name] !== undefined) throw new Error('You already have a folder in this GUI by the name "' + name + '"');
-        var newGuiParams = {
-            name: name,
-            parent: this
-        };
-        newGuiParams.autoPlace = this.autoPlace;
-        if (this.load && this.load.folders && this.load.folders[name]) {
-            newGuiParams.closed = this.load.folders[name].closed;
-            newGuiParams.load = this.load.folders[name];
-        }
-        var gui = new GUI(newGuiParams);
-        this.__folders[name] = gui;
-        var li = addRow(this, gui.domElement);
-        dom.addClass(li, "folder");
-        return gui;
-    },
-    removeFolder: function removeFolder(folder) {
-        this.__ul.removeChild(folder.domElement.parentElement);
-        delete this.__folders[folder.name];
-        if (this.load && this.load.folders && this.load.folders[folder.name]) delete this.load.folders[folder.name];
-        removeListeners(folder);
-        var _this = this;
-        Common.each(folder.__folders, function(subfolder) {
-            folder.removeFolder(subfolder);
-        });
-        Common.defer(function() {
-            _this.onResize();
-        });
-    },
-    open: function open() {
-        this.closed = false;
-    },
-    close: function close() {
-        this.closed = true;
-    },
-    hide: function hide() {
-        this.domElement.style.display = "none";
-    },
-    show: function show() {
-        this.domElement.style.display = "";
-    },
-    onResize: function onResize() {
-        var root = this.getRoot();
-        if (root.scrollable) {
-            var top = dom.getOffset(root.__ul).top;
-            var h = 0;
-            Common.each(root.__ul.childNodes, function(node) {
-                if (!(root.autoPlace && node === root.__save_row)) h += dom.getHeight(node);
-            });
-            if (window.innerHeight - top - CLOSE_BUTTON_HEIGHT < h) {
-                dom.addClass(root.domElement, GUI.CLASS_TOO_TALL);
-                root.__ul.style.height = window.innerHeight - top - CLOSE_BUTTON_HEIGHT + "px";
-            } else {
-                dom.removeClass(root.domElement, GUI.CLASS_TOO_TALL);
-                root.__ul.style.height = "auto";
-            }
-        }
-        if (root.__resize_handle) Common.defer(function() {
-            root.__resize_handle.style.height = root.__ul.offsetHeight + "px";
-        });
-        if (root.__closeButton) root.__closeButton.style.width = root.width + "px";
-    },
-    onResizeDebounced: Common.debounce(function() {
-        this.onResize();
-    }, 50),
-    remember: function remember() {
-        if (Common.isUndefined(SAVE_DIALOGUE)) {
-            SAVE_DIALOGUE = new CenteredDiv();
-            SAVE_DIALOGUE.domElement.innerHTML = saveDialogContents;
-        }
-        if (this.parent) throw new Error("You can only call remember on a top level GUI.");
-        var _this = this;
-        Common.each(Array.prototype.slice.call(arguments), function(object) {
-            if (_this.__rememberedObjects.length === 0) addSaveMenu(_this);
-            if (_this.__rememberedObjects.indexOf(object) === -1) _this.__rememberedObjects.push(object);
-        });
-        if (this.autoPlace) setWidth(this, this.width);
-    },
-    getRoot: function getRoot() {
-        var gui = this;
-        while(gui.parent)gui = gui.parent;
-        return gui;
-    },
-    getSaveObject: function getSaveObject() {
-        var toReturn = this.load;
-        toReturn.closed = this.closed;
-        if (this.__rememberedObjects.length > 0) {
-            toReturn.preset = this.preset;
-            if (!toReturn.remembered) toReturn.remembered = {};
-            toReturn.remembered[this.preset] = getCurrentPreset(this);
-        }
-        toReturn.folders = {};
-        Common.each(this.__folders, function(element, key) {
-            toReturn.folders[key] = element.getSaveObject();
-        });
-        return toReturn;
-    },
-    save: function save() {
-        if (!this.load.remembered) this.load.remembered = {};
-        this.load.remembered[this.preset] = getCurrentPreset(this);
-        markPresetModified(this, false);
-        this.saveToLocalStorageIfPossible();
-    },
-    saveAs: function saveAs(presetName) {
-        if (!this.load.remembered) {
-            this.load.remembered = {};
-            this.load.remembered[DEFAULT_DEFAULT_PRESET_NAME] = getCurrentPreset(this, true);
-        }
-        this.load.remembered[presetName] = getCurrentPreset(this);
-        this.preset = presetName;
-        addPresetOption(this, presetName, true);
-        this.saveToLocalStorageIfPossible();
-    },
-    revert: function revert(gui) {
-        Common.each(this.__controllers, function(controller) {
-            if (!this.getRoot().load.remembered) controller.setValue(controller.initialValue);
-            else recallSavedValue(gui || this.getRoot(), controller);
-            if (controller.__onFinishChange) controller.__onFinishChange.call(controller, controller.getValue());
-        }, this);
-        Common.each(this.__folders, function(folder) {
-            folder.revert(folder);
-        });
-        if (!gui) markPresetModified(this.getRoot(), false);
-    },
-    listen: function listen(controller) {
-        var init = this.__listening.length === 0;
-        this.__listening.push(controller);
-        if (init) updateDisplays(this.__listening);
-    },
-    updateDisplay: function updateDisplay() {
-        Common.each(this.__controllers, function(controller) {
-            controller.updateDisplay();
-        });
-        Common.each(this.__folders, function(folder) {
-            folder.updateDisplay();
-        });
-    }
-});
-function addRow(gui, newDom, liBefore) {
-    var li = document.createElement("li");
-    if (newDom) li.appendChild(newDom);
-    if (liBefore) gui.__ul.insertBefore(li, liBefore);
-    else gui.__ul.appendChild(li);
-    gui.onResize();
-    return li;
-}
-function removeListeners(gui) {
-    dom.unbind(window, "resize", gui.__resizeHandler);
-    if (gui.saveToLocalStorageIfPossible) dom.unbind(window, "unload", gui.saveToLocalStorageIfPossible);
-}
-function markPresetModified(gui, modified) {
-    var opt = gui.__preset_select[gui.__preset_select.selectedIndex];
-    if (modified) opt.innerHTML = opt.value + "*";
-    else opt.innerHTML = opt.value;
-}
-function augmentController(gui, li, controller) {
-    controller.__li = li;
-    controller.__gui = gui;
-    Common.extend(controller, {
-        options: function options(_options) {
-            if (arguments.length > 1) {
-                var nextSibling = controller.__li.nextElementSibling;
-                controller.remove();
-                return _add(gui, controller.object, controller.property, {
-                    before: nextSibling,
-                    factoryArgs: [
-                        Common.toArray(arguments)
-                    ]
-                });
-            }
-            if (Common.isArray(_options) || Common.isObject(_options)) {
-                var _nextSibling = controller.__li.nextElementSibling;
-                controller.remove();
-                return _add(gui, controller.object, controller.property, {
-                    before: _nextSibling,
-                    factoryArgs: [
-                        _options
-                    ]
-                });
-            }
-        },
-        name: function name(_name) {
-            controller.__li.firstElementChild.firstElementChild.innerHTML = _name;
-            return controller;
-        },
-        listen: function listen() {
-            controller.__gui.listen(controller);
-            return controller;
-        },
-        remove: function remove() {
-            controller.__gui.remove(controller);
-            return controller;
-        }
-    });
-    if (controller instanceof NumberControllerSlider) {
-        var box = new NumberControllerBox(controller.object, controller.property, {
-            min: controller.__min,
-            max: controller.__max,
-            step: controller.__step
-        });
-        Common.each([
-            "updateDisplay",
-            "onChange",
-            "onFinishChange",
-            "step",
-            "min",
-            "max"
-        ], function(method) {
-            var pc = controller[method];
-            var pb = box[method];
-            controller[method] = box[method] = function() {
-                var args = Array.prototype.slice.call(arguments);
-                pb.apply(box, args);
-                return pc.apply(controller, args);
-            };
-        });
-        dom.addClass(li, "has-slider");
-        controller.domElement.insertBefore(box.domElement, controller.domElement.firstElementChild);
-    } else if (controller instanceof NumberControllerBox) {
-        var r = function r(returned) {
-            if (Common.isNumber(controller.__min) && Common.isNumber(controller.__max)) {
-                var oldName = controller.__li.firstElementChild.firstElementChild.innerHTML;
-                var wasListening = controller.__gui.__listening.indexOf(controller) > -1;
-                controller.remove();
-                var newController = _add(gui, controller.object, controller.property, {
-                    before: controller.__li.nextElementSibling,
-                    factoryArgs: [
-                        controller.__min,
-                        controller.__max,
-                        controller.__step
-                    ]
-                });
-                newController.name(oldName);
-                if (wasListening) newController.listen();
-                return newController;
-            }
-            return returned;
-        };
-        controller.min = Common.compose(r, controller.min);
-        controller.max = Common.compose(r, controller.max);
-    } else if (controller instanceof BooleanController) {
-        dom.bind(li, "click", function() {
-            dom.fakeEvent(controller.__checkbox, "click");
-        });
-        dom.bind(controller.__checkbox, "click", function(e) {
-            e.stopPropagation();
-        });
-    } else if (controller instanceof FunctionController) {
-        dom.bind(li, "click", function() {
-            dom.fakeEvent(controller.__button, "click");
-        });
-        dom.bind(li, "mouseover", function() {
-            dom.addClass(controller.__button, "hover");
-        });
-        dom.bind(li, "mouseout", function() {
-            dom.removeClass(controller.__button, "hover");
-        });
-    } else if (controller instanceof ColorController) {
-        dom.addClass(li, "color");
-        controller.updateDisplay = Common.compose(function(val) {
-            li.style.borderLeftColor = controller.__color.toString();
-            return val;
-        }, controller.updateDisplay);
-        controller.updateDisplay();
-    }
-    controller.setValue = Common.compose(function(val) {
-        if (gui.getRoot().__preset_select && controller.isModified()) markPresetModified(gui.getRoot(), true);
-        return val;
-    }, controller.setValue);
-}
-function recallSavedValue(gui, controller) {
-    var root = gui.getRoot();
-    var matchedIndex = root.__rememberedObjects.indexOf(controller.object);
-    if (matchedIndex !== -1) {
-        var controllerMap = root.__rememberedObjectIndecesToControllers[matchedIndex];
-        if (controllerMap === undefined) {
-            controllerMap = {};
-            root.__rememberedObjectIndecesToControllers[matchedIndex] = controllerMap;
-        }
-        controllerMap[controller.property] = controller;
-        if (root.load && root.load.remembered) {
-            var presetMap = root.load.remembered;
-            var preset = void 0;
-            if (presetMap[gui.preset]) preset = presetMap[gui.preset];
-            else if (presetMap[DEFAULT_DEFAULT_PRESET_NAME]) preset = presetMap[DEFAULT_DEFAULT_PRESET_NAME];
-            else return;
-            if (preset[matchedIndex] && preset[matchedIndex][controller.property] !== undefined) {
-                var value = preset[matchedIndex][controller.property];
-                controller.initialValue = value;
-                controller.setValue(value);
-            }
-        }
-    }
-}
-function _add(gui, object, property, params) {
-    if (object[property] === undefined) throw new Error('Object "' + object + '" has no property "' + property + '"');
-    var controller = void 0;
-    if (params.color) controller = new ColorController(object, property);
-    else {
-        var factoryArgs = [
-            object,
-            property
-        ].concat(params.factoryArgs);
-        controller = ControllerFactory.apply(gui, factoryArgs);
-    }
-    if (params.before instanceof Controller) params.before = params.before.__li;
-    recallSavedValue(gui, controller);
-    dom.addClass(controller.domElement, "c");
-    var name = document.createElement("span");
-    dom.addClass(name, "property-name");
-    name.innerHTML = controller.property;
-    var container = document.createElement("div");
-    container.appendChild(name);
-    container.appendChild(controller.domElement);
-    var li = addRow(gui, container, params.before);
-    dom.addClass(li, GUI.CLASS_CONTROLLER_ROW);
-    if (controller instanceof ColorController) dom.addClass(li, "color");
-    else dom.addClass(li, _typeof(controller.getValue()));
-    augmentController(gui, li, controller);
-    gui.__controllers.push(controller);
-    return controller;
-}
-function getLocalStorageHash(gui, key) {
-    return document.location.href + "." + key;
-}
-function addPresetOption(gui, name, setSelected) {
-    var opt = document.createElement("option");
-    opt.innerHTML = name;
-    opt.value = name;
-    gui.__preset_select.appendChild(opt);
-    if (setSelected) gui.__preset_select.selectedIndex = gui.__preset_select.length - 1;
-}
-function showHideExplain(gui, explain) {
-    explain.style.display = gui.useLocalStorage ? "block" : "none";
-}
-function addSaveMenu(gui) {
-    var div = gui.__save_row = document.createElement("li");
-    dom.addClass(gui.domElement, "has-save");
-    gui.__ul.insertBefore(div, gui.__ul.firstChild);
-    dom.addClass(div, "save-row");
-    var gears = document.createElement("span");
-    gears.innerHTML = "&nbsp;";
-    dom.addClass(gears, "button gears");
-    var button = document.createElement("span");
-    button.innerHTML = "Save";
-    dom.addClass(button, "button");
-    dom.addClass(button, "save");
-    var button2 = document.createElement("span");
-    button2.innerHTML = "New";
-    dom.addClass(button2, "button");
-    dom.addClass(button2, "save-as");
-    var button3 = document.createElement("span");
-    button3.innerHTML = "Revert";
-    dom.addClass(button3, "button");
-    dom.addClass(button3, "revert");
-    var select = gui.__preset_select = document.createElement("select");
-    if (gui.load && gui.load.remembered) Common.each(gui.load.remembered, function(value, key) {
-        addPresetOption(gui, key, key === gui.preset);
-    });
-    else addPresetOption(gui, DEFAULT_DEFAULT_PRESET_NAME, false);
-    dom.bind(select, "change", function() {
-        for(var index = 0; index < gui.__preset_select.length; index++)gui.__preset_select[index].innerHTML = gui.__preset_select[index].value;
-        gui.preset = this.value;
-    });
-    div.appendChild(select);
-    div.appendChild(gears);
-    div.appendChild(button);
-    div.appendChild(button2);
-    div.appendChild(button3);
-    if (SUPPORTS_LOCAL_STORAGE) {
-        var explain = document.getElementById("dg-local-explain");
-        var localStorageCheckBox = document.getElementById("dg-local-storage");
-        var saveLocally = document.getElementById("dg-save-locally");
-        saveLocally.style.display = "block";
-        if (localStorage.getItem(getLocalStorageHash(gui, "isLocal")) === "true") localStorageCheckBox.setAttribute("checked", "checked");
-        showHideExplain(gui, explain);
-        dom.bind(localStorageCheckBox, "change", function() {
-            gui.useLocalStorage = !gui.useLocalStorage;
-            showHideExplain(gui, explain);
-        });
-    }
-    var newConstructorTextArea = document.getElementById("dg-new-constructor");
-    dom.bind(newConstructorTextArea, "keydown", function(e) {
-        if (e.metaKey && (e.which === 67 || e.keyCode === 67)) SAVE_DIALOGUE.hide();
-    });
-    dom.bind(gears, "click", function() {
-        newConstructorTextArea.innerHTML = JSON.stringify(gui.getSaveObject(), undefined, 2);
-        SAVE_DIALOGUE.show();
-        newConstructorTextArea.focus();
-        newConstructorTextArea.select();
-    });
-    dom.bind(button, "click", function() {
-        gui.save();
-    });
-    dom.bind(button2, "click", function() {
-        var presetName = prompt("Enter a new preset name.");
-        if (presetName) gui.saveAs(presetName);
-    });
-    dom.bind(button3, "click", function() {
-        gui.revert();
-    });
-}
-function addResizeHandle(gui) {
-    var pmouseX = void 0;
-    gui.__resize_handle = document.createElement("div");
-    Common.extend(gui.__resize_handle.style, {
-        width: "6px",
-        marginLeft: "-3px",
-        height: "200px",
-        cursor: "ew-resize",
-        position: "absolute"
-    });
-    function drag(e) {
-        e.preventDefault();
-        gui.width += pmouseX - e.clientX;
-        gui.onResize();
-        pmouseX = e.clientX;
-        return false;
-    }
-    function dragStop() {
-        dom.removeClass(gui.__closeButton, GUI.CLASS_DRAG);
-        dom.unbind(window, "mousemove", drag);
-        dom.unbind(window, "mouseup", dragStop);
-    }
-    function dragStart(e) {
-        e.preventDefault();
-        pmouseX = e.clientX;
-        dom.addClass(gui.__closeButton, GUI.CLASS_DRAG);
-        dom.bind(window, "mousemove", drag);
-        dom.bind(window, "mouseup", dragStop);
-        return false;
-    }
-    dom.bind(gui.__resize_handle, "mousedown", dragStart);
-    dom.bind(gui.__closeButton, "mousedown", dragStart);
-    gui.domElement.insertBefore(gui.__resize_handle, gui.domElement.firstElementChild);
-}
-function setWidth(gui, w) {
-    gui.domElement.style.width = w + "px";
-    if (gui.__save_row && gui.autoPlace) gui.__save_row.style.width = w + "px";
-    if (gui.__closeButton) gui.__closeButton.style.width = w + "px";
-}
-function getCurrentPreset(gui, useInitialValues) {
-    var toReturn = {};
-    Common.each(gui.__rememberedObjects, function(val, index) {
-        var savedValues = {};
-        var controllerMap = gui.__rememberedObjectIndecesToControllers[index];
-        Common.each(controllerMap, function(controller, property) {
-            savedValues[property] = useInitialValues ? controller.initialValue : controller.getValue();
-        });
-        toReturn[index] = savedValues;
-    });
-    return toReturn;
-}
-function setPresetSelectIndex(gui) {
-    for(var index = 0; index < gui.__preset_select.length; index++)if (gui.__preset_select[index].value === gui.preset) gui.__preset_select.selectedIndex = index;
-}
-function updateDisplays(controllerArray) {
-    if (controllerArray.length !== 0) requestAnimationFrame$1.call(window, function() {
-        updateDisplays(controllerArray);
-    });
-    Common.each(controllerArray, function(c) {
-        c.updateDisplay();
-    });
-}
-var color = {
-    Color: Color,
-    math: ColorMath,
-    interpret: interpret
-};
-var controllers = {
-    Controller: Controller,
-    BooleanController: BooleanController,
-    OptionController: OptionController,
-    StringController: StringController,
-    NumberController: NumberController,
-    NumberControllerBox: NumberControllerBox,
-    NumberControllerSlider: NumberControllerSlider,
-    FunctionController: FunctionController,
-    ColorController: ColorController
-};
-var dom$1 = {
-    dom: dom
-};
-var gui = {
-    GUI: GUI
-};
-var GUI$1 = GUI;
-var index = {
-    color: color,
-    controllers: controllers,
-    dom: dom$1,
-    gui: gui,
-    GUI: GUI$1
-};
-exports.default = index;
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7YS8r":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "GlyphsGeometry", ()=>GlyphsGeometry);
-parcelHelpers.export(exports, "Text", ()=>Text);
-parcelHelpers.export(exports, "configureTextBuilder", ()=>configureTextBuilder);
-parcelHelpers.export(exports, "createTextDerivedMaterial", ()=>createTextDerivedMaterial);
-parcelHelpers.export(exports, "dumpSDFTextures", ()=>dumpSDFTextures);
-parcelHelpers.export(exports, "fontResolverWorkerModule", ()=>fontResolverWorkerModule);
-parcelHelpers.export(exports, "getCaretAtPoint", ()=>getCaretAtPoint);
-parcelHelpers.export(exports, "getSelectionRects", ()=>getSelectionRects);
-parcelHelpers.export(exports, "getTextRenderInfo", ()=>getTextRenderInfo);
-parcelHelpers.export(exports, "preloadFont", ()=>preloadFont);
-parcelHelpers.export(exports, "typesetterWorkerModule", ()=>typesetterWorkerModule);
-var _three = require("three");
-var _troikaWorkerUtils = require("troika-worker-utils");
-var _webglSdfGenerator = require("webgl-sdf-generator");
-var _webglSdfGeneratorDefault = parcelHelpers.interopDefault(_webglSdfGenerator);
-var _bidiJs = require("bidi-js");
-var _bidiJsDefault = parcelHelpers.interopDefault(_bidiJs);
-var _troikaThreeUtils = require("troika-three-utils");
-/*!
-Custom build of Typr.ts (https://github.com/fredli74/Typr.ts) for use in Troika text rendering.
-Original MIT license applies: https://github.com/fredli74/Typr.ts/blob/master/LICENSE
-*/ function typrFactory() {
-    return "undefined" == typeof window && (self.window = self), function(r) {
-        var e = {
-            parse: function(r) {
-                var t = e._bin, a = new Uint8Array(r);
-                if ("ttcf" == t.readASCII(a, 0, 4)) {
-                    var n = 4;
-                    t.readUshort(a, n), n += 2, t.readUshort(a, n), n += 2;
-                    var o = t.readUint(a, n);
-                    n += 4;
-                    for(var s = [], i = 0; i < o; i++){
-                        var h = t.readUint(a, n);
-                        n += 4, s.push(e._readFont(a, h));
-                    }
-                    return s;
-                }
-                return [
-                    e._readFont(a, 0)
-                ];
-            },
-            _readFont: function(r, t) {
-                var a = e._bin, n = t;
-                a.readFixed(r, t), t += 4;
-                var o = a.readUshort(r, t);
-                t += 2, a.readUshort(r, t), t += 2, a.readUshort(r, t), t += 2, a.readUshort(r, t), t += 2;
-                for(var s = [
-                    "cmap",
-                    "head",
-                    "hhea",
-                    "maxp",
-                    "hmtx",
-                    "name",
-                    "OS/2",
-                    "post",
-                    "loca",
-                    "glyf",
-                    "kern",
-                    "CFF ",
-                    "GDEF",
-                    "GPOS",
-                    "GSUB",
-                    "SVG "
-                ], i = {
-                    _data: r,
-                    _offset: n
-                }, h = {}, d = 0; d < o; d++){
-                    var f = a.readASCII(r, t, 4);
-                    t += 4, a.readUint(r, t), t += 4;
-                    var u = a.readUint(r, t);
-                    t += 4;
-                    var l = a.readUint(r, t);
-                    t += 4, h[f] = {
-                        offset: u,
-                        length: l
-                    };
-                }
-                for(d = 0; d < s.length; d++){
-                    var v = s[d];
-                    h[v] && (i[v.trim()] = e[v.trim()].parse(r, h[v].offset, h[v].length, i));
-                }
-                return i;
-            },
-            _tabOffset: function(r, t, a) {
-                for(var n = e._bin, o = n.readUshort(r, a + 4), s = a + 12, i = 0; i < o; i++){
-                    var h = n.readASCII(r, s, 4);
-                    s += 4, n.readUint(r, s), s += 4;
-                    var d = n.readUint(r, s);
-                    if (s += 4, n.readUint(r, s), s += 4, h == t) return d;
-                }
-                return 0;
-            }
-        };
-        e._bin = {
-            readFixed: function(r, e) {
-                return (r[e] << 8 | r[e + 1]) + (r[e + 2] << 8 | r[e + 3]) / 65540;
-            },
-            readF2dot14: function(r, t) {
-                return e._bin.readShort(r, t) / 16384;
-            },
-            readInt: function(r, t) {
-                return e._bin._view(r).getInt32(t);
-            },
-            readInt8: function(r, t) {
-                return e._bin._view(r).getInt8(t);
-            },
-            readShort: function(r, t) {
-                return e._bin._view(r).getInt16(t);
-            },
-            readUshort: function(r, t) {
-                return e._bin._view(r).getUint16(t);
-            },
-            readUshorts: function(r, t, a) {
-                for(var n = [], o = 0; o < a; o++)n.push(e._bin.readUshort(r, t + 2 * o));
-                return n;
-            },
-            readUint: function(r, t) {
-                return e._bin._view(r).getUint32(t);
-            },
-            readUint64: function(r, t) {
-                return 4294967296 * e._bin.readUint(r, t) + e._bin.readUint(r, t + 4);
-            },
-            readASCII: function(r, e, t) {
-                for(var a = "", n = 0; n < t; n++)a += String.fromCharCode(r[e + n]);
-                return a;
-            },
-            readUnicode: function(r, e, t) {
-                for(var a = "", n = 0; n < t; n++){
-                    var o = r[e++] << 8 | r[e++];
-                    a += String.fromCharCode(o);
-                }
-                return a;
-            },
-            _tdec: "undefined" != typeof window && window.TextDecoder ? new window.TextDecoder : null,
-            readUTF8: function(r, t, a) {
-                var n = e._bin._tdec;
-                return n && 0 == t && a == r.length ? n.decode(r) : e._bin.readASCII(r, t, a);
-            },
-            readBytes: function(r, e, t) {
-                for(var a = [], n = 0; n < t; n++)a.push(r[e + n]);
-                return a;
-            },
-            readASCIIArray: function(r, e, t) {
-                for(var a = [], n = 0; n < t; n++)a.push(String.fromCharCode(r[e + n]));
-                return a;
-            },
-            _view: function(r) {
-                return r._dataView || (r._dataView = r.buffer ? new DataView(r.buffer, r.byteOffset, r.byteLength) : new DataView(new Uint8Array(r).buffer));
-            }
-        }, e._lctf = {}, e._lctf.parse = function(r, t, a, n, o) {
-            var s = e._bin, i = {}, h = t;
-            s.readFixed(r, t), t += 4;
-            var d = s.readUshort(r, t);
-            t += 2;
-            var f = s.readUshort(r, t);
-            t += 2;
-            var u = s.readUshort(r, t);
-            return t += 2, i.scriptList = e._lctf.readScriptList(r, h + d), i.featureList = e._lctf.readFeatureList(r, h + f), i.lookupList = e._lctf.readLookupList(r, h + u, o), i;
-        }, e._lctf.readLookupList = function(r, t, a) {
-            var n = e._bin, o = t, s = [], i = n.readUshort(r, t);
-            t += 2;
-            for(var h = 0; h < i; h++){
-                var d = n.readUshort(r, t);
-                t += 2;
-                var f = e._lctf.readLookupTable(r, o + d, a);
-                s.push(f);
-            }
-            return s;
-        }, e._lctf.readLookupTable = function(r, t, a) {
-            var n = e._bin, o = t, s = {
-                tabs: []
-            };
-            s.ltype = n.readUshort(r, t), t += 2, s.flag = n.readUshort(r, t), t += 2;
-            var i = n.readUshort(r, t);
-            t += 2;
-            for(var h = s.ltype, d = 0; d < i; d++){
-                var f = n.readUshort(r, t);
-                t += 2;
-                var u = a(r, h, o + f, s);
-                s.tabs.push(u);
-            }
-            return s;
-        }, e._lctf.numOfOnes = function(r) {
-            for(var e = 0, t = 0; t < 32; t++)0 != (r >>> t & 1) && e++;
-            return e;
-        }, e._lctf.readClassDef = function(r, t) {
-            var a = e._bin, n = [], o = a.readUshort(r, t);
-            if (t += 2, 1 == o) {
-                var s = a.readUshort(r, t);
-                t += 2;
-                var i = a.readUshort(r, t);
-                t += 2;
-                for(var h = 0; h < i; h++)n.push(s + h), n.push(s + h), n.push(a.readUshort(r, t)), t += 2;
-            }
-            if (2 == o) {
-                var d = a.readUshort(r, t);
-                t += 2;
-                for(h = 0; h < d; h++)n.push(a.readUshort(r, t)), t += 2, n.push(a.readUshort(r, t)), t += 2, n.push(a.readUshort(r, t)), t += 2;
-            }
-            return n;
-        }, e._lctf.getInterval = function(r, e) {
-            for(var t = 0; t < r.length; t += 3){
-                var a = r[t], n = r[t + 1];
-                if (r[t + 2], a <= e && e <= n) return t;
-            }
-            return -1;
-        }, e._lctf.readCoverage = function(r, t) {
-            var a = e._bin, n = {};
-            n.fmt = a.readUshort(r, t), t += 2;
-            var o = a.readUshort(r, t);
-            return t += 2, 1 == n.fmt && (n.tab = a.readUshorts(r, t, o)), 2 == n.fmt && (n.tab = a.readUshorts(r, t, 3 * o)), n;
-        }, e._lctf.coverageIndex = function(r, t) {
-            var a = r.tab;
-            if (1 == r.fmt) return a.indexOf(t);
-            if (2 == r.fmt) {
-                var n = e._lctf.getInterval(a, t);
-                if (-1 != n) return a[n + 2] + (t - a[n]);
-            }
-            return -1;
-        }, e._lctf.readFeatureList = function(r, t) {
-            var a = e._bin, n = t, o = [], s = a.readUshort(r, t);
-            t += 2;
-            for(var i = 0; i < s; i++){
-                var h = a.readASCII(r, t, 4);
-                t += 4;
-                var d = a.readUshort(r, t);
-                t += 2;
-                var f = e._lctf.readFeatureTable(r, n + d);
-                f.tag = h.trim(), o.push(f);
-            }
-            return o;
-        }, e._lctf.readFeatureTable = function(r, t) {
-            var a = e._bin, n = t, o = {}, s = a.readUshort(r, t);
-            t += 2, s > 0 && (o.featureParams = n + s);
-            var i = a.readUshort(r, t);
-            t += 2, o.tab = [];
-            for(var h = 0; h < i; h++)o.tab.push(a.readUshort(r, t + 2 * h));
-            return o;
-        }, e._lctf.readScriptList = function(r, t) {
-            var a = e._bin, n = t, o = {}, s = a.readUshort(r, t);
-            t += 2;
-            for(var i = 0; i < s; i++){
-                var h = a.readASCII(r, t, 4);
-                t += 4;
-                var d = a.readUshort(r, t);
-                t += 2, o[h.trim()] = e._lctf.readScriptTable(r, n + d);
-            }
-            return o;
-        }, e._lctf.readScriptTable = function(r, t) {
-            var a = e._bin, n = t, o = {}, s = a.readUshort(r, t);
-            t += 2, s > 0 && (o.default = e._lctf.readLangSysTable(r, n + s));
-            var i = a.readUshort(r, t);
-            t += 2;
-            for(var h = 0; h < i; h++){
-                var d = a.readASCII(r, t, 4);
-                t += 4;
-                var f = a.readUshort(r, t);
-                t += 2, o[d.trim()] = e._lctf.readLangSysTable(r, n + f);
-            }
-            return o;
-        }, e._lctf.readLangSysTable = function(r, t) {
-            var a = e._bin, n = {};
-            a.readUshort(r, t), t += 2, n.reqFeature = a.readUshort(r, t), t += 2;
-            var o = a.readUshort(r, t);
-            return t += 2, n.features = a.readUshorts(r, t, o), n;
-        }, e.CFF = {}, e.CFF.parse = function(r, t, a) {
-            var n = e._bin;
-            (r = new Uint8Array(r.buffer, t, a))[t = 0], r[++t], r[++t], r[++t], t++;
-            var o = [];
-            t = e.CFF.readIndex(r, t, o);
-            for(var s = [], i = 0; i < o.length - 1; i++)s.push(n.readASCII(r, t + o[i], o[i + 1] - o[i]));
-            t += o[o.length - 1];
-            var h = [];
-            t = e.CFF.readIndex(r, t, h);
-            var d = [];
-            for(i = 0; i < h.length - 1; i++)d.push(e.CFF.readDict(r, t + h[i], t + h[i + 1]));
-            t += h[h.length - 1];
-            var f = d[0], u = [];
-            t = e.CFF.readIndex(r, t, u);
-            var l = [];
-            for(i = 0; i < u.length - 1; i++)l.push(n.readASCII(r, t + u[i], u[i + 1] - u[i]));
-            if (t += u[u.length - 1], e.CFF.readSubrs(r, t, f), f.CharStrings) {
-                t = f.CharStrings;
-                u = [];
-                t = e.CFF.readIndex(r, t, u);
-                var v = [];
-                for(i = 0; i < u.length - 1; i++)v.push(n.readBytes(r, t + u[i], u[i + 1] - u[i]));
-                f.CharStrings = v;
-            }
-            if (f.ROS) {
-                t = f.FDArray;
-                var c = [];
-                t = e.CFF.readIndex(r, t, c), f.FDArray = [];
-                for(i = 0; i < c.length - 1; i++){
-                    var p = e.CFF.readDict(r, t + c[i], t + c[i + 1]);
-                    e.CFF._readFDict(r, p, l), f.FDArray.push(p);
-                }
-                t += c[c.length - 1], t = f.FDSelect, f.FDSelect = [];
-                var U = r[t];
-                if (t++, 3 != U) throw U;
-                var g = n.readUshort(r, t);
-                t += 2;
-                for(i = 0; i < g + 1; i++)f.FDSelect.push(n.readUshort(r, t), r[t + 2]), t += 3;
-            }
-            return f.Encoding && (f.Encoding = e.CFF.readEncoding(r, f.Encoding, f.CharStrings.length)), f.charset && (f.charset = e.CFF.readCharset(r, f.charset, f.CharStrings.length)), e.CFF._readFDict(r, f, l), f;
-        }, e.CFF._readFDict = function(r, t, a) {
-            var n;
-            for(var o in t.Private && (n = t.Private[1], t.Private = e.CFF.readDict(r, n, n + t.Private[0]), t.Private.Subrs && e.CFF.readSubrs(r, n + t.Private.Subrs, t.Private)), t)-1 != [
-                "FamilyName",
-                "FontName",
-                "FullName",
-                "Notice",
-                "version",
-                "Copyright"
-            ].indexOf(o) && (t[o] = a[t[o] - 426 + 35]);
-        }, e.CFF.readSubrs = function(r, t, a) {
-            var n = e._bin, o = [];
-            t = e.CFF.readIndex(r, t, o);
-            var s, i = o.length;
-            s = i < 1240 ? 107 : i < 33900 ? 1131 : 32768, a.Bias = s, a.Subrs = [];
-            for(var h = 0; h < o.length - 1; h++)a.Subrs.push(n.readBytes(r, t + o[h], o[h + 1] - o[h]));
-        }, e.CFF.tableSE = [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            17,
-            18,
-            19,
-            20,
-            21,
-            22,
-            23,
-            24,
-            25,
-            26,
-            27,
-            28,
-            29,
-            30,
-            31,
-            32,
-            33,
-            34,
-            35,
-            36,
-            37,
-            38,
-            39,
-            40,
-            41,
-            42,
-            43,
-            44,
-            45,
-            46,
-            47,
-            48,
-            49,
-            50,
-            51,
-            52,
-            53,
-            54,
-            55,
-            56,
-            57,
-            58,
-            59,
-            60,
-            61,
-            62,
-            63,
-            64,
-            65,
-            66,
-            67,
-            68,
-            69,
-            70,
-            71,
-            72,
-            73,
-            74,
-            75,
-            76,
-            77,
-            78,
-            79,
-            80,
-            81,
-            82,
-            83,
-            84,
-            85,
-            86,
-            87,
-            88,
-            89,
-            90,
-            91,
-            92,
-            93,
-            94,
-            95,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            96,
-            97,
-            98,
-            99,
-            100,
-            101,
-            102,
-            103,
-            104,
-            105,
-            106,
-            107,
-            108,
-            109,
-            110,
-            0,
-            111,
-            112,
-            113,
-            114,
-            0,
-            115,
-            116,
-            117,
-            118,
-            119,
-            120,
-            121,
-            122,
-            0,
-            123,
-            0,
-            124,
-            125,
-            126,
-            127,
-            128,
-            129,
-            130,
-            131,
-            0,
-            132,
-            133,
-            0,
-            134,
-            135,
-            136,
-            137,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            138,
-            0,
-            139,
-            0,
-            0,
-            0,
-            0,
-            140,
-            141,
-            142,
-            143,
-            0,
-            0,
-            0,
-            0,
-            0,
-            144,
-            0,
-            0,
-            0,
-            145,
-            0,
-            0,
-            146,
-            147,
-            148,
-            149,
-            0,
-            0,
-            0,
-            0
-        ], e.CFF.glyphByUnicode = function(r, e) {
-            for(var t = 0; t < r.charset.length; t++)if (r.charset[t] == e) return t;
-            return -1;
-        }, e.CFF.glyphBySE = function(r, t) {
-            return t < 0 || t > 255 ? -1 : e.CFF.glyphByUnicode(r, e.CFF.tableSE[t]);
-        }, e.CFF.readEncoding = function(r, t, a) {
-            e._bin;
-            var n = [
-                ".notdef"
-            ], o = r[t];
-            if (t++, 0 != o) throw "error: unknown encoding format: " + o;
-            var s = r[t];
-            t++;
-            for(var i = 0; i < s; i++)n.push(r[t + i]);
-            return n;
-        }, e.CFF.readCharset = function(r, t, a) {
-            var n = e._bin, o = [
-                ".notdef"
-            ], s = r[t];
-            if (t++, 0 == s) for(var i = 0; i < a; i++){
-                var h = n.readUshort(r, t);
-                t += 2, o.push(h);
-            }
-            else {
-                if (1 != s && 2 != s) throw "error: format: " + s;
-                for(; o.length < a;){
-                    h = n.readUshort(r, t);
-                    t += 2;
-                    var d = 0;
-                    1 == s ? (d = r[t], t++) : (d = n.readUshort(r, t), t += 2);
-                    for(i = 0; i <= d; i++)o.push(h), h++;
-                }
-            }
-            return o;
-        }, e.CFF.readIndex = function(r, t, a) {
-            var n = e._bin, o = n.readUshort(r, t) + 1, s = r[t += 2];
-            if (t++, 1 == s) for(var i = 0; i < o; i++)a.push(r[t + i]);
-            else if (2 == s) for(i = 0; i < o; i++)a.push(n.readUshort(r, t + 2 * i));
-            else if (3 == s) for(i = 0; i < o; i++)a.push(16777215 & n.readUint(r, t + 3 * i - 1));
-            else if (1 != o) throw "unsupported offset size: " + s + ", count: " + o;
-            return (t += o * s) - 1;
-        }, e.CFF.getCharString = function(r, t, a) {
-            var n = e._bin, o = r[t], s = r[t + 1];
-            r[t + 2], r[t + 3], r[t + 4];
-            var i = 1, h = null, d = null;
-            o <= 20 && (h = o, i = 1), 12 == o && (h = 100 * o + s, i = 2), 21 <= o && o <= 27 && (h = o, i = 1), 28 == o && (d = n.readShort(r, t + 1), i = 3), 29 <= o && o <= 31 && (h = o, i = 1), 32 <= o && o <= 246 && (d = o - 139, i = 1), 247 <= o && o <= 250 && (d = 256 * (o - 247) + s + 108, i = 2), 251 <= o && o <= 254 && (d = 256 * -(o - 251) - s - 108, i = 2), 255 == o && (d = n.readInt(r, t + 1) / 65535, i = 5), a.val = null != d ? d : "o" + h, a.size = i;
-        }, e.CFF.readCharString = function(r, t, a) {
-            for(var n = t + a, o = e._bin, s = []; t < n;){
-                var i = r[t], h = r[t + 1];
-                r[t + 2], r[t + 3], r[t + 4];
-                var d = 1, f = null, u = null;
-                i <= 20 && (f = i, d = 1), 12 == i && (f = 100 * i + h, d = 2), 19 != i && 20 != i || (f = i, d = 2), 21 <= i && i <= 27 && (f = i, d = 1), 28 == i && (u = o.readShort(r, t + 1), d = 3), 29 <= i && i <= 31 && (f = i, d = 1), 32 <= i && i <= 246 && (u = i - 139, d = 1), 247 <= i && i <= 250 && (u = 256 * (i - 247) + h + 108, d = 2), 251 <= i && i <= 254 && (u = 256 * -(i - 251) - h - 108, d = 2), 255 == i && (u = o.readInt(r, t + 1) / 65535, d = 5), s.push(null != u ? u : "o" + f), t += d;
-            }
-            return s;
-        }, e.CFF.readDict = function(r, t, a) {
-            for(var n = e._bin, o = {}, s = []; t < a;){
-                var i = r[t], h = r[t + 1];
-                r[t + 2], r[t + 3], r[t + 4];
-                var d = 1, f = null, u = null;
-                if (28 == i && (u = n.readShort(r, t + 1), d = 3), 29 == i && (u = n.readInt(r, t + 1), d = 5), 32 <= i && i <= 246 && (u = i - 139, d = 1), 247 <= i && i <= 250 && (u = 256 * (i - 247) + h + 108, d = 2), 251 <= i && i <= 254 && (u = 256 * -(i - 251) - h - 108, d = 2), 255 == i) throw u = n.readInt(r, t + 1) / 65535, d = 5, "unknown number";
-                if (30 == i) {
-                    var l = [];
-                    for(d = 1;;){
-                        var v = r[t + d];
-                        d++;
-                        var c = v >> 4, p = 15 & v;
-                        if (15 != c && l.push(c), 15 != p && l.push(p), 15 == p) break;
-                    }
-                    for(var U = "", g = [
-                        0,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5,
-                        6,
-                        7,
-                        8,
-                        9,
-                        ".",
-                        "e",
-                        "e-",
-                        "reserved",
-                        "-",
-                        "endOfNumber"
-                    ], S = 0; S < l.length; S++)U += g[l[S]];
-                    u = parseFloat(U);
-                }
-                if (i <= 21) {
-                    if (f = [
-                        "version",
-                        "Notice",
-                        "FullName",
-                        "FamilyName",
-                        "Weight",
-                        "FontBBox",
-                        "BlueValues",
-                        "OtherBlues",
-                        "FamilyBlues",
-                        "FamilyOtherBlues",
-                        "StdHW",
-                        "StdVW",
-                        "escape",
-                        "UniqueID",
-                        "XUID",
-                        "charset",
-                        "Encoding",
-                        "CharStrings",
-                        "Private",
-                        "Subrs",
-                        "defaultWidthX",
-                        "nominalWidthX"
-                    ][i], d = 1, 12 == i) f = [
-                        "Copyright",
-                        "isFixedPitch",
-                        "ItalicAngle",
-                        "UnderlinePosition",
-                        "UnderlineThickness",
-                        "PaintType",
-                        "CharstringType",
-                        "FontMatrix",
-                        "StrokeWidth",
-                        "BlueScale",
-                        "BlueShift",
-                        "BlueFuzz",
-                        "StemSnapH",
-                        "StemSnapV",
-                        "ForceBold",
-                        0,
-                        0,
-                        "LanguageGroup",
-                        "ExpansionFactor",
-                        "initialRandomSeed",
-                        "SyntheticBase",
-                        "PostScript",
-                        "BaseFontName",
-                        "BaseFontBlend",
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        "ROS",
-                        "CIDFontVersion",
-                        "CIDFontRevision",
-                        "CIDFontType",
-                        "CIDCount",
-                        "UIDBase",
-                        "FDArray",
-                        "FDSelect",
-                        "FontName"
-                    ][h], d = 2;
-                }
-                null != f ? (o[f] = 1 == s.length ? s[0] : s, s = []) : s.push(u), t += d;
-            }
-            return o;
-        }, e.cmap = {}, e.cmap.parse = function(r, t, a) {
-            r = new Uint8Array(r.buffer, t, a), t = 0;
-            var n = e._bin, o = {};
-            n.readUshort(r, t), t += 2;
-            var s = n.readUshort(r, t);
-            t += 2;
-            var i = [];
-            o.tables = [];
-            for(var h = 0; h < s; h++){
-                var d = n.readUshort(r, t);
-                t += 2;
-                var f = n.readUshort(r, t);
-                t += 2;
-                var u = n.readUint(r, t);
-                t += 4;
-                var l = "p" + d + "e" + f, v = i.indexOf(u);
-                if (-1 == v) {
-                    var c;
-                    v = o.tables.length, i.push(u);
-                    var p = n.readUshort(r, u);
-                    0 == p ? c = e.cmap.parse0(r, u) : 4 == p ? c = e.cmap.parse4(r, u) : 6 == p ? c = e.cmap.parse6(r, u) : 12 == p ? c = e.cmap.parse12(r, u) : console.debug("unknown format: " + p, d, f, u), o.tables.push(c);
-                }
-                if (null != o[l]) throw "multiple tables for one platform+encoding";
-                o[l] = v;
-            }
-            return o;
-        }, e.cmap.parse0 = function(r, t) {
-            var a = e._bin, n = {};
-            n.format = a.readUshort(r, t), t += 2;
-            var o = a.readUshort(r, t);
-            t += 2, a.readUshort(r, t), t += 2, n.map = [];
-            for(var s = 0; s < o - 6; s++)n.map.push(r[t + s]);
-            return n;
-        }, e.cmap.parse4 = function(r, t) {
-            var a = e._bin, n = t, o = {};
-            o.format = a.readUshort(r, t), t += 2;
-            var s = a.readUshort(r, t);
-            t += 2, a.readUshort(r, t), t += 2;
-            var i = a.readUshort(r, t);
-            t += 2;
-            var h = i / 2;
-            o.searchRange = a.readUshort(r, t), t += 2, o.entrySelector = a.readUshort(r, t), t += 2, o.rangeShift = a.readUshort(r, t), t += 2, o.endCount = a.readUshorts(r, t, h), t += 2 * h, t += 2, o.startCount = a.readUshorts(r, t, h), t += 2 * h, o.idDelta = [];
-            for(var d = 0; d < h; d++)o.idDelta.push(a.readShort(r, t)), t += 2;
-            for(o.idRangeOffset = a.readUshorts(r, t, h), t += 2 * h, o.glyphIdArray = []; t < n + s;)o.glyphIdArray.push(a.readUshort(r, t)), t += 2;
-            return o;
-        }, e.cmap.parse6 = function(r, t) {
-            var a = e._bin, n = {};
-            n.format = a.readUshort(r, t), t += 2, a.readUshort(r, t), t += 2, a.readUshort(r, t), t += 2, n.firstCode = a.readUshort(r, t), t += 2;
-            var o = a.readUshort(r, t);
-            t += 2, n.glyphIdArray = [];
-            for(var s = 0; s < o; s++)n.glyphIdArray.push(a.readUshort(r, t)), t += 2;
-            return n;
-        }, e.cmap.parse12 = function(r, t) {
-            var a = e._bin, n = {};
-            n.format = a.readUshort(r, t), t += 2, t += 2, a.readUint(r, t), t += 4, a.readUint(r, t), t += 4;
-            var o = a.readUint(r, t);
-            t += 4, n.groups = [];
-            for(var s = 0; s < o; s++){
-                var i = t + 12 * s, h = a.readUint(r, i + 0), d = a.readUint(r, i + 4), f = a.readUint(r, i + 8);
-                n.groups.push([
-                    h,
-                    d,
-                    f
-                ]);
-            }
-            return n;
-        }, e.glyf = {}, e.glyf.parse = function(r, e, t, a) {
-            for(var n = [], o = 0; o < a.maxp.numGlyphs; o++)n.push(null);
-            return n;
-        }, e.glyf._parseGlyf = function(r, t) {
-            var a = e._bin, n = r._data, o = e._tabOffset(n, "glyf", r._offset) + r.loca[t];
-            if (r.loca[t] == r.loca[t + 1]) return null;
-            var s = {};
-            if (s.noc = a.readShort(n, o), o += 2, s.xMin = a.readShort(n, o), o += 2, s.yMin = a.readShort(n, o), o += 2, s.xMax = a.readShort(n, o), o += 2, s.yMax = a.readShort(n, o), o += 2, s.xMin >= s.xMax || s.yMin >= s.yMax) return null;
-            if (s.noc > 0) {
-                s.endPts = [];
-                for(var i = 0; i < s.noc; i++)s.endPts.push(a.readUshort(n, o)), o += 2;
-                var h = a.readUshort(n, o);
-                if (o += 2, n.length - o < h) return null;
-                s.instructions = a.readBytes(n, o, h), o += h;
-                var d = s.endPts[s.noc - 1] + 1;
-                s.flags = [];
-                for(i = 0; i < d; i++){
-                    var f = n[o];
-                    if (o++, s.flags.push(f), 0 != (8 & f)) {
-                        var u = n[o];
-                        o++;
-                        for(var l = 0; l < u; l++)s.flags.push(f), i++;
-                    }
-                }
-                s.xs = [];
-                for(i = 0; i < d; i++){
-                    var v = 0 != (2 & s.flags[i]), c = 0 != (16 & s.flags[i]);
-                    v ? (s.xs.push(c ? n[o] : -n[o]), o++) : c ? s.xs.push(0) : (s.xs.push(a.readShort(n, o)), o += 2);
-                }
-                s.ys = [];
-                for(i = 0; i < d; i++){
-                    v = 0 != (4 & s.flags[i]), c = 0 != (32 & s.flags[i]);
-                    v ? (s.ys.push(c ? n[o] : -n[o]), o++) : c ? s.ys.push(0) : (s.ys.push(a.readShort(n, o)), o += 2);
-                }
-                var p = 0, U = 0;
-                for(i = 0; i < d; i++)p += s.xs[i], U += s.ys[i], s.xs[i] = p, s.ys[i] = U;
-            } else {
-                var g;
-                s.parts = [];
-                do {
-                    g = a.readUshort(n, o), o += 2;
-                    var S = {
-                        m: {
-                            a: 1,
-                            b: 0,
-                            c: 0,
-                            d: 1,
-                            tx: 0,
-                            ty: 0
-                        },
-                        p1: -1,
-                        p2: -1
-                    };
-                    if (s.parts.push(S), S.glyphIndex = a.readUshort(n, o), o += 2, 1 & g) {
-                        var m = a.readShort(n, o);
-                        o += 2;
-                        var b = a.readShort(n, o);
-                        o += 2;
-                    } else {
-                        m = a.readInt8(n, o);
-                        o++;
-                        b = a.readInt8(n, o);
-                        o++;
-                    }
-                    2 & g ? (S.m.tx = m, S.m.ty = b) : (S.p1 = m, S.p2 = b), 8 & g ? (S.m.a = S.m.d = a.readF2dot14(n, o), o += 2) : 64 & g ? (S.m.a = a.readF2dot14(n, o), o += 2, S.m.d = a.readF2dot14(n, o), o += 2) : 128 & g && (S.m.a = a.readF2dot14(n, o), o += 2, S.m.b = a.readF2dot14(n, o), o += 2, S.m.c = a.readF2dot14(n, o), o += 2, S.m.d = a.readF2dot14(n, o), o += 2);
-                }while (32 & g);
-                if (256 & g) {
-                    var y = a.readUshort(n, o);
-                    o += 2, s.instr = [];
-                    for(i = 0; i < y; i++)s.instr.push(n[o]), o++;
-                }
-            }
-            return s;
-        }, e.GDEF = {}, e.GDEF.parse = function(r, t, a, n) {
-            var o = t;
-            t += 4;
-            var s = e._bin.readUshort(r, t);
-            return {
-                glyphClassDef: 0 === s ? null : e._lctf.readClassDef(r, o + s)
-            };
-        }, e.GPOS = {}, e.GPOS.parse = function(r, t, a, n) {
-            return e._lctf.parse(r, t, a, n, e.GPOS.subt);
-        }, e.GPOS.subt = function(r, t, a, n) {
-            var o = e._bin, s = a, i = {};
-            if (i.fmt = o.readUshort(r, a), a += 2, 1 == t || 2 == t || 3 == t || 7 == t || 8 == t && i.fmt <= 2) {
-                var h = o.readUshort(r, a);
-                a += 2, i.coverage = e._lctf.readCoverage(r, h + s);
-            }
-            if (1 == t && 1 == i.fmt) {
-                var d = o.readUshort(r, a);
-                a += 2, 0 != d && (i.pos = e.GPOS.readValueRecord(r, a, d));
-            } else if (2 == t && i.fmt >= 1 && i.fmt <= 2) {
-                d = o.readUshort(r, a);
-                a += 2;
-                var f = o.readUshort(r, a);
-                a += 2;
-                var u = e._lctf.numOfOnes(d), l = e._lctf.numOfOnes(f);
-                if (1 == i.fmt) {
-                    i.pairsets = [];
-                    var v = o.readUshort(r, a);
-                    a += 2;
-                    for(var c = 0; c < v; c++){
-                        var p = s + o.readUshort(r, a);
-                        a += 2;
-                        var U = o.readUshort(r, p);
-                        p += 2;
-                        for(var g = [], S = 0; S < U; S++){
-                            var m = o.readUshort(r, p);
-                            p += 2, 0 != d && (P = e.GPOS.readValueRecord(r, p, d), p += 2 * u), 0 != f && (x = e.GPOS.readValueRecord(r, p, f), p += 2 * l), g.push({
-                                gid2: m,
-                                val1: P,
-                                val2: x
-                            });
-                        }
-                        i.pairsets.push(g);
-                    }
-                }
-                if (2 == i.fmt) {
-                    var b = o.readUshort(r, a);
-                    a += 2;
-                    var y = o.readUshort(r, a);
-                    a += 2;
-                    var F = o.readUshort(r, a);
-                    a += 2;
-                    var C = o.readUshort(r, a);
-                    a += 2, i.classDef1 = e._lctf.readClassDef(r, s + b), i.classDef2 = e._lctf.readClassDef(r, s + y), i.matrix = [];
-                    for(c = 0; c < F; c++){
-                        var _ = [];
-                        for(S = 0; S < C; S++){
-                            var P = null, x = null;
-                            0 != d && (P = e.GPOS.readValueRecord(r, a, d), a += 2 * u), 0 != f && (x = e.GPOS.readValueRecord(r, a, f), a += 2 * l), _.push({
-                                val1: P,
-                                val2: x
-                            });
-                        }
-                        i.matrix.push(_);
-                    }
-                }
-            } else if (4 == t && 1 == i.fmt) i.markCoverage = e._lctf.readCoverage(r, o.readUshort(r, a) + s), i.baseCoverage = e._lctf.readCoverage(r, o.readUshort(r, a + 2) + s), i.markClassCount = o.readUshort(r, a + 4), i.markArray = e.GPOS.readMarkArray(r, o.readUshort(r, a + 6) + s), i.baseArray = e.GPOS.readBaseArray(r, o.readUshort(r, a + 8) + s, i.markClassCount);
-            else if (6 == t && 1 == i.fmt) i.mark1Coverage = e._lctf.readCoverage(r, o.readUshort(r, a) + s), i.mark2Coverage = e._lctf.readCoverage(r, o.readUshort(r, a + 2) + s), i.markClassCount = o.readUshort(r, a + 4), i.mark1Array = e.GPOS.readMarkArray(r, o.readUshort(r, a + 6) + s), i.mark2Array = e.GPOS.readBaseArray(r, o.readUshort(r, a + 8) + s, i.markClassCount);
-            else {
-                if (9 == t && 1 == i.fmt) {
-                    var I = o.readUshort(r, a);
-                    a += 2;
-                    var w = o.readUint(r, a);
-                    if (a += 4, 9 == n.ltype) n.ltype = I;
-                    else if (n.ltype != I) throw "invalid extension substitution";
-                    return e.GPOS.subt(r, n.ltype, s + w);
-                }
-                console.debug("unsupported GPOS table LookupType", t, "format", i.fmt);
-            }
-            return i;
-        }, e.GPOS.readValueRecord = function(r, t, a) {
-            var n = e._bin, o = [];
-            return o.push(1 & a ? n.readShort(r, t) : 0), t += 1 & a ? 2 : 0, o.push(2 & a ? n.readShort(r, t) : 0), t += 2 & a ? 2 : 0, o.push(4 & a ? n.readShort(r, t) : 0), t += 4 & a ? 2 : 0, o.push(8 & a ? n.readShort(r, t) : 0), t += 8 & a ? 2 : 0, o;
-        }, e.GPOS.readBaseArray = function(r, t, a) {
-            var n = e._bin, o = [], s = t, i = n.readUshort(r, t);
-            t += 2;
-            for(var h = 0; h < i; h++){
-                for(var d = [], f = 0; f < a; f++)d.push(e.GPOS.readAnchorRecord(r, s + n.readUshort(r, t))), t += 2;
-                o.push(d);
-            }
-            return o;
-        }, e.GPOS.readMarkArray = function(r, t) {
-            var a = e._bin, n = [], o = t, s = a.readUshort(r, t);
-            t += 2;
-            for(var i = 0; i < s; i++){
-                var h = e.GPOS.readAnchorRecord(r, a.readUshort(r, t + 2) + o);
-                h.markClass = a.readUshort(r, t), n.push(h), t += 4;
-            }
-            return n;
-        }, e.GPOS.readAnchorRecord = function(r, t) {
-            var a = e._bin, n = {};
-            return n.fmt = a.readUshort(r, t), n.x = a.readShort(r, t + 2), n.y = a.readShort(r, t + 4), n;
-        }, e.GSUB = {}, e.GSUB.parse = function(r, t, a, n) {
-            return e._lctf.parse(r, t, a, n, e.GSUB.subt);
-        }, e.GSUB.subt = function(r, t, a, n) {
-            var o = e._bin, s = a, i = {};
-            if (i.fmt = o.readUshort(r, a), a += 2, 1 != t && 2 != t && 4 != t && 5 != t && 6 != t) return null;
-            if (1 == t || 2 == t || 4 == t || 5 == t && i.fmt <= 2 || 6 == t && i.fmt <= 2) {
-                var h = o.readUshort(r, a);
-                a += 2, i.coverage = e._lctf.readCoverage(r, s + h);
-            }
-            if (1 == t && i.fmt >= 1 && i.fmt <= 2) {
-                if (1 == i.fmt) i.delta = o.readShort(r, a), a += 2;
-                else if (2 == i.fmt) {
-                    var d = o.readUshort(r, a);
-                    a += 2, i.newg = o.readUshorts(r, a, d), a += 2 * i.newg.length;
-                }
-            } else if (2 == t && 1 == i.fmt) {
-                d = o.readUshort(r, a);
-                a += 2, i.seqs = [];
-                for(var f = 0; f < d; f++){
-                    var u = o.readUshort(r, a) + s;
-                    a += 2;
-                    var l = o.readUshort(r, u);
-                    i.seqs.push(o.readUshorts(r, u + 2, l));
-                }
-            } else if (4 == t) {
-                i.vals = [];
-                d = o.readUshort(r, a);
-                a += 2;
-                for(f = 0; f < d; f++){
-                    var v = o.readUshort(r, a);
-                    a += 2, i.vals.push(e.GSUB.readLigatureSet(r, s + v));
-                }
-            } else if (5 == t && 2 == i.fmt) {
-                if (2 == i.fmt) {
-                    var c = o.readUshort(r, a);
-                    a += 2, i.cDef = e._lctf.readClassDef(r, s + c), i.scset = [];
-                    var p = o.readUshort(r, a);
-                    a += 2;
-                    for(f = 0; f < p; f++){
-                        var U = o.readUshort(r, a);
-                        a += 2, i.scset.push(0 == U ? null : e.GSUB.readSubClassSet(r, s + U));
-                    }
-                }
-            } else if (6 == t && 3 == i.fmt) {
-                if (3 == i.fmt) {
-                    for(f = 0; f < 3; f++){
-                        d = o.readUshort(r, a);
-                        a += 2;
-                        for(var g = [], S = 0; S < d; S++)g.push(e._lctf.readCoverage(r, s + o.readUshort(r, a + 2 * S)));
-                        a += 2 * d, 0 == f && (i.backCvg = g), 1 == f && (i.inptCvg = g), 2 == f && (i.ahedCvg = g);
-                    }
-                    d = o.readUshort(r, a);
-                    a += 2, i.lookupRec = e.GSUB.readSubstLookupRecords(r, a, d);
-                }
-            } else {
-                if (7 == t && 1 == i.fmt) {
-                    var m = o.readUshort(r, a);
-                    a += 2;
-                    var b = o.readUint(r, a);
-                    if (a += 4, 9 == n.ltype) n.ltype = m;
-                    else if (n.ltype != m) throw "invalid extension substitution";
-                    return e.GSUB.subt(r, n.ltype, s + b);
-                }
-                console.debug("unsupported GSUB table LookupType", t, "format", i.fmt);
-            }
-            return i;
-        }, e.GSUB.readSubClassSet = function(r, t) {
-            var a = e._bin.readUshort, n = t, o = [], s = a(r, t);
-            t += 2;
-            for(var i = 0; i < s; i++){
-                var h = a(r, t);
-                t += 2, o.push(e.GSUB.readSubClassRule(r, n + h));
-            }
-            return o;
-        }, e.GSUB.readSubClassRule = function(r, t) {
-            var a = e._bin.readUshort, n = {}, o = a(r, t), s = a(r, t += 2);
-            t += 2, n.input = [];
-            for(var i = 0; i < o - 1; i++)n.input.push(a(r, t)), t += 2;
-            return n.substLookupRecords = e.GSUB.readSubstLookupRecords(r, t, s), n;
-        }, e.GSUB.readSubstLookupRecords = function(r, t, a) {
-            for(var n = e._bin.readUshort, o = [], s = 0; s < a; s++)o.push(n(r, t), n(r, t + 2)), t += 4;
-            return o;
-        }, e.GSUB.readChainSubClassSet = function(r, t) {
-            var a = e._bin, n = t, o = [], s = a.readUshort(r, t);
-            t += 2;
-            for(var i = 0; i < s; i++){
-                var h = a.readUshort(r, t);
-                t += 2, o.push(e.GSUB.readChainSubClassRule(r, n + h));
-            }
-            return o;
-        }, e.GSUB.readChainSubClassRule = function(r, t) {
-            for(var a = e._bin, n = {}, o = [
-                "backtrack",
-                "input",
-                "lookahead"
-            ], s = 0; s < o.length; s++){
-                var i = a.readUshort(r, t);
-                t += 2, 1 == s && i--, n[o[s]] = a.readUshorts(r, t, i), t += 2 * n[o[s]].length;
-            }
-            i = a.readUshort(r, t);
-            return t += 2, n.subst = a.readUshorts(r, t, 2 * i), t += 2 * n.subst.length, n;
-        }, e.GSUB.readLigatureSet = function(r, t) {
-            var a = e._bin, n = t, o = [], s = a.readUshort(r, t);
-            t += 2;
-            for(var i = 0; i < s; i++){
-                var h = a.readUshort(r, t);
-                t += 2, o.push(e.GSUB.readLigature(r, n + h));
-            }
-            return o;
-        }, e.GSUB.readLigature = function(r, t) {
-            var a = e._bin, n = {
-                chain: []
-            };
-            n.nglyph = a.readUshort(r, t), t += 2;
-            var o = a.readUshort(r, t);
-            t += 2;
-            for(var s = 0; s < o - 1; s++)n.chain.push(a.readUshort(r, t)), t += 2;
-            return n;
-        }, e.head = {}, e.head.parse = function(r, t, a) {
-            var n = e._bin, o = {};
-            return n.readFixed(r, t), t += 4, o.fontRevision = n.readFixed(r, t), t += 4, n.readUint(r, t), t += 4, n.readUint(r, t), t += 4, o.flags = n.readUshort(r, t), t += 2, o.unitsPerEm = n.readUshort(r, t), t += 2, o.created = n.readUint64(r, t), t += 8, o.modified = n.readUint64(r, t), t += 8, o.xMin = n.readShort(r, t), t += 2, o.yMin = n.readShort(r, t), t += 2, o.xMax = n.readShort(r, t), t += 2, o.yMax = n.readShort(r, t), t += 2, o.macStyle = n.readUshort(r, t), t += 2, o.lowestRecPPEM = n.readUshort(r, t), t += 2, o.fontDirectionHint = n.readShort(r, t), t += 2, o.indexToLocFormat = n.readShort(r, t), t += 2, o.glyphDataFormat = n.readShort(r, t), t += 2, o;
-        }, e.hhea = {}, e.hhea.parse = function(r, t, a) {
-            var n = e._bin, o = {};
-            return n.readFixed(r, t), t += 4, o.ascender = n.readShort(r, t), t += 2, o.descender = n.readShort(r, t), t += 2, o.lineGap = n.readShort(r, t), t += 2, o.advanceWidthMax = n.readUshort(r, t), t += 2, o.minLeftSideBearing = n.readShort(r, t), t += 2, o.minRightSideBearing = n.readShort(r, t), t += 2, o.xMaxExtent = n.readShort(r, t), t += 2, o.caretSlopeRise = n.readShort(r, t), t += 2, o.caretSlopeRun = n.readShort(r, t), t += 2, o.caretOffset = n.readShort(r, t), t += 2, t += 8, o.metricDataFormat = n.readShort(r, t), t += 2, o.numberOfHMetrics = n.readUshort(r, t), t += 2, o;
-        }, e.hmtx = {}, e.hmtx.parse = function(r, t, a, n) {
-            for(var o = e._bin, s = {
-                aWidth: [],
-                lsBearing: []
-            }, i = 0, h = 0, d = 0; d < n.maxp.numGlyphs; d++)d < n.hhea.numberOfHMetrics && (i = o.readUshort(r, t), t += 2, h = o.readShort(r, t), t += 2), s.aWidth.push(i), s.lsBearing.push(h);
-            return s;
-        }, e.kern = {}, e.kern.parse = function(r, t, a, n) {
-            var o = e._bin, s = o.readUshort(r, t);
-            if (t += 2, 1 == s) return e.kern.parseV1(r, t - 2, a, n);
-            var i = o.readUshort(r, t);
-            t += 2;
-            for(var h = {
-                glyph1: [],
-                rval: []
-            }, d = 0; d < i; d++){
-                t += 2;
-                a = o.readUshort(r, t);
-                t += 2;
-                var f = o.readUshort(r, t);
-                t += 2;
-                var u = f >>> 8;
-                if (0 != (u &= 15)) throw "unknown kern table format: " + u;
-                t = e.kern.readFormat0(r, t, h);
-            }
-            return h;
-        }, e.kern.parseV1 = function(r, t, a, n) {
-            var o = e._bin;
-            o.readFixed(r, t), t += 4;
-            var s = o.readUint(r, t);
-            t += 4;
-            for(var i = {
-                glyph1: [],
-                rval: []
-            }, h = 0; h < s; h++){
-                o.readUint(r, t), t += 4;
-                var d = o.readUshort(r, t);
-                t += 2, o.readUshort(r, t), t += 2;
-                var f = d >>> 8;
-                if (0 != (f &= 15)) throw "unknown kern table format: " + f;
-                t = e.kern.readFormat0(r, t, i);
-            }
-            return i;
-        }, e.kern.readFormat0 = function(r, t, a) {
-            var n = e._bin, o = -1, s = n.readUshort(r, t);
-            t += 2, n.readUshort(r, t), t += 2, n.readUshort(r, t), t += 2, n.readUshort(r, t), t += 2;
-            for(var i = 0; i < s; i++){
-                var h = n.readUshort(r, t);
-                t += 2;
-                var d = n.readUshort(r, t);
-                t += 2;
-                var f = n.readShort(r, t);
-                t += 2, h != o && (a.glyph1.push(h), a.rval.push({
-                    glyph2: [],
-                    vals: []
-                }));
-                var u = a.rval[a.rval.length - 1];
-                u.glyph2.push(d), u.vals.push(f), o = h;
-            }
-            return t;
-        }, e.loca = {}, e.loca.parse = function(r, t, a, n) {
-            var o = e._bin, s = [], i = n.head.indexToLocFormat, h = n.maxp.numGlyphs + 1;
-            if (0 == i) for(var d = 0; d < h; d++)s.push(o.readUshort(r, t + (d << 1)) << 1);
-            if (1 == i) for(d = 0; d < h; d++)s.push(o.readUint(r, t + (d << 2)));
-            return s;
-        }, e.maxp = {}, e.maxp.parse = function(r, t, a) {
-            var n = e._bin, o = {}, s = n.readUint(r, t);
-            return t += 4, o.numGlyphs = n.readUshort(r, t), t += 2, 65536 == s && (o.maxPoints = n.readUshort(r, t), t += 2, o.maxContours = n.readUshort(r, t), t += 2, o.maxCompositePoints = n.readUshort(r, t), t += 2, o.maxCompositeContours = n.readUshort(r, t), t += 2, o.maxZones = n.readUshort(r, t), t += 2, o.maxTwilightPoints = n.readUshort(r, t), t += 2, o.maxStorage = n.readUshort(r, t), t += 2, o.maxFunctionDefs = n.readUshort(r, t), t += 2, o.maxInstructionDefs = n.readUshort(r, t), t += 2, o.maxStackElements = n.readUshort(r, t), t += 2, o.maxSizeOfInstructions = n.readUshort(r, t), t += 2, o.maxComponentElements = n.readUshort(r, t), t += 2, o.maxComponentDepth = n.readUshort(r, t), t += 2), o;
-        }, e.name = {}, e.name.parse = function(r, t, a) {
-            var n = e._bin, o = {};
-            n.readUshort(r, t), t += 2;
-            var s = n.readUshort(r, t);
-            t += 2, n.readUshort(r, t);
-            for(var i, h = [
-                "copyright",
-                "fontFamily",
-                "fontSubfamily",
-                "ID",
-                "fullName",
-                "version",
-                "postScriptName",
-                "trademark",
-                "manufacturer",
-                "designer",
-                "description",
-                "urlVendor",
-                "urlDesigner",
-                "licence",
-                "licenceURL",
-                "---",
-                "typoFamilyName",
-                "typoSubfamilyName",
-                "compatibleFull",
-                "sampleText",
-                "postScriptCID",
-                "wwsFamilyName",
-                "wwsSubfamilyName",
-                "lightPalette",
-                "darkPalette"
-            ], d = t += 2, f = 0; f < s; f++){
-                var u = n.readUshort(r, t);
-                t += 2;
-                var l = n.readUshort(r, t);
-                t += 2;
-                var v = n.readUshort(r, t);
-                t += 2;
-                var c = n.readUshort(r, t);
-                t += 2;
-                var p = n.readUshort(r, t);
-                t += 2;
-                var U = n.readUshort(r, t);
-                t += 2;
-                var g, S = h[c], m = d + 12 * s + U;
-                if (0 == u) g = n.readUnicode(r, m, p / 2);
-                else if (3 == u && 0 == l) g = n.readUnicode(r, m, p / 2);
-                else if (0 == l) g = n.readASCII(r, m, p);
-                else if (1 == l) g = n.readUnicode(r, m, p / 2);
-                else if (3 == l) g = n.readUnicode(r, m, p / 2);
-                else {
-                    if (1 != u) throw "unknown encoding " + l + ", platformID: " + u;
-                    g = n.readASCII(r, m, p), console.debug("reading unknown MAC encoding " + l + " as ASCII");
-                }
-                var b = "p" + u + "," + v.toString(16);
-                null == o[b] && (o[b] = {}), o[b][void 0 !== S ? S : c] = g, o[b]._lang = v;
-            }
-            for(var y in o)if (null != o[y].postScriptName && 1033 == o[y]._lang) return o[y];
-            for(var y in o)if (null != o[y].postScriptName && 0 == o[y]._lang) return o[y];
-            for(var y in o)if (null != o[y].postScriptName && 3084 == o[y]._lang) return o[y];
-            for(var y in o)if (null != o[y].postScriptName) return o[y];
-            for(var y in o){
-                i = y;
-                break;
-            }
-            return console.debug("returning name table with languageID " + o[i]._lang), o[i];
-        }, e["OS/2"] = {}, e["OS/2"].parse = function(r, t, a) {
-            var n = e._bin.readUshort(r, t);
-            t += 2;
-            var o = {};
-            if (0 == n) e["OS/2"].version0(r, t, o);
-            else if (1 == n) e["OS/2"].version1(r, t, o);
-            else if (2 == n || 3 == n || 4 == n) e["OS/2"].version2(r, t, o);
-            else {
-                if (5 != n) throw "unknown OS/2 table version: " + n;
-                e["OS/2"].version5(r, t, o);
-            }
-            return o;
-        }, e["OS/2"].version0 = function(r, t, a) {
-            var n = e._bin;
-            return a.xAvgCharWidth = n.readShort(r, t), t += 2, a.usWeightClass = n.readUshort(r, t), t += 2, a.usWidthClass = n.readUshort(r, t), t += 2, a.fsType = n.readUshort(r, t), t += 2, a.ySubscriptXSize = n.readShort(r, t), t += 2, a.ySubscriptYSize = n.readShort(r, t), t += 2, a.ySubscriptXOffset = n.readShort(r, t), t += 2, a.ySubscriptYOffset = n.readShort(r, t), t += 2, a.ySuperscriptXSize = n.readShort(r, t), t += 2, a.ySuperscriptYSize = n.readShort(r, t), t += 2, a.ySuperscriptXOffset = n.readShort(r, t), t += 2, a.ySuperscriptYOffset = n.readShort(r, t), t += 2, a.yStrikeoutSize = n.readShort(r, t), t += 2, a.yStrikeoutPosition = n.readShort(r, t), t += 2, a.sFamilyClass = n.readShort(r, t), t += 2, a.panose = n.readBytes(r, t, 10), t += 10, a.ulUnicodeRange1 = n.readUint(r, t), t += 4, a.ulUnicodeRange2 = n.readUint(r, t), t += 4, a.ulUnicodeRange3 = n.readUint(r, t), t += 4, a.ulUnicodeRange4 = n.readUint(r, t), t += 4, a.achVendID = [
-                n.readInt8(r, t),
-                n.readInt8(r, t + 1),
-                n.readInt8(r, t + 2),
-                n.readInt8(r, t + 3)
-            ], t += 4, a.fsSelection = n.readUshort(r, t), t += 2, a.usFirstCharIndex = n.readUshort(r, t), t += 2, a.usLastCharIndex = n.readUshort(r, t), t += 2, a.sTypoAscender = n.readShort(r, t), t += 2, a.sTypoDescender = n.readShort(r, t), t += 2, a.sTypoLineGap = n.readShort(r, t), t += 2, a.usWinAscent = n.readUshort(r, t), t += 2, a.usWinDescent = n.readUshort(r, t), t += 2;
-        }, e["OS/2"].version1 = function(r, t, a) {
-            var n = e._bin;
-            return t = e["OS/2"].version0(r, t, a), a.ulCodePageRange1 = n.readUint(r, t), t += 4, a.ulCodePageRange2 = n.readUint(r, t), t += 4;
-        }, e["OS/2"].version2 = function(r, t, a) {
-            var n = e._bin;
-            return t = e["OS/2"].version1(r, t, a), a.sxHeight = n.readShort(r, t), t += 2, a.sCapHeight = n.readShort(r, t), t += 2, a.usDefault = n.readUshort(r, t), t += 2, a.usBreak = n.readUshort(r, t), t += 2, a.usMaxContext = n.readUshort(r, t), t += 2;
-        }, e["OS/2"].version5 = function(r, t, a) {
-            var n = e._bin;
-            return t = e["OS/2"].version2(r, t, a), a.usLowerOpticalPointSize = n.readUshort(r, t), t += 2, a.usUpperOpticalPointSize = n.readUshort(r, t), t += 2;
-        }, e.post = {}, e.post.parse = function(r, t, a) {
-            var n = e._bin, o = {};
-            return o.version = n.readFixed(r, t), t += 4, o.italicAngle = n.readFixed(r, t), t += 4, o.underlinePosition = n.readShort(r, t), t += 2, o.underlineThickness = n.readShort(r, t), t += 2, o;
-        }, null == e && (e = {}), null == e.U && (e.U = {}), e.U.codeToGlyph = function(r, e) {
-            var t = r.cmap, a = -1;
-            if (null != t.p0e4 ? a = t.p0e4 : null != t.p3e1 ? a = t.p3e1 : null != t.p1e0 ? a = t.p1e0 : null != t.p0e3 && (a = t.p0e3), -1 == a) throw "no familiar platform and encoding!";
-            var n = t.tables[a];
-            if (0 == n.format) return e >= n.map.length ? 0 : n.map[e];
-            if (4 == n.format) {
-                for(var o = -1, s = 0; s < n.endCount.length; s++)if (e <= n.endCount[s]) {
-                    o = s;
-                    break;
-                }
-                if (-1 == o) return 0;
-                if (n.startCount[o] > e) return 0;
-                return 65535 & (0 != n.idRangeOffset[o] ? n.glyphIdArray[e - n.startCount[o] + (n.idRangeOffset[o] >> 1) - (n.idRangeOffset.length - o)] : e + n.idDelta[o]);
-            }
-            if (12 == n.format) {
-                if (e > n.groups[n.groups.length - 1][1]) return 0;
-                for(s = 0; s < n.groups.length; s++){
-                    var i = n.groups[s];
-                    if (i[0] <= e && e <= i[1]) return i[2] + (e - i[0]);
-                }
-                return 0;
-            }
-            throw "unknown cmap table format " + n.format;
-        }, e.U.glyphToPath = function(r, t) {
-            var a = {
-                cmds: [],
-                crds: []
-            };
-            if (r.SVG && r.SVG.entries[t]) {
-                var n = r.SVG.entries[t];
-                return null == n ? a : ("string" == typeof n && (n = e.SVG.toPath(n), r.SVG.entries[t] = n), n);
-            }
-            if (r.CFF) {
-                var o = {
-                    x: 0,
-                    y: 0,
-                    stack: [],
-                    nStems: 0,
-                    haveWidth: !1,
-                    width: r.CFF.Private ? r.CFF.Private.defaultWidthX : 0,
-                    open: !1
-                }, s = r.CFF, i = r.CFF.Private;
-                if (s.ROS) {
-                    for(var h = 0; s.FDSelect[h + 2] <= t;)h += 2;
-                    i = s.FDArray[s.FDSelect[h + 1]].Private;
-                }
-                e.U._drawCFF(r.CFF.CharStrings[t], o, s, i, a);
-            } else r.glyf && e.U._drawGlyf(t, r, a);
-            return a;
-        }, e.U._drawGlyf = function(r, t, a) {
-            var n = t.glyf[r];
-            null == n && (n = t.glyf[r] = e.glyf._parseGlyf(t, r)), null != n && (n.noc > -1 ? e.U._simpleGlyph(n, a) : e.U._compoGlyph(n, t, a));
-        }, e.U._simpleGlyph = function(r, t) {
-            for(var a = 0; a < r.noc; a++){
-                for(var n = 0 == a ? 0 : r.endPts[a - 1] + 1, o = r.endPts[a], s = n; s <= o; s++){
-                    var i = s == n ? o : s - 1, h = s == o ? n : s + 1, d = 1 & r.flags[s], f = 1 & r.flags[i], u = 1 & r.flags[h], l = r.xs[s], v = r.ys[s];
-                    if (s == n) {
-                        if (d) {
-                            if (!f) {
-                                e.U.P.moveTo(t, l, v);
-                                continue;
-                            }
-                            e.U.P.moveTo(t, r.xs[i], r.ys[i]);
-                        } else f ? e.U.P.moveTo(t, r.xs[i], r.ys[i]) : e.U.P.moveTo(t, (r.xs[i] + l) / 2, (r.ys[i] + v) / 2);
-                    }
-                    d ? f && e.U.P.lineTo(t, l, v) : u ? e.U.P.qcurveTo(t, l, v, r.xs[h], r.ys[h]) : e.U.P.qcurveTo(t, l, v, (l + r.xs[h]) / 2, (v + r.ys[h]) / 2);
-                }
-                e.U.P.closePath(t);
-            }
-        }, e.U._compoGlyph = function(r, t, a) {
-            for(var n = 0; n < r.parts.length; n++){
-                var o = {
-                    cmds: [],
-                    crds: []
-                }, s = r.parts[n];
-                e.U._drawGlyf(s.glyphIndex, t, o);
-                for(var i = s.m, h = 0; h < o.crds.length; h += 2){
-                    var d = o.crds[h], f = o.crds[h + 1];
-                    a.crds.push(d * i.a + f * i.b + i.tx), a.crds.push(d * i.c + f * i.d + i.ty);
-                }
-                for(h = 0; h < o.cmds.length; h++)a.cmds.push(o.cmds[h]);
-            }
-        }, e.U._getGlyphClass = function(r, t) {
-            var a = e._lctf.getInterval(t, r);
-            return -1 == a ? 0 : t[a + 2];
-        }, e.U._applySubs = function(r, t, a, n) {
-            for(var o = r.length - t - 1, s = 0; s < a.tabs.length; s++)if (null != a.tabs[s]) {
-                var i, h = a.tabs[s];
-                if (!h.coverage || -1 != (i = e._lctf.coverageIndex(h.coverage, r[t]))) {
-                    if (1 == a.ltype) r[t], 1 == h.fmt ? r[t] = r[t] + h.delta : r[t] = h.newg[i];
-                    else if (4 == a.ltype) for(var d = h.vals[i], f = 0; f < d.length; f++){
-                        var u = d[f], l = u.chain.length;
-                        if (!(l > o)) {
-                            for(var v = !0, c = 0, p = 0; p < l; p++){
-                                for(; -1 == r[t + c + (1 + p)];)c++;
-                                u.chain[p] != r[t + c + (1 + p)] && (v = !1);
-                            }
-                            if (v) {
-                                r[t] = u.nglyph;
-                                for(p = 0; p < l + c; p++)r[t + p + 1] = -1;
-                                break;
-                            }
-                        }
-                    }
-                    else if (5 == a.ltype && 2 == h.fmt) for(var U = e._lctf.getInterval(h.cDef, r[t]), g = h.cDef[U + 2], S = h.scset[g], m = 0; m < S.length; m++){
-                        var b = S[m], y = b.input;
-                        if (!(y.length > o)) {
-                            for(v = !0, p = 0; p < y.length; p++){
-                                var F = e._lctf.getInterval(h.cDef, r[t + 1 + p]);
-                                if (-1 == U && h.cDef[F + 2] != y[p]) {
-                                    v = !1;
-                                    break;
-                                }
-                            }
-                            if (v) {
-                                var C = b.substLookupRecords;
-                                for(f = 0; f < C.length; f += 2)C[f], C[f + 1];
-                            }
-                        }
-                    }
-                    else if (6 == a.ltype && 3 == h.fmt) {
-                        if (!e.U._glsCovered(r, h.backCvg, t - h.backCvg.length)) continue;
-                        if (!e.U._glsCovered(r, h.inptCvg, t)) continue;
-                        if (!e.U._glsCovered(r, h.ahedCvg, t + h.inptCvg.length)) continue;
-                        var _ = h.lookupRec;
-                        for(m = 0; m < _.length; m += 2){
-                            U = _[m];
-                            var P = n[_[m + 1]];
-                            e.U._applySubs(r, t + U, P, n);
-                        }
-                    }
-                }
-            }
-        }, e.U._glsCovered = function(r, t, a) {
-            for(var n = 0; n < t.length; n++){
-                if (-1 == e._lctf.coverageIndex(t[n], r[a + n])) return !1;
-            }
-            return !0;
-        }, e.U.glyphsToPath = function(r, t, a) {
-            for(var n = {
-                cmds: [],
-                crds: []
-            }, o = 0, s = 0; s < t.length; s++){
-                var i = t[s];
-                if (-1 != i) {
-                    for(var h = s < t.length - 1 && -1 != t[s + 1] ? t[s + 1] : 0, d = e.U.glyphToPath(r, i), f = 0; f < d.crds.length; f += 2)n.crds.push(d.crds[f] + o), n.crds.push(d.crds[f + 1]);
-                    a && n.cmds.push(a);
-                    for(f = 0; f < d.cmds.length; f++)n.cmds.push(d.cmds[f]);
-                    a && n.cmds.push("X"), o += r.hmtx.aWidth[i], s < t.length - 1 && (o += e.U.getPairAdjustment(r, i, h));
-                }
-            }
-            return n;
-        }, e.U.P = {}, e.U.P.moveTo = function(r, e, t) {
-            r.cmds.push("M"), r.crds.push(e, t);
-        }, e.U.P.lineTo = function(r, e, t) {
-            r.cmds.push("L"), r.crds.push(e, t);
-        }, e.U.P.curveTo = function(r, e, t, a, n, o, s) {
-            r.cmds.push("C"), r.crds.push(e, t, a, n, o, s);
-        }, e.U.P.qcurveTo = function(r, e, t, a, n) {
-            r.cmds.push("Q"), r.crds.push(e, t, a, n);
-        }, e.U.P.closePath = function(r) {
-            r.cmds.push("Z");
-        }, e.U._drawCFF = function(r, t, a, n, o) {
-            for(var s = t.stack, i = t.nStems, h = t.haveWidth, d = t.width, f = t.open, u = 0, l = t.x, v = t.y, c = 0, p = 0, U = 0, g = 0, S = 0, m = 0, b = 0, y = 0, F = 0, C = 0, _ = {
-                val: 0,
-                size: 0
-            }; u < r.length;){
-                e.CFF.getCharString(r, u, _);
-                var P = _.val;
-                if (u += _.size, "o1" == P || "o18" == P) s.length % 2 != 0 && !h && (d = s.shift() + n.nominalWidthX), i += s.length >> 1, s.length = 0, h = !0;
-                else if ("o3" == P || "o23" == P) s.length % 2 != 0 && !h && (d = s.shift() + n.nominalWidthX), i += s.length >> 1, s.length = 0, h = !0;
-                else if ("o4" == P) s.length > 1 && !h && (d = s.shift() + n.nominalWidthX, h = !0), f && e.U.P.closePath(o), v += s.pop(), e.U.P.moveTo(o, l, v), f = !0;
-                else if ("o5" == P) for(; s.length > 0;)l += s.shift(), v += s.shift(), e.U.P.lineTo(o, l, v);
-                else if ("o6" == P || "o7" == P) for(var x = s.length, I = "o6" == P, w = 0; w < x; w++){
-                    var k = s.shift();
-                    I ? l += k : v += k, I = !I, e.U.P.lineTo(o, l, v);
-                }
-                else if ("o8" == P || "o24" == P) {
-                    x = s.length;
-                    for(var G = 0; G + 6 <= x;)c = l + s.shift(), p = v + s.shift(), U = c + s.shift(), g = p + s.shift(), l = U + s.shift(), v = g + s.shift(), e.U.P.curveTo(o, c, p, U, g, l, v), G += 6;
-                    "o24" == P && (l += s.shift(), v += s.shift(), e.U.P.lineTo(o, l, v));
-                } else {
-                    if ("o11" == P) break;
-                    if ("o1234" == P || "o1235" == P || "o1236" == P || "o1237" == P) "o1234" == P && (p = v, U = (c = l + s.shift()) + s.shift(), C = g = p + s.shift(), m = g, y = v, l = (b = (S = (F = U + s.shift()) + s.shift()) + s.shift()) + s.shift(), e.U.P.curveTo(o, c, p, U, g, F, C), e.U.P.curveTo(o, S, m, b, y, l, v)), "o1235" == P && (c = l + s.shift(), p = v + s.shift(), U = c + s.shift(), g = p + s.shift(), F = U + s.shift(), C = g + s.shift(), S = F + s.shift(), m = C + s.shift(), b = S + s.shift(), y = m + s.shift(), l = b + s.shift(), v = y + s.shift(), s.shift(), e.U.P.curveTo(o, c, p, U, g, F, C), e.U.P.curveTo(o, S, m, b, y, l, v)), "o1236" == P && (c = l + s.shift(), p = v + s.shift(), U = c + s.shift(), C = g = p + s.shift(), m = g, b = (S = (F = U + s.shift()) + s.shift()) + s.shift(), y = m + s.shift(), l = b + s.shift(), e.U.P.curveTo(o, c, p, U, g, F, C), e.U.P.curveTo(o, S, m, b, y, l, v)), "o1237" == P && (c = l + s.shift(), p = v + s.shift(), U = c + s.shift(), g = p + s.shift(), F = U + s.shift(), C = g + s.shift(), S = F + s.shift(), m = C + s.shift(), b = S + s.shift(), y = m + s.shift(), Math.abs(b - l) > Math.abs(y - v) ? l = b + s.shift() : v = y + s.shift(), e.U.P.curveTo(o, c, p, U, g, F, C), e.U.P.curveTo(o, S, m, b, y, l, v));
-                    else if ("o14" == P) {
-                        if (s.length > 0 && !h && (d = s.shift() + a.nominalWidthX, h = !0), 4 == s.length) {
-                            var O = s.shift(), T = s.shift(), D = s.shift(), B = s.shift(), A = e.CFF.glyphBySE(a, D), R = e.CFF.glyphBySE(a, B);
-                            e.U._drawCFF(a.CharStrings[A], t, a, n, o), t.x = O, t.y = T, e.U._drawCFF(a.CharStrings[R], t, a, n, o);
-                        }
-                        f && (e.U.P.closePath(o), f = !1);
-                    } else if ("o19" == P || "o20" == P) s.length % 2 != 0 && !h && (d = s.shift() + n.nominalWidthX), i += s.length >> 1, s.length = 0, h = !0, u += i + 7 >> 3;
-                    else if ("o21" == P) s.length > 2 && !h && (d = s.shift() + n.nominalWidthX, h = !0), v += s.pop(), l += s.pop(), f && e.U.P.closePath(o), e.U.P.moveTo(o, l, v), f = !0;
-                    else if ("o22" == P) s.length > 1 && !h && (d = s.shift() + n.nominalWidthX, h = !0), l += s.pop(), f && e.U.P.closePath(o), e.U.P.moveTo(o, l, v), f = !0;
-                    else if ("o25" == P) {
-                        for(; s.length > 6;)l += s.shift(), v += s.shift(), e.U.P.lineTo(o, l, v);
-                        c = l + s.shift(), p = v + s.shift(), U = c + s.shift(), g = p + s.shift(), l = U + s.shift(), v = g + s.shift(), e.U.P.curveTo(o, c, p, U, g, l, v);
-                    } else if ("o26" == P) for(s.length % 2 && (l += s.shift()); s.length > 0;)c = l, p = v + s.shift(), l = U = c + s.shift(), v = (g = p + s.shift()) + s.shift(), e.U.P.curveTo(o, c, p, U, g, l, v);
-                    else if ("o27" == P) for(s.length % 2 && (v += s.shift()); s.length > 0;)p = v, U = (c = l + s.shift()) + s.shift(), g = p + s.shift(), l = U + s.shift(), v = g, e.U.P.curveTo(o, c, p, U, g, l, v);
-                    else if ("o10" == P || "o29" == P) {
-                        var L = "o10" == P ? n : a;
-                        if (0 == s.length) console.debug("error: empty stack");
-                        else {
-                            var W = s.pop(), M = L.Subrs[W + L.Bias];
-                            t.x = l, t.y = v, t.nStems = i, t.haveWidth = h, t.width = d, t.open = f, e.U._drawCFF(M, t, a, n, o), l = t.x, v = t.y, i = t.nStems, h = t.haveWidth, d = t.width, f = t.open;
-                        }
-                    } else if ("o30" == P || "o31" == P) {
-                        var V = s.length, E = (G = 0, "o31" == P);
-                        for(G += V - (x = -3 & V); G < x;)E ? (p = v, U = (c = l + s.shift()) + s.shift(), v = (g = p + s.shift()) + s.shift(), x - G == 5 ? (l = U + s.shift(), G++) : l = U, E = !1) : (c = l, p = v + s.shift(), U = c + s.shift(), g = p + s.shift(), l = U + s.shift(), x - G == 5 ? (v = g + s.shift(), G++) : v = g, E = !0), e.U.P.curveTo(o, c, p, U, g, l, v), G += 4;
-                    } else {
-                        if ("o" == (P + "").charAt(0)) throw console.debug("Unknown operation: " + P, r), P;
-                        s.push(P);
-                    }
-                }
-            }
-            t.x = l, t.y = v, t.nStems = i, t.haveWidth = h, t.width = d, t.open = f;
-        };
-        var t = e, a = {
-            Typr: t
-        };
-        return r.Typr = t, r.default = a, Object.defineProperty(r, "__esModule", {
-            value: !0
-        }), r;
-    }({}).Typr;
-}
-/*!
-Custom bundle of woff2otf (https://github.com/arty-name/woff2otf) with fflate
-(https://github.com/101arrowz/fflate) for use in Troika text rendering. 
-Original licenses apply: 
-- fflate: https://github.com/101arrowz/fflate/blob/master/LICENSE (MIT)
-- woff2otf.js: https://github.com/arty-name/woff2otf/blob/master/woff2otf.js (Apache2)
-*/ function woff2otfFactory() {
-    return function(r) {
-        var e = Uint8Array, n = Uint16Array, t = Uint32Array, a = new e([
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            1,
-            1,
-            2,
-            2,
-            2,
-            2,
-            3,
-            3,
-            3,
-            3,
-            4,
-            4,
-            4,
-            4,
-            5,
-            5,
-            5,
-            5,
-            0,
-            0,
-            0,
-            0
-        ]), i = new e([
-            0,
-            0,
-            0,
-            0,
-            1,
-            1,
-            2,
-            2,
-            3,
-            3,
-            4,
-            4,
-            5,
-            5,
-            6,
-            6,
-            7,
-            7,
-            8,
-            8,
-            9,
-            9,
-            10,
-            10,
-            11,
-            11,
-            12,
-            12,
-            13,
-            13,
-            0,
-            0
-        ]), o = new e([
-            16,
-            17,
-            18,
-            0,
-            8,
-            7,
-            9,
-            6,
-            10,
-            5,
-            11,
-            4,
-            12,
-            3,
-            13,
-            2,
-            14,
-            1,
-            15
-        ]), f = function(r, e) {
-            for(var a = new n(31), i = 0; i < 31; ++i)a[i] = e += 1 << r[i - 1];
-            var o = new t(a[30]);
-            for(i = 1; i < 30; ++i)for(var f = a[i]; f < a[i + 1]; ++f)o[f] = f - a[i] << 5 | i;
-            return [
-                a,
-                o
-            ];
-        }, u = f(a, 2), v = u[0], s = u[1];
-        v[28] = 258, s[258] = 28;
-        for(var l = f(i, 0)[0], c = new n(32768), g = 0; g < 32768; ++g){
-            var h = (43690 & g) >>> 1 | (21845 & g) << 1;
-            h = (61680 & (h = (52428 & h) >>> 2 | (13107 & h) << 2)) >>> 4 | (3855 & h) << 4, c[g] = ((65280 & h) >>> 8 | (255 & h) << 8) >>> 1;
-        }
-        var w = function(r, e, t) {
-            for(var a = r.length, i = 0, o = new n(e); i < a; ++i)++o[r[i] - 1];
-            var f, u = new n(e);
-            for(i = 0; i < e; ++i)u[i] = u[i - 1] + o[i - 1] << 1;
-            if (t) {
-                f = new n(1 << e);
-                var v = 15 - e;
-                for(i = 0; i < a; ++i)if (r[i]) for(var s = i << 4 | r[i], l = e - r[i], g = u[r[i] - 1]++ << l, h = g | (1 << l) - 1; g <= h; ++g)f[c[g] >>> v] = s;
-            } else for(f = new n(a), i = 0; i < a; ++i)r[i] && (f[i] = c[u[r[i] - 1]++] >>> 15 - r[i]);
-            return f;
-        }, d = new e(288);
-        for(g = 0; g < 144; ++g)d[g] = 8;
-        for(g = 144; g < 256; ++g)d[g] = 9;
-        for(g = 256; g < 280; ++g)d[g] = 7;
-        for(g = 280; g < 288; ++g)d[g] = 8;
-        var m = new e(32);
-        for(g = 0; g < 32; ++g)m[g] = 5;
-        var b = w(d, 9, 1), p = w(m, 5, 1), y = function(r) {
-            for(var e = r[0], n = 1; n < r.length; ++n)r[n] > e && (e = r[n]);
-            return e;
-        }, L = function(r, e, n) {
-            var t = e / 8 | 0;
-            return (r[t] | r[t + 1] << 8) >> (7 & e) & n;
-        }, U = function(r, e) {
-            var n = e / 8 | 0;
-            return (r[n] | r[n + 1] << 8 | r[n + 2] << 16) >> (7 & e);
-        }, k = [
-            "unexpected EOF",
-            "invalid block type",
-            "invalid length/literal",
-            "invalid distance",
-            "stream finished",
-            "no stream handler",
-            ,
-            "no callback",
-            "invalid UTF-8 data",
-            "extra field too long",
-            "date not in range 1980-2099",
-            "filename too long",
-            "stream finishing",
-            "invalid zip data"
-        ], T = function(r, e, n) {
-            var t = new Error(e || k[r]);
-            if (t.code = r, Error.captureStackTrace && Error.captureStackTrace(t, T), !n) throw t;
-            return t;
-        }, O = function(r, f, u) {
-            var s = r.length;
-            if (!s || u && !u.l && s < 5) return f || new e(0);
-            var c = !f || u, g = !u || u.i;
-            u || (u = {}), f || (f = new e(3 * s));
-            var h, d = function(r) {
-                var n = f.length;
-                if (r > n) {
-                    var t = new e(Math.max(2 * n, r));
-                    t.set(f), f = t;
-                }
-            }, m = u.f || 0, k = u.p || 0, O = u.b || 0, A = u.l, x = u.d, E = u.m, D = u.n, M = 8 * s;
-            do {
-                if (!A) {
-                    u.f = m = L(r, k, 1);
-                    var S = L(r, k + 1, 3);
-                    if (k += 3, !S) {
-                        var V = r[(I = ((h = k) / 8 | 0) + (7 & h && 1) + 4) - 4] | r[I - 3] << 8, _ = I + V;
-                        if (_ > s) {
-                            g && T(0);
-                            break;
-                        }
-                        c && d(O + V), f.set(r.subarray(I, _), O), u.b = O += V, u.p = k = 8 * _;
-                        continue;
-                    }
-                    if (1 == S) A = b, x = p, E = 9, D = 5;
-                    else if (2 == S) {
-                        var j = L(r, k, 31) + 257, z = L(r, k + 10, 15) + 4, C = j + L(r, k + 5, 31) + 1;
-                        k += 14;
-                        for(var F = new e(C), P = new e(19), q = 0; q < z; ++q)P[o[q]] = L(r, k + 3 * q, 7);
-                        k += 3 * z;
-                        var B = y(P), G = (1 << B) - 1, H = w(P, B, 1);
-                        for(q = 0; q < C;){
-                            var I, J = H[L(r, k, G)];
-                            if (k += 15 & J, (I = J >>> 4) < 16) F[q++] = I;
-                            else {
-                                var K = 0, N = 0;
-                                for(16 == I ? (N = 3 + L(r, k, 3), k += 2, K = F[q - 1]) : 17 == I ? (N = 3 + L(r, k, 7), k += 3) : 18 == I && (N = 11 + L(r, k, 127), k += 7); N--;)F[q++] = K;
-                            }
-                        }
-                        var Q = F.subarray(0, j), R = F.subarray(j);
-                        E = y(Q), D = y(R), A = w(Q, E, 1), x = w(R, D, 1);
-                    } else T(1);
-                    if (k > M) {
-                        g && T(0);
-                        break;
-                    }
-                }
-                c && d(O + 131072);
-                for(var W = (1 << E) - 1, X = (1 << D) - 1, Y = k;; Y = k){
-                    var Z = (K = A[U(r, k) & W]) >>> 4;
-                    if ((k += 15 & K) > M) {
-                        g && T(0);
-                        break;
-                    }
-                    if (K || T(2), Z < 256) f[O++] = Z;
-                    else {
-                        if (256 == Z) {
-                            Y = k, A = null;
-                            break;
-                        }
-                        var $ = Z - 254;
-                        if (Z > 264) {
-                            var rr = a[q = Z - 257];
-                            $ = L(r, k, (1 << rr) - 1) + v[q], k += rr;
-                        }
-                        var er = x[U(r, k) & X], nr = er >>> 4;
-                        er || T(3), k += 15 & er;
-                        R = l[nr];
-                        if (nr > 3) {
-                            rr = i[nr];
-                            R += U(r, k) & (1 << rr) - 1, k += rr;
-                        }
-                        if (k > M) {
-                            g && T(0);
-                            break;
-                        }
-                        c && d(O + 131072);
-                        for(var tr = O + $; O < tr; O += 4)f[O] = f[O - R], f[O + 1] = f[O + 1 - R], f[O + 2] = f[O + 2 - R], f[O + 3] = f[O + 3 - R];
-                        O = tr;
-                    }
-                }
-                u.l = A, u.p = Y, u.b = O, A && (m = 1, u.m = E, u.d = x, u.n = D);
-            }while (!m);
-            return O == f.length ? f : function(r, a, i) {
-                (null == a || a < 0) && (a = 0), (null == i || i > r.length) && (i = r.length);
-                var o = new (r instanceof n ? n : r instanceof t ? t : e)(i - a);
-                return o.set(r.subarray(a, i)), o;
-            }(f, 0, O);
-        }, A = new e(0);
-        var x = "undefined" != typeof TextDecoder && new TextDecoder;
-        try {
-            x.decode(A, {
-                stream: !0
-            });
-        } catch (r) {}
-        return r.convert_streams = function(r) {
-            var e = new DataView(r), n = 0;
-            function t() {
-                var r = e.getUint16(n);
-                return n += 2, r;
-            }
-            function a() {
-                var r = e.getUint32(n);
-                return n += 4, r;
-            }
-            function i(r) {
-                m.setUint16(b, r), b += 2;
-            }
-            function o(r) {
-                m.setUint32(b, r), b += 4;
-            }
-            for(var f = {
-                signature: a(),
-                flavor: a(),
-                length: a(),
-                numTables: t(),
-                reserved: t(),
-                totalSfntSize: a(),
-                majorVersion: t(),
-                minorVersion: t(),
-                metaOffset: a(),
-                metaLength: a(),
-                metaOrigLength: a(),
-                privOffset: a(),
-                privLength: a()
-            }, u = 0; Math.pow(2, u) <= f.numTables;)u++;
-            u--;
-            for(var v = 16 * Math.pow(2, u), s = 16 * f.numTables - v, l = 12, c = [], g = 0; g < f.numTables; g++)c.push({
-                tag: a(),
-                offset: a(),
-                compLength: a(),
-                origLength: a(),
-                origChecksum: a()
-            }), l += 16;
-            var h, w = new Uint8Array(12 + 16 * c.length + c.reduce(function(r, e) {
-                return r + e.origLength + 4;
-            }, 0)), d = w.buffer, m = new DataView(d), b = 0;
-            return o(f.flavor), i(f.numTables), i(v), i(u), i(s), c.forEach(function(r) {
-                o(r.tag), o(r.origChecksum), o(l), o(r.origLength), r.outOffset = l, (l += r.origLength) % 4 != 0 && (l += 4 - l % 4);
-            }), c.forEach(function(e) {
-                var n, t = r.slice(e.offset, e.offset + e.compLength);
-                if (e.compLength != e.origLength) {
-                    var a = new Uint8Array(e.origLength);
-                    n = new Uint8Array(t, 2), O(n, a);
-                } else a = new Uint8Array(t);
-                w.set(a, e.outOffset);
-                var i = 0;
-                (l = e.outOffset + e.origLength) % 4 != 0 && (i = 4 - l % 4), w.set(new Uint8Array(i).buffer, e.outOffset + e.origLength), h = l + i;
-            }), d.slice(0, h);
-        }, Object.defineProperty(r, "__esModule", {
-            value: !0
-        }), r;
-    }({}).convert_streams;
-}
-/**
- * A factory wrapper parsing a font file using Typr.
- * Also adds support for WOFF files (not WOFF2).
- */ /**
- * @typedef ParsedFont
- * @property {number} ascender
- * @property {number} descender
- * @property {number} xHeight
- * @property {(number) => boolean} supportsCodePoint
- * @property {(text:string, fontSize:number, letterSpacing:number, callback) => number} forEachGlyph
- * @property {number} lineGap
- * @property {number} capHeight
- * @property {number} unitsPerEm
- */ /**
- * @typedef {(buffer: ArrayBuffer) => ParsedFont} FontParser
- */ /**
- * @returns {FontParser}
- */ function parserFactory(Typr, woff2otf) {
-    const cmdArgLengths = {
-        M: 2,
-        L: 2,
-        Q: 4,
-        C: 6,
-        Z: 0
-    };
-    // {joinType: "skip+step,..."}
-    const joiningTypeRawData = {
-        "C": "18g,ca,368,1kz",
-        "D": "17k,6,2,2+4,5+c,2+6,2+1,10+1,9+f,j+11,2+1,a,2,2+1,15+2,3,j+2,6+3,2+8,2,2,2+1,w+a,4+e,3+3,2,3+2,3+5,23+w,2f+4,3,2+9,2,b,2+3,3,1k+9,6+1,3+1,2+2,2+d,30g,p+y,1,1+1g,f+x,2,sd2+1d,jf3+4,f+3,2+4,2+2,b+3,42,2,4+2,2+1,2,3,t+1,9f+w,2,el+2,2+g,d+2,2l,2+1,5,3+1,2+1,2,3,6,16wm+1v",
-        "R": "17m+3,2,2,6+3,m,15+2,2+2,h+h,13,3+8,2,2,3+1,2,p+1,x,5+4,5,a,2,2,3,u,c+2,g+1,5,2+1,4+1,5j,6+1,2,b,2+2,f,2+1,1s+2,2,3+1,7,1ez0,2,2+1,4+4,b,4,3,b,42,2+2,4,3,2+1,2,o+3,ae,ep,x,2o+2,3+1,3,5+1,6",
-        "L": "x9u,jff,a,fd,jv",
-        "T": "4t,gj+33,7o+4,1+1,7c+18,2,2+1,2+1,2,21+a,2,1b+k,h,2u+6,3+5,3+1,2+3,y,2,v+q,2k+a,1n+8,a,p+3,2+8,2+2,2+4,18+2,3c+e,2+v,1k,2,5+7,5,4+6,b+1,u,1n,5+3,9,l+1,r,3+1,1m,5+1,5+1,3+2,4,v+1,4,c+1,1m,5+4,2+1,5,l+1,n+5,2,1n,3,2+3,9,8+1,c+1,v,1q,d,1f,4,1m+2,6+2,2+3,8+1,c+1,u,1n,3,7,6+1,l+1,t+1,1m+1,5+3,9,l+1,u,21,8+2,2,2j,3+6,d+7,2r,3+8,c+5,23+1,s,2,2,1k+d,2+4,2+1,6+a,2+z,a,2v+3,2+5,2+1,3+1,q+1,5+2,h+3,e,3+1,7,g,jk+2,qb+2,u+2,u+1,v+1,1t+1,2+6,9,3+a,a,1a+2,3c+1,z,3b+2,5+1,a,7+2,64+1,3,1n,2+6,2,2,3+7,7+9,3,1d+d,1,1+1,1s+3,1d,2+4,2,6,15+8,d+1,x+3,3+1,2+2,1l,2+1,4,2+2,1n+7,3+1,49+2,2+c,2+6,5,7,4+1,5j+1l,2+4,ek,3+1,r+4,1e+4,6+5,2p+c,1+3,1,1+2,1+b,2db+2,3y,2p+v,ff+3,30+1,n9x,1+2,2+9,x+1,29+1,7l,4,5,q+1,6,48+1,r+h,e,13+7,q+a,1b+2,1d,3+3,3+1,14,1w+5,3+1,3+1,d,9,1c,1g,2+2,3+1,6+1,2,17+1,9,6n,3,5,fn5,ki+f,h+f,5s,6y+2,ea,6b,46+4,1af+2,2+1,6+3,15+2,5,4m+1,fy+3,as+1,4a+a,4x,1j+e,1l+2,1e+3,3+1,1y+2,11+4,2+7,1r,d+1,1h+8,b+3,3,2o+2,3,2+1,7,4h,4+7,m+1,1m+1,4,12+6,4+4,5g+7,3+2,2,o,2d+5,2,5+1,2+1,6n+3,7+1,2+1,s+1,2e+7,3,2+1,2z,2,3+5,2,2u+2,3+3,2+4,78+8,2+1,75+1,2,5,41+3,3+1,5,x+9,15+5,3+3,9,a+5,3+2,1b+c,2+1,bb+6,2+5,2,2b+l,3+6,2+1,2+1,3f+5,4,2+1,2+6,2,21+1,4,2,9o+1,470+8,at4+4,1o+6,t5,1s+3,2a,f5l+1,2+3,43o+2,a+7,1+7,3+6,v+3,45+2,1j0+1i,5+1d,9,f,n+4,2+e,11t+6,2+g,3+6,2+1,2+4,7a+6,c6+3,15t+6,32+6,1,gzau,v+2n,3l+6n"
-    };
-    const JT_LEFT = 1, JT_RIGHT = 2, JT_DUAL = 4, JT_TRANSPARENT = 8, JT_JOIN_CAUSING = 16, JT_NON_JOINING = 32; //indicates that a character does not join with the preceding or with the subsequent character.,
-    let joiningTypeMap;
-    function getCharJoiningType(ch) {
-        if (!joiningTypeMap) {
-            const m = {
-                R: JT_RIGHT,
-                L: JT_LEFT,
-                D: JT_DUAL,
-                C: JT_JOIN_CAUSING,
-                U: JT_NON_JOINING,
-                T: JT_TRANSPARENT
-            };
-            joiningTypeMap = new Map();
-            for(let type in joiningTypeRawData){
-                let lastCode = 0;
-                joiningTypeRawData[type].split(",").forEach((range)=>{
-                    let [skip, step] = range.split("+");
-                    skip = parseInt(skip, 36);
-                    step = step ? parseInt(step, 36) : 0;
-                    joiningTypeMap.set(lastCode += skip, m[type]);
-                    for(let i = step; i--;)joiningTypeMap.set(++lastCode, m[type]);
-                });
-            }
-        }
-        return joiningTypeMap.get(ch) || JT_NON_JOINING;
-    }
-    const ISOL = 1, INIT = 2, FINA = 3, MEDI = 4;
-    const formsToFeatures = [
-        null,
-        "isol",
-        "init",
-        "fina",
-        "medi"
-    ];
-    function detectJoiningForms(str) {
-        // This implements the algorithm described here:
-        // https://github.com/n8willis/opentype-shaping-documents/blob/master/opentype-shaping-arabic-general.md
-        const joiningForms = new Uint8Array(str.length);
-        let prevJoiningType = JT_NON_JOINING;
-        let prevForm = ISOL;
-        let prevIndex = -1;
-        for(let i = 0; i < str.length; i++){
-            const code = str.codePointAt(i);
-            let joiningType = getCharJoiningType(code) | 0;
-            let form = ISOL;
-            if (joiningType & JT_TRANSPARENT) continue;
-            if (prevJoiningType & (JT_LEFT | JT_DUAL | JT_JOIN_CAUSING)) {
-                if (joiningType & (JT_RIGHT | JT_DUAL | JT_JOIN_CAUSING)) {
-                    form = FINA;
-                    // isol->init, fina->medi
-                    if (prevForm === ISOL || prevForm === FINA) joiningForms[prevIndex]++;
-                } else if (joiningType & (JT_LEFT | JT_NON_JOINING)) // medi->fina, init->isol
-                {
-                    if (prevForm === INIT || prevForm === MEDI) joiningForms[prevIndex]--;
-                }
-            } else if (prevJoiningType & (JT_RIGHT | JT_NON_JOINING)) // medi->fina, init->isol
-            {
-                if (prevForm === INIT || prevForm === MEDI) joiningForms[prevIndex]--;
-            }
-            prevForm = joiningForms[i] = form;
-            prevJoiningType = joiningType;
-            prevIndex = i;
-            if (code > 0xffff) i++;
-        }
-        // console.log(str.split('').map(ch => ch.codePointAt(0).toString(16)))
-        // console.log(str.split('').map(ch => getCharJoiningType(ch.codePointAt(0))))
-        // console.log(Array.from(joiningForms).map(f => formsToFeatures[f] || 'none'))
-        return joiningForms;
-    }
-    function stringToGlyphs(font, str) {
-        const glyphIds = [];
-        for(let i = 0; i < str.length; i++){
-            const cc = str.codePointAt(i);
-            if (cc > 0xffff) i++;
-            glyphIds.push(Typr.U.codeToGlyph(font, cc));
-        }
-        const gsub = font["GSUB"];
-        if (gsub) {
-            const { lookupList, featureList } = gsub;
-            let joiningForms;
-            const supportedFeatures = /^(rlig|liga|mset|isol|init|fina|medi|half|pres|blws|ccmp)$/;
-            const usedLookups = [];
-            featureList.forEach((feature)=>{
-                if (supportedFeatures.test(feature.tag)) for(let ti = 0; ti < feature.tab.length; ti++){
-                    if (usedLookups[feature.tab[ti]]) continue;
-                    usedLookups[feature.tab[ti]] = true;
-                    const tab = lookupList[feature.tab[ti]];
-                    const isJoiningFeature = /^(isol|init|fina|medi)$/.test(feature.tag);
-                    if (isJoiningFeature && !joiningForms) joiningForms = detectJoiningForms(str);
-                    for(let ci = 0; ci < glyphIds.length; ci++)if (!joiningForms || !isJoiningFeature || formsToFeatures[joiningForms[ci]] === feature.tag) Typr.U._applySubs(glyphIds, ci, tab, lookupList);
-                }
-            });
-        }
-        return glyphIds;
-    }
-    // Calculate advances and x/y offsets for each glyph, e.g. kerning and mark
-    // attachments. This is a more complete version of Typr.U.getPairAdjustment
-    // and should become an upstream replacement eventually.
-    function calcGlyphPositions(font, glyphIds) {
-        const positions = new Int16Array(glyphIds.length * 3); // [offsetX, offsetY, advanceX, ...]
-        let glyphIndex = 0;
-        for(; glyphIndex < glyphIds.length; glyphIndex++){
-            const glyphId = glyphIds[glyphIndex];
-            if (glyphId === -1) continue;
-            positions[glyphIndex * 3 + 2] = font.hmtx.aWidth[glyphId]; // populate advanceX in...advance.
-            const gpos = font.GPOS;
-            if (gpos) {
-                const llist = gpos.lookupList;
-                for(let i = 0; i < llist.length; i++){
-                    const lookup = llist[i];
-                    for(let j = 0; j < lookup.tabs.length; j++){
-                        const tab = lookup.tabs[j];
-                        // Single char placement
-                        if (lookup.ltype === 1) {
-                            const ind = Typr._lctf.coverageIndex(tab.coverage, glyphId);
-                            if (ind !== -1 && tab.pos) {
-                                applyValueRecord(tab.pos, glyphIndex);
-                                break;
-                            }
-                        } else if (lookup.ltype === 2) {
-                            let adj = null;
-                            let prevGlyphIndex = getPrevGlyphIndex();
-                            if (prevGlyphIndex !== -1) {
-                                const coverageIndex = Typr._lctf.coverageIndex(tab.coverage, glyphIds[prevGlyphIndex]);
-                                if (coverageIndex !== -1) {
-                                    if (tab.fmt === 1) {
-                                        const right = tab.pairsets[coverageIndex];
-                                        for(let k = 0; k < right.length; k++)if (right[k].gid2 === glyphId) adj = right[k];
-                                    } else if (tab.fmt === 2) {
-                                        const c1 = Typr.U._getGlyphClass(glyphIds[prevGlyphIndex], tab.classDef1);
-                                        const c2 = Typr.U._getGlyphClass(glyphId, tab.classDef2);
-                                        adj = tab.matrix[c1][c2];
-                                    }
-                                    if (adj) {
-                                        if (adj.val1) applyValueRecord(adj.val1, prevGlyphIndex);
-                                        if (adj.val2) applyValueRecord(adj.val2, glyphIndex);
-                                        break;
-                                    }
-                                }
-                            }
-                        } else if (lookup.ltype === 4) {
-                            const markArrIndex = Typr._lctf.coverageIndex(tab.markCoverage, glyphId);
-                            if (markArrIndex !== -1) {
-                                const baseGlyphIndex = getPrevGlyphIndex(isBaseGlyph);
-                                const baseArrIndex = baseGlyphIndex === -1 ? -1 : Typr._lctf.coverageIndex(tab.baseCoverage, glyphIds[baseGlyphIndex]);
-                                if (baseArrIndex !== -1) {
-                                    const markRecord = tab.markArray[markArrIndex];
-                                    const baseAnchor = tab.baseArray[baseArrIndex][markRecord.markClass];
-                                    positions[glyphIndex * 3] = baseAnchor.x - markRecord.x + positions[baseGlyphIndex * 3] - positions[baseGlyphIndex * 3 + 2];
-                                    positions[glyphIndex * 3 + 1] = baseAnchor.y - markRecord.y + positions[baseGlyphIndex * 3 + 1];
-                                    break;
-                                }
-                            }
-                        } else if (lookup.ltype === 6) {
-                            const mark1ArrIndex = Typr._lctf.coverageIndex(tab.mark1Coverage, glyphId);
-                            if (mark1ArrIndex !== -1) {
-                                const prevGlyphIndex = getPrevGlyphIndex();
-                                if (prevGlyphIndex !== -1) {
-                                    const prevGlyphId = glyphIds[prevGlyphIndex];
-                                    if (getGlyphClass(font, prevGlyphId) === 3) {
-                                        const mark2ArrIndex = Typr._lctf.coverageIndex(tab.mark2Coverage, prevGlyphId);
-                                        if (mark2ArrIndex !== -1) {
-                                            const mark1Record = tab.mark1Array[mark1ArrIndex];
-                                            const mark2Anchor = tab.mark2Array[mark2ArrIndex][mark1Record.markClass];
-                                            positions[glyphIndex * 3] = mark2Anchor.x - mark1Record.x + positions[prevGlyphIndex * 3] - positions[prevGlyphIndex * 3 + 2];
-                                            positions[glyphIndex * 3 + 1] = mark2Anchor.y - mark1Record.y + positions[prevGlyphIndex * 3 + 1];
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } else if (font.kern && !font.cff) {
-                const prevGlyphIndex = getPrevGlyphIndex();
-                if (prevGlyphIndex !== -1) {
-                    const ind1 = font.kern.glyph1.indexOf(glyphIds[prevGlyphIndex]);
-                    if (ind1 !== -1) {
-                        const ind2 = font.kern.rval[ind1].glyph2.indexOf(glyphId);
-                        if (ind2 !== -1) positions[prevGlyphIndex * 3 + 2] += font.kern.rval[ind1].vals[ind2];
-                    }
-                }
-            }
-        }
-        return positions;
-        function getPrevGlyphIndex(filter) {
-            for(let i = glyphIndex - 1; i >= 0; i--){
-                if (glyphIds[i] !== -1 && (!filter || filter(glyphIds[i]))) return i;
-            }
-            return -1;
-        }
-        function isBaseGlyph(glyphId) {
-            return getGlyphClass(font, glyphId) === 1;
-        }
-        function applyValueRecord(source, gi) {
-            for(let i = 0; i < 3; i++)positions[gi * 3 + i] += source[i] || 0;
-        }
-    }
-    function getGlyphClass(font, glyphId) {
-        const classDef = font.GDEF && font.GDEF.glyphClassDef;
-        return classDef ? Typr.U._getGlyphClass(glyphId, classDef) : 0;
-    }
-    function firstNum(...args) {
-        for(let i = 0; i < args.length; i++){
-            if (typeof args[i] === "number") return args[i];
-        }
-    }
-    /**
-   * @returns ParsedFont
-   */ function wrapFontObj(typrFont) {
-        const glyphMap = Object.create(null);
-        const os2 = typrFont["OS/2"];
-        const hhea = typrFont.hhea;
-        const unitsPerEm = typrFont.head.unitsPerEm;
-        const ascender = firstNum(os2 && os2.sTypoAscender, hhea && hhea.ascender, unitsPerEm);
-        /** @type ParsedFont */ const fontObj = {
-            unitsPerEm,
-            ascender,
-            descender: firstNum(os2 && os2.sTypoDescender, hhea && hhea.descender, 0),
-            capHeight: firstNum(os2 && os2.sCapHeight, ascender),
-            xHeight: firstNum(os2 && os2.sxHeight, ascender),
-            lineGap: firstNum(os2 && os2.sTypoLineGap, hhea && hhea.lineGap),
-            supportsCodePoint (code) {
-                return Typr.U.codeToGlyph(typrFont, code) > 0;
-            },
-            forEachGlyph (text, fontSize, letterSpacing, callback) {
-                let penX = 0;
-                const fontScale = 1 / fontObj.unitsPerEm * fontSize;
-                const glyphIds = stringToGlyphs(typrFont, text);
-                let charIndex = 0;
-                const positions = calcGlyphPositions(typrFont, glyphIds);
-                glyphIds.forEach((glyphId, i)=>{
-                    // Typr returns a glyph index per string codepoint, with -1s in place of those that
-                    // were omitted due to ligature substitution. So we can track original index in the
-                    // string via simple increment, and skip everything else when seeing a -1.
-                    if (glyphId !== -1) {
-                        let glyphObj = glyphMap[glyphId];
-                        if (!glyphObj) {
-                            const { cmds, crds } = Typr.U.glyphToPath(typrFont, glyphId);
-                            // Build path string
-                            let path = "";
-                            let crdsIdx = 0;
-                            for(let i = 0, len = cmds.length; i < len; i++){
-                                const numArgs = cmdArgLengths[cmds[i]];
-                                path += cmds[i];
-                                for(let j = 1; j <= numArgs; j++)path += (j > 1 ? "," : "") + crds[crdsIdx++];
-                            }
-                            // Find extents - Glyf gives this in metadata but not CFF, and Typr doesn't
-                            // normalize the two, so it's simplest just to iterate ourselves.
-                            let xMin, yMin, xMax, yMax;
-                            if (crds.length) {
-                                xMin = yMin = Infinity;
-                                xMax = yMax = -Infinity;
-                                for(let i = 0, len = crds.length; i < len; i += 2){
-                                    let x = crds[i];
-                                    let y = crds[i + 1];
-                                    if (x < xMin) xMin = x;
-                                    if (y < yMin) yMin = y;
-                                    if (x > xMax) xMax = x;
-                                    if (y > yMax) yMax = y;
-                                }
-                            } else xMin = xMax = yMin = yMax = 0;
-                            glyphObj = glyphMap[glyphId] = {
-                                index: glyphId,
-                                advanceWidth: typrFont.hmtx.aWidth[glyphId],
-                                xMin,
-                                yMin,
-                                xMax,
-                                yMax,
-                                path
-                            };
-                        }
-                        callback.call(null, glyphObj, penX + positions[i * 3] * fontScale, positions[i * 3 + 1] * fontScale, charIndex);
-                        penX += positions[i * 3 + 2] * fontScale;
-                        if (letterSpacing) penX += letterSpacing * fontSize;
-                    }
-                    charIndex += text.codePointAt(charIndex) > 0xffff ? 2 : 1;
-                });
-                return penX;
-            }
-        };
-        return fontObj;
-    }
-    /**
-   * @type FontParser
-   */ return function parse(buffer) {
-        // Look to see if we have a WOFF file and convert it if so:
-        const peek = new Uint8Array(buffer, 0, 4);
-        const tag = Typr._bin.readASCII(peek, 0, 4);
-        if (tag === "wOFF") buffer = woff2otf(buffer);
-        else if (tag === "wOF2") throw new Error("woff2 fonts not supported");
-        return wrapFontObj(Typr.parse(buffer)[0]);
-    };
-}
-const workerModule = /*#__PURE__*/ (0, _troikaWorkerUtils.defineWorkerModule)({
-    name: "Typr Font Parser",
-    dependencies: [
-        typrFactory,
-        woff2otfFactory,
-        parserFactory
-    ],
-    init (typrFactory, woff2otfFactory, parserFactory) {
-        const Typr = typrFactory();
-        const woff2otf = woff2otfFactory();
-        return parserFactory(Typr, woff2otf);
-    }
-});
-/*!
-Custom bundle of @unicode-font-resolver/client v1.0.2 (https://github.com/lojjic/unicode-font-resolver)
-for use in Troika text rendering. 
-Original MIT license applies
-*/ function unicodeFontResolverClientFactory() {
-    return function(t) {
-        var n = function() {
-            this.buckets = new Map;
-        };
-        n.prototype.add = function(t) {
-            var n = t >> 5;
-            this.buckets.set(n, (this.buckets.get(n) || 0) | 1 << (31 & t));
-        }, n.prototype.has = function(t) {
-            var n = this.buckets.get(t >> 5);
-            return void 0 !== n && 0 != (n & 1 << (31 & t));
-        }, n.prototype.serialize = function() {
-            var t = [];
-            return this.buckets.forEach(function(n, r) {
-                t.push((+r).toString(36) + ":" + n.toString(36));
-            }), t.join(",");
-        }, n.prototype.deserialize = function(t) {
-            var n = this;
-            this.buckets.clear(), t.split(",").forEach(function(t) {
-                var r = t.split(":");
-                n.buckets.set(parseInt(r[0], 36), parseInt(r[1], 36));
-            });
-        };
-        var r = Math.pow(2, 8), e = r - 1, o = ~e;
-        function a(t) {
-            var n = (function(t) {
-                return t & o;
-            })(t).toString(16), e = (function(t) {
-                return (t & o) + r - 1;
-            })(t).toString(16);
-            return "codepoint-index/plane" + (t >> 16) + "/" + n + "-" + e + ".json";
-        }
-        function i(t, n) {
-            var r = t & e, o = n.codePointAt(r / 6 | 0);
-            return 0 != ((o = (o || 48) - 48) & 1 << r % 6);
-        }
-        function u(t, n) {
-            var r;
-            (r = t, r.replace(/U\+/gi, "").replace(/^,+|,+$/g, "").split(/,+/).map(function(t) {
-                return t.split("-").map(function(t) {
-                    return parseInt(t.trim(), 16);
-                });
-            })).forEach(function(t) {
-                var r = t[0], e = t[1];
-                void 0 === e && (e = r), n(r, e);
-            });
-        }
-        function c(t, n) {
-            u(t, function(t, r) {
-                for(var e = t; e <= r; e++)n(e);
-            });
-        }
-        var s = {}, f = {}, l = new WeakMap, v = "https://cdn.jsdelivr.net/gh/lojjic/unicode-font-resolver@v1.0.1/packages/data";
-        function d(t) {
-            var r = l.get(t);
-            return r || (r = new n, c(t.ranges, function(t) {
-                return r.add(t);
-            }), l.set(t, r)), r;
-        }
-        var h, p = new Map;
-        function g(t, n, r) {
-            return t[n] ? n : t[r] ? r : function(t) {
-                for(var n in t)return n;
-            }(t);
-        }
-        function w(t, n) {
-            var r = n;
-            if (!t.includes(r)) {
-                r = 1 / 0;
-                for(var e = 0; e < t.length; e++)Math.abs(t[e] - n) < Math.abs(r - n) && (r = t[e]);
-            }
-            return r;
-        }
-        function k(t) {
-            return h || (h = new Set, c("9-D,20,85,A0,1680,2000-200A,2028-202F,205F,3000", function(t) {
-                h.add(t);
-            })), h.has(t);
-        }
-        return t.CodePointSet = n, t.clearCache = function() {
-            s = {}, f = {};
-        }, t.getFontsForString = function(t, n) {
-            void 0 === n && (n = {});
-            var r, e = n.lang;
-            void 0 === e && (e = /\p{Script=Hangul}/u.test(r = t) ? "ko" : /\p{Script=Hiragana}|\p{Script=Katakana}/u.test(r) ? "ja" : "en");
-            var o = n.category;
-            void 0 === o && (o = "sans-serif");
-            var u = n.style;
-            void 0 === u && (u = "normal");
-            var c = n.weight;
-            void 0 === c && (c = 400);
-            var l = (n.dataUrl || v).replace(/\/$/g, ""), h = new Map, y = new Uint8Array(t.length), b = {}, m = {}, A = new Array(t.length), S = new Map, j = !1;
-            function M(t) {
-                var n = p.get(t);
-                return n || (n = fetch(l + "/" + t).then(function(t) {
-                    if (!t.ok) throw new Error(t.statusText);
-                    return t.json().then(function(t) {
-                        if (!Array.isArray(t) || 1 !== t[0]) throw new Error("Incorrect schema version; need 1, got " + t[0]);
-                        return t[1];
-                    });
-                }).catch(function(n) {
-                    if (l !== v) return j || (console.error('unicode-font-resolver: Failed loading from dataUrl "' + l + '", trying default CDN. ' + n.message), j = !0), l = v, p.delete(t), M(t);
-                    throw n;
-                }), p.set(t, n)), n;
-            }
-            for(var P = function(n) {
-                var r = t.codePointAt(n), e = a(r);
-                A[n] = e, s[e] || S.has(e) || S.set(e, M(e).then(function(t) {
-                    s[e] = t;
-                })), r > 65535 && (n++, E = n);
-            }, E = 0; E < t.length; E++)P(E);
-            return Promise.all(S.values()).then(function() {
-                S.clear();
-                for(var n = function(n) {
-                    var o = t.codePointAt(n), a = null, u = s[A[n]], c = void 0;
-                    for(var l in u){
-                        var v = m[l];
-                        if (void 0 === v && (v = m[l] = new RegExp(l).test(e || "en")), v) {
-                            for(var d in c = l, u[l])if (i(o, u[l][d])) {
-                                a = d;
-                                break;
-                            }
-                            break;
-                        }
-                    }
-                    if (!a) {
-                        t: for(var h in u)if (h !== c) {
-                            for(var p in u[h])if (i(o, u[h][p])) {
-                                a = p;
-                                break t;
-                            }
-                        }
-                    }
-                    a || (console.debug("No font coverage for U+" + o.toString(16)), a = "latin"), A[n] = a, f[a] || S.has(a) || S.set(a, M("font-meta/" + a + ".json").then(function(t) {
-                        f[a] = t;
-                    })), o > 65535 && (n++, r = n);
-                }, r = 0; r < t.length; r++)n(r);
-                return Promise.all(S.values());
-            }).then(function() {
-                for(var n, r = null, e = 0; e < t.length; e++){
-                    var a = t.codePointAt(e);
-                    if (r && (k(a) || d(r).has(a))) y[e] = y[e - 1];
-                    else {
-                        r = f[A[e]];
-                        var i = b[r.id];
-                        if (!i) {
-                            var s = r.typeforms, v = g(s, o, "sans-serif"), p = g(s[v], u, "normal"), m = w(null === (n = s[v]) || void 0 === n ? void 0 : n[p], c);
-                            i = b[r.id] = l + "/font-files/" + r.id + "/" + v + "." + p + "." + m + ".woff";
-                        }
-                        var S = h.get(i);
-                        null == S && (S = h.size, h.set(i, S)), y[e] = S;
-                    }
-                    a > 65535 && (e++, y[e] = y[e - 1]);
-                }
-                return {
-                    fontUrls: Array.from(h.keys()),
-                    chars: y
-                };
-            });
-        }, Object.defineProperty(t, "__esModule", {
-            value: !0
-        }), t;
-    }({});
-}
-/**
- * @typedef {string | {src:string, label?:string, unicodeRange?:string, lang?:string}} UserFont
- */ /**
- * @typedef {ClientOptions} FontResolverOptions
- * @property {Array<UserFont>|UserFont} [fonts]
- * @property {'normal'|'italic'} [style]
- * @property {'normal'|'bold'|number} [style]
- * @property {string} [unicodeFontsURL]
- */ /**
- * @typedef {Object} FontResolverResult
- * @property {Uint8Array} chars
- * @property {Array<ParsedFont & {src:string}>} fonts
- */ /**
- * @typedef {function} FontResolver
- * @param {string} text
- * @param {(FontResolverResult) => void} callback
- * @param {FontResolverOptions} [options]
- */ /**
- * Factory for the FontResolver function.
- * @param {FontParser} fontParser
- * @param {{getFontsForString: function, CodePointSet: function}} unicodeFontResolverClient
- * @return {FontResolver}
- */ function createFontResolver(fontParser, unicodeFontResolverClient) {
-    /**
-   * @type {Record<string, ParsedFont>}
-   */ const parsedFonts = Object.create(null);
-    /**
-   * @type {Record<string, Array<(ParsedFont) => void>>}
-   */ const loadingFonts = Object.create(null);
-    /**
-   * Load a given font url
-   */ function doLoadFont(url, callback) {
-        const onError = (err)=>{
-            console.error(`Failure loading font ${url}`, err);
-        };
-        try {
-            const request = new XMLHttpRequest();
-            request.open("get", url, true);
-            request.responseType = "arraybuffer";
-            request.onload = function() {
-                if (request.status >= 400) onError(new Error(request.statusText));
-                else if (request.status > 0) try {
-                    const fontObj = fontParser(request.response);
-                    fontObj.src = url;
-                    callback(fontObj);
-                } catch (e) {
-                    onError(e);
-                }
-            };
-            request.onerror = onError;
-            request.send();
-        } catch (err) {
-            onError(err);
-        }
-    }
-    /**
-   * Load a given font url if needed, invoking a callback when it's loaded. If already
-   * loaded, the callback will be called synchronously.
-   * @param {string} fontUrl
-   * @param {(font: ParsedFont) => void} callback
-   */ function loadFont(fontUrl, callback) {
-        let font = parsedFonts[fontUrl];
-        if (font) callback(font);
-        else if (loadingFonts[fontUrl]) loadingFonts[fontUrl].push(callback);
-        else {
-            loadingFonts[fontUrl] = [
-                callback
-            ];
-            doLoadFont(fontUrl, (fontObj)=>{
-                fontObj.src = fontUrl;
-                parsedFonts[fontUrl] = fontObj;
-                loadingFonts[fontUrl].forEach((cb)=>cb(fontObj));
-                delete loadingFonts[fontUrl];
-            });
-        }
-    }
-    /**
-   * For a given string of text, determine which fonts are required to fully render it and
-   * ensure those fonts are loaded.
-   */ return function(text, callback, { lang, fonts: userFonts = [], style = "normal", weight = "normal", unicodeFontsURL } = {}) {
-        const charResolutions = new Uint8Array(text.length);
-        const fontResolutions = [];
-        if (!text.length) allDone();
-        const fontIndices = new Map();
-        const fallbackRanges = []; // [[start, end], ...]
-        if (style !== "italic") style = "normal";
-        if (typeof weight !== "number") weight = weight === "bold" ? 700 : 400;
-        if (userFonts && !Array.isArray(userFonts)) userFonts = [
-            userFonts
-        ];
-        userFonts = userFonts.slice()// filter by language
-        .filter((def)=>!def.lang || def.lang.test(lang))// switch order for easier iteration
-        .reverse();
-        if (userFonts.length) {
-            const UNKNOWN = 0;
-            const RESOLVED = 1;
-            const NEEDS_FALLBACK = 2;
-            let prevCharResult = UNKNOWN;
-            (function resolveUserFonts(startIndex = 0) {
-                for(let i = startIndex, iLen = text.length; i < iLen; i++){
-                    const codePoint = text.codePointAt(i);
-                    // Carry previous character's result forward if:
-                    // - it resolved to a font that also covers this character
-                    // - this character is whitespace
-                    if (prevCharResult === RESOLVED && fontResolutions[charResolutions[i - 1]].supportsCodePoint(codePoint) || /\s/.test(text[i])) {
-                        charResolutions[i] = charResolutions[i - 1];
-                        if (prevCharResult === NEEDS_FALLBACK) fallbackRanges[fallbackRanges.length - 1][1] = i;
-                    } else {
-                        for(let j = charResolutions[i], jLen = userFonts.length; j <= jLen; j++)if (j === jLen) {
-                            // none of the user fonts matched; needs fallback
-                            const range = prevCharResult === NEEDS_FALLBACK ? fallbackRanges[fallbackRanges.length - 1] : fallbackRanges[fallbackRanges.length] = [
-                                i,
-                                i
-                            ];
-                            range[1] = i;
-                            prevCharResult = NEEDS_FALLBACK;
-                        } else {
-                            charResolutions[i] = j;
-                            const { src, unicodeRange } = userFonts[j];
-                            // filter by optional explicit unicode ranges
-                            if (!unicodeRange || isCodeInRanges(codePoint, unicodeRange)) {
-                                const fontObj = parsedFonts[src];
-                                // font not yet loaded, load it and resume
-                                if (!fontObj) {
-                                    loadFont(src, ()=>{
-                                        resolveUserFonts(i);
-                                    });
-                                    return;
-                                }
-                                // if the font actually contains a glyph for this char, lock it in
-                                if (fontObj.supportsCodePoint(codePoint)) {
-                                    let fontIndex = fontIndices.get(fontObj);
-                                    if (typeof fontIndex !== "number") {
-                                        fontIndex = fontResolutions.length;
-                                        fontResolutions.push(fontObj);
-                                        fontIndices.set(fontObj, fontIndex);
-                                    }
-                                    charResolutions[i] = fontIndex;
-                                    prevCharResult = RESOLVED;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if (codePoint > 0xffff && i + 1 < iLen) {
-                        charResolutions[i + 1] = charResolutions[i];
-                        i++;
-                        if (prevCharResult === NEEDS_FALLBACK) fallbackRanges[fallbackRanges.length - 1][1] = i;
-                    }
-                }
-                resolveFallbacks();
-            })();
-        } else {
-            fallbackRanges.push([
-                0,
-                text.length - 1
-            ]);
-            resolveFallbacks();
-        }
-        function resolveFallbacks() {
-            if (fallbackRanges.length) {
-                // Combine all fallback substrings into a single string for querying
-                const fallbackString = fallbackRanges.map((range)=>text.substring(range[0], range[1] + 1)).join("\n");
-                unicodeFontResolverClient.getFontsForString(fallbackString, {
-                    lang: lang || undefined,
-                    style,
-                    weight,
-                    dataUrl: unicodeFontsURL
-                }).then(({ fontUrls, chars })=>{
-                    // Extract results and put them back in the main array
-                    const fontIndexOffset = fontResolutions.length;
-                    let charIdx = 0;
-                    fallbackRanges.forEach((range)=>{
-                        for(let i = 0, endIdx = range[1] - range[0]; i <= endIdx; i++)charResolutions[range[0] + i] = chars[charIdx++] + fontIndexOffset;
-                        charIdx++; //skip segment separator
-                    });
-                    // Load and parse the fallback fonts - avoiding Promise here to prevent polyfills in the worker
-                    let loadedCount = 0;
-                    fontUrls.forEach((url, i)=>{
-                        loadFont(url, (fontObj)=>{
-                            fontResolutions[i + fontIndexOffset] = fontObj;
-                            if (++loadedCount === fontUrls.length) allDone();
-                        });
-                    });
-                });
-            } else allDone();
-        }
-        function allDone() {
-            callback({
-                chars: charResolutions,
-                fonts: fontResolutions
-            });
-        }
-        function isCodeInRanges(code, ranges) {
-            // todo optimize search - CodePointSet from unicode-font-resolver?
-            for(let k = 0; k < ranges.length; k++){
-                const [start, end = start] = ranges[k];
-                if (start <= code && code <= end) return true;
-            }
-            return false;
-        }
-    };
-}
-const fontResolverWorkerModule = /*#__PURE__*/ (0, _troikaWorkerUtils.defineWorkerModule)({
-    name: "FontResolver",
-    dependencies: [
-        createFontResolver,
-        workerModule,
-        unicodeFontResolverClientFactory
-    ],
-    init (createFontResolver, fontParser, unicodeFontResolverClientFactory) {
-        return createFontResolver(fontParser, unicodeFontResolverClientFactory());
-    }
-});
-/**
- * @typedef {number|'left'|'center'|'right'} AnchorXValue
- */ /**
- * @typedef {number|'top'|'top-baseline'|'top-cap'|'top-ex'|'middle'|'bottom-baseline'|'bottom'} AnchorYValue
- */ /**
- * @typedef {object} TypesetParams
- * @property {string} text
- * @property {UserFont|UserFont[]} [font]
- * @property {string} [lang]
- * @property {number} [sdfGlyphSize=64]
- * @property {number} [fontSize=1]
- * @property {number|'normal'|'bold'} [fontWeight='normal']
- * @property {'normal'|'italic'} [fontStyle='normal']
- * @property {number} [letterSpacing=0]
- * @property {'normal'|number} [lineHeight='normal']
- * @property {number} [maxWidth]
- * @property {'ltr'|'rtl'} [direction='ltr']
- * @property {string} [textAlign='left']
- * @property {number} [textIndent=0]
- * @property {'normal'|'nowrap'} [whiteSpace='normal']
- * @property {'normal'|'break-word'} [overflowWrap='normal']
- * @property {AnchorXValue} [anchorX=0]
- * @property {AnchorYValue} [anchorY=0]
- * @property {boolean} [metricsOnly=false]
- * @property {string} [unicodeFontsURL]
- * @property {FontResolverResult} [preResolvedFonts]
- * @property {boolean} [includeCaretPositions=false]
- * @property {number} [chunkedBoundsSize=8192]
- * @property {{[rangeStartIndex]: number}} [colorRanges]
- */ /**
- * @typedef {object} TypesetResult
- * @property {Uint16Array} glyphIds id for each glyph, specific to that glyph's font
- * @property {Uint8Array} glyphFontIndices index into fontData for each glyph
- * @property {Float32Array} glyphPositions x,y of each glyph's origin in layout
- * @property {{[font]: {[glyphId]: {path: string, pathBounds: number[]}}}} glyphData data about each glyph appearing in the text
- * @property {TypesetFontData[]} fontData data about each font used in the text
- * @property {Float32Array} [caretPositions] startX,endX,bottomY caret positions for each char
- * @property {Uint8Array} [glyphColors] color for each glyph, if color ranges supplied
- *         chunkedBounds, //total rects per (n=chunkedBoundsSize) consecutive glyphs
- *         fontSize, //calculated em height
- *         topBaseline: anchorYOffset + lines[0].baseline, //y coordinate of the top line's baseline
- *         blockBounds: [ //bounds for the whole block of text, including vertical padding for lineHeight
- *           anchorXOffset,
- *           anchorYOffset - totalHeight,
- *           anchorXOffset + maxLineWidth,
- *           anchorYOffset
- *         ],
- *         visibleBounds, //total bounds of visible text paths, may be larger or smaller than blockBounds
- *         timings
- */ /**
- * @typedef {object} TypesetFontData
- * @property src
- * @property unitsPerEm
- * @property ascender
- * @property descender
- * @property lineHeight
- * @property capHeight
- * @property xHeight
- */ /**
- * @typedef {function} TypesetterTypesetFunction - compute fonts and layout for some text.
- * @param {TypesetParams} params
- * @param {(TypesetResult) => void} callback - function called when typesetting is complete.
- *    If the params included `preResolvedFonts`, this will be called synchronously.
- */ /**
- * @typedef {function} TypesetterMeasureFunction - compute width/height for some text.
- * @param {TypesetParams} params
- * @param {(width:number, height:number) => void} callback - function called when measurement is complete.
- *    If the params included `preResolvedFonts`, this will be called synchronously.
- */ /**
- * Factory function that creates a self-contained environment for processing text typesetting requests.
- *
- * It is important that this function has no closure dependencies, so that it can be easily injected
- * into the source for a Worker without requiring a build step or complex dependency loading. All its
- * dependencies must be passed in at initialization.
- *
- * @param {FontResolver} resolveFonts - function to resolve a string to parsed fonts
- * @param {object} bidi - the bidi.js implementation object
- * @return {{typeset: TypesetterTypesetFunction, measure: TypesetterMeasureFunction}}
- */ function createTypesetter(resolveFonts, bidi) {
-    const INF = Infinity;
-    // Set of Unicode Default_Ignorable_Code_Point characters, these will not produce visible glyphs
-    // eslint-disable-next-line no-misleading-character-class
-    const DEFAULT_IGNORABLE_CHARS = /[\u00AD\u034F\u061C\u115F-\u1160\u17B4-\u17B5\u180B-\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0\uFFF0-\uFFF8]/;
-    // This regex (instead of /\s/) allows us to select all whitespace EXCEPT for non-breaking white spaces
-    const lineBreakingWhiteSpace = `[^\\S\\u00A0]`;
-    // Incomplete set of characters that allow line breaking after them
-    // In the future we may consider a full Unicode line breaking algorithm impl: https://www.unicode.org/reports/tr14
-    const BREAK_AFTER_CHARS = new RegExp(`${lineBreakingWhiteSpace}|[\\-\\u007C\\u00AD\\u2010\\u2012-\\u2014\\u2027\\u2056\\u2E17\\u2E40]`);
-    /**
-   * Load and parse all the necessary fonts to render a given string of text, then group
-   * them into consecutive runs of characters sharing a font.
-   */ function calculateFontRuns({ text, lang, fonts, style, weight, preResolvedFonts, unicodeFontsURL }, onDone) {
-        const onResolved = ({ chars, fonts: parsedFonts })=>{
-            let curRun, prevVal;
-            const runs = [];
-            for(let i = 0; i < chars.length; i++)if (chars[i] !== prevVal) {
-                prevVal = chars[i];
-                runs.push(curRun = {
-                    start: i,
-                    end: i,
-                    fontObj: parsedFonts[chars[i]]
-                });
-            } else curRun.end = i;
-            onDone(runs);
-        };
-        if (preResolvedFonts) onResolved(preResolvedFonts);
-        else resolveFonts(text, onResolved, {
-            lang,
-            fonts,
-            style,
-            weight,
-            unicodeFontsURL
-        });
-    }
-    /**
-   * Main entry point.
-   * Process a text string with given font and formatting parameters, and return all info
-   * necessary to render all its glyphs.
-   * @type TypesetterTypesetFunction
-   */ function typeset({ text = "", font, lang, sdfGlyphSize = 64, fontSize = 400, fontWeight = 1, fontStyle = "normal", letterSpacing = 0, lineHeight = "normal", maxWidth = INF, direction, textAlign = "left", textIndent = 0, whiteSpace = "normal", overflowWrap = "normal", anchorX = 0, anchorY = 0, metricsOnly = false, unicodeFontsURL, preResolvedFonts = null, includeCaretPositions = false, chunkedBoundsSize = 8192, colorRanges = null }, callback) {
-        const mainStart = now();
-        const timings = {
-            fontLoad: 0,
-            typesetting: 0
-        };
-        // Ensure newlines are normalized
-        if (text.indexOf("\r") > -1) {
-            console.info("Typesetter: got text with \\r chars; normalizing to \\n");
-            text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-        }
-        // Ensure we've got numbers not strings
-        fontSize = +fontSize;
-        letterSpacing = +letterSpacing;
-        maxWidth = +maxWidth;
-        lineHeight = lineHeight || "normal";
-        textIndent = +textIndent;
-        calculateFontRuns({
-            text,
-            lang,
-            style: fontStyle,
-            weight: fontWeight,
-            fonts: typeof font === "string" ? [
-                {
-                    src: font
-                }
-            ] : font,
-            unicodeFontsURL,
-            preResolvedFonts
-        }, (runs)=>{
-            timings.fontLoad = now() - mainStart;
-            const hasMaxWidth = isFinite(maxWidth);
-            let glyphIds = null;
-            let glyphFontIndices = null;
-            let glyphPositions = null;
-            let glyphData = null;
-            let glyphColors = null;
-            let caretPositions = null;
-            let visibleBounds = null;
-            let chunkedBounds = null;
-            let maxLineWidth = 0;
-            let renderableGlyphCount = 0;
-            let canWrap = whiteSpace !== "nowrap";
-            const metricsByFont = new Map(); // fontObj -> metrics
-            const typesetStart = now();
-            // Distribute glyphs into lines based on wrapping
-            let lineXOffset = textIndent;
-            let prevRunEndX = 0;
-            let currentLine = new TextLine();
-            const lines = [
-                currentLine
-            ];
-            runs.forEach((run)=>{
-                const { fontObj } = run;
-                const { ascender, descender, unitsPerEm, lineGap, capHeight, xHeight } = fontObj;
-                // Calculate metrics for each font used
-                let fontData = metricsByFont.get(fontObj);
-                if (!fontData) {
-                    // Find conversion between native font units and fontSize units
-                    const fontSizeMult = fontSize / unitsPerEm;
-                    // Determine appropriate value for 'normal' line height based on the font's actual metrics
-                    // This does not guarantee individual glyphs won't exceed the line height, e.g. Roboto; should we use yMin/Max instead?
-                    const calcLineHeight = lineHeight === "normal" ? (ascender - descender + lineGap) * fontSizeMult : lineHeight * fontSize;
-                    // Determine line height and leading adjustments
-                    const halfLeading = (calcLineHeight - (ascender - descender) * fontSizeMult) / 2;
-                    const caretHeight = Math.min(calcLineHeight, (ascender - descender) * fontSizeMult);
-                    const caretTop = (ascender + descender) / 2 * fontSizeMult + caretHeight / 2;
-                    fontData = {
-                        index: metricsByFont.size,
-                        src: fontObj.src,
-                        fontObj,
-                        fontSizeMult,
-                        unitsPerEm,
-                        ascender: ascender * fontSizeMult,
-                        descender: descender * fontSizeMult,
-                        capHeight: capHeight * fontSizeMult,
-                        xHeight: xHeight * fontSizeMult,
-                        lineHeight: calcLineHeight,
-                        baseline: -halfLeading - ascender * fontSizeMult,
-                        // cap: -halfLeading - capHeight * fontSizeMult, // cap from top of line height
-                        // ex: -halfLeading - xHeight * fontSizeMult, // ex from top of line height
-                        caretTop,
-                        caretBottom: caretTop - caretHeight
-                    };
-                    metricsByFont.set(fontObj, fontData);
-                }
-                const { fontSizeMult } = fontData;
-                const runText = text.slice(run.start, run.end + 1);
-                let prevGlyphX, prevGlyphObj;
-                fontObj.forEachGlyph(runText, fontSize, letterSpacing, (glyphObj, glyphX, glyphY, charIndex)=>{
-                    glyphX += prevRunEndX;
-                    charIndex += run.start;
-                    prevGlyphX = glyphX;
-                    prevGlyphObj = glyphObj;
-                    const char = text.charAt(charIndex);
-                    const glyphWidth = glyphObj.advanceWidth * fontSizeMult;
-                    const curLineCount = currentLine.count;
-                    let nextLine;
-                    // Calc isWhitespace and isEmpty once per glyphObj
-                    if (!("isEmpty" in glyphObj)) {
-                        glyphObj.isWhitespace = !!char && new RegExp(lineBreakingWhiteSpace).test(char);
-                        glyphObj.canBreakAfter = !!char && BREAK_AFTER_CHARS.test(char);
-                        glyphObj.isEmpty = glyphObj.xMin === glyphObj.xMax || glyphObj.yMin === glyphObj.yMax || DEFAULT_IGNORABLE_CHARS.test(char);
-                    }
-                    if (!glyphObj.isWhitespace && !glyphObj.isEmpty) renderableGlyphCount++;
-                    // If a non-whitespace character overflows the max width, we need to soft-wrap
-                    if (canWrap && hasMaxWidth && !glyphObj.isWhitespace && glyphX + glyphWidth + lineXOffset > maxWidth && curLineCount) {
-                        // If it's the first char after a whitespace, start a new line
-                        if (currentLine.glyphAt(curLineCount - 1).glyphObj.canBreakAfter) {
-                            nextLine = new TextLine();
-                            lineXOffset = -glyphX;
-                        } else // Back up looking for a whitespace character to wrap at
-                        for(let i = curLineCount; i--;){
-                            // If we got the start of the line there's no soft break point; make hard break if overflowWrap='break-word'
-                            if (i === 0 && overflowWrap === "break-word") {
-                                nextLine = new TextLine();
-                                lineXOffset = -glyphX;
-                                break;
-                            } else if (currentLine.glyphAt(i).glyphObj.canBreakAfter) {
-                                nextLine = currentLine.splitAt(i + 1);
-                                const adjustX = nextLine.glyphAt(0).x;
-                                lineXOffset -= adjustX;
-                                for(let j = nextLine.count; j--;)nextLine.glyphAt(j).x -= adjustX;
-                                break;
-                            }
-                        }
-                        if (nextLine) {
-                            currentLine.isSoftWrapped = true;
-                            currentLine = nextLine;
-                            lines.push(currentLine);
-                            maxLineWidth = maxWidth; //after soft wrapping use maxWidth as calculated width
-                        }
-                    }
-                    let fly = currentLine.glyphAt(currentLine.count);
-                    fly.glyphObj = glyphObj;
-                    fly.x = glyphX + lineXOffset;
-                    fly.y = glyphY;
-                    fly.width = glyphWidth;
-                    fly.charIndex = charIndex;
-                    fly.fontData = fontData;
-                    // Handle hard line breaks
-                    if (char === "\n") {
-                        currentLine = new TextLine();
-                        lines.push(currentLine);
-                        lineXOffset = -(glyphX + glyphWidth + letterSpacing * fontSize) + textIndent;
-                    }
-                });
-                // At the end of a run we must capture the x position as the starting point for the next run
-                prevRunEndX = prevGlyphX + prevGlyphObj.advanceWidth * fontSizeMult + letterSpacing * fontSize;
-            });
-            // Calculate width/height/baseline of each line (excluding trailing whitespace) and maximum block width
-            let totalHeight = 0;
-            lines.forEach((line)=>{
-                let isTrailingWhitespace = true;
-                for(let i = line.count; i--;){
-                    const glyphInfo = line.glyphAt(i);
-                    // omit trailing whitespace from width calculation
-                    if (isTrailingWhitespace && !glyphInfo.glyphObj.isWhitespace) {
-                        line.width = glyphInfo.x + glyphInfo.width;
-                        if (line.width > maxLineWidth) maxLineWidth = line.width;
-                        isTrailingWhitespace = false;
-                    }
-                    // use the tallest line height, lowest baseline, and highest cap/ex
-                    let { lineHeight, capHeight, xHeight, baseline } = glyphInfo.fontData;
-                    if (lineHeight > line.lineHeight) line.lineHeight = lineHeight;
-                    const baselineDiff = baseline - line.baseline;
-                    if (baselineDiff < 0) {
-                        line.baseline += baselineDiff;
-                        line.cap += baselineDiff;
-                        line.ex += baselineDiff;
-                    }
-                    // compare cap/ex based on new lowest baseline
-                    line.cap = Math.max(line.cap, line.baseline + capHeight);
-                    line.ex = Math.max(line.ex, line.baseline + xHeight);
-                }
-                line.baseline -= totalHeight;
-                line.cap -= totalHeight;
-                line.ex -= totalHeight;
-                totalHeight += line.lineHeight;
-            });
-            // Find overall position adjustments for anchoring
-            let anchorXOffset = 0;
-            let anchorYOffset = 0;
-            if (anchorX) {
-                if (typeof anchorX === "number") anchorXOffset = -anchorX;
-                else if (typeof anchorX === "string") anchorXOffset = -maxLineWidth * (anchorX === "left" ? 0 : anchorX === "center" ? 0.5 : anchorX === "right" ? 1 : parsePercent(anchorX));
-            }
-            if (anchorY) {
-                if (typeof anchorY === "number") anchorYOffset = -anchorY;
-                else if (typeof anchorY === "string") anchorYOffset = anchorY === "top" ? 0 : anchorY === "top-baseline" ? -lines[0].baseline : anchorY === "top-cap" ? -lines[0].cap : anchorY === "top-ex" ? -lines[0].ex : anchorY === "middle" ? totalHeight / 2 : anchorY === "bottom" ? totalHeight : anchorY === "bottom-baseline" ? -lines[lines.length - 1].baseline : parsePercent(anchorY) * totalHeight;
-            }
-            if (!metricsOnly) {
-                // Resolve bidi levels
-                const bidiLevelsResult = bidi.getEmbeddingLevels(text, direction);
-                // Process each line, applying alignment offsets, adding each glyph to the atlas, and
-                // collecting all renderable glyphs into a single collection.
-                glyphIds = new Uint16Array(renderableGlyphCount);
-                glyphFontIndices = new Uint8Array(renderableGlyphCount);
-                glyphPositions = new Float32Array(renderableGlyphCount * 2);
-                glyphData = {};
-                visibleBounds = [
-                    INF,
-                    INF,
-                    -INF,
-                    -INF
-                ];
-                chunkedBounds = [];
-                if (includeCaretPositions) caretPositions = new Float32Array(text.length * 4);
-                if (colorRanges) glyphColors = new Uint8Array(renderableGlyphCount * 3);
-                let renderableGlyphIndex = 0;
-                let prevCharIndex = -1;
-                let colorCharIndex = -1;
-                let chunk;
-                let currentColor;
-                lines.forEach((line, lineIndex)=>{
-                    let { count: lineGlyphCount, width: lineWidth } = line;
-                    // Ignore empty lines
-                    if (lineGlyphCount > 0) {
-                        // Count trailing whitespaces, we want to ignore these for certain things
-                        let trailingWhitespaceCount = 0;
-                        for(let i = lineGlyphCount; i-- && line.glyphAt(i).glyphObj.isWhitespace;)trailingWhitespaceCount++;
-                        // Apply horizontal alignment adjustments
-                        let lineXOffset = 0;
-                        let justifyAdjust = 0;
-                        if (textAlign === "center") lineXOffset = (maxLineWidth - lineWidth) / 2;
-                        else if (textAlign === "right") lineXOffset = maxLineWidth - lineWidth;
-                        else if (textAlign === "justify" && line.isSoftWrapped) {
-                            // count non-trailing whitespace characters, and we'll adjust the offsets per character in the next loop
-                            let whitespaceCount = 0;
-                            for(let i = lineGlyphCount - trailingWhitespaceCount; i--;)if (line.glyphAt(i).glyphObj.isWhitespace) whitespaceCount++;
-                            justifyAdjust = (maxLineWidth - lineWidth) / whitespaceCount;
-                        }
-                        if (justifyAdjust || lineXOffset) {
-                            let justifyOffset = 0;
-                            for(let i = 0; i < lineGlyphCount; i++){
-                                let glyphInfo = line.glyphAt(i);
-                                const glyphObj = glyphInfo.glyphObj;
-                                glyphInfo.x += lineXOffset + justifyOffset;
-                                // Expand non-trailing whitespaces for justify alignment
-                                if (justifyAdjust !== 0 && glyphObj.isWhitespace && i < lineGlyphCount - trailingWhitespaceCount) {
-                                    justifyOffset += justifyAdjust;
-                                    glyphInfo.width += justifyAdjust;
-                                }
-                            }
-                        }
-                        // Perform bidi range flipping
-                        const flips = bidi.getReorderSegments(text, bidiLevelsResult, line.glyphAt(0).charIndex, line.glyphAt(line.count - 1).charIndex);
-                        for(let fi = 0; fi < flips.length; fi++){
-                            const [start, end] = flips[fi];
-                            // Map start/end string indices to indices in the line
-                            let left = Infinity, right = -Infinity;
-                            for(let i = 0; i < lineGlyphCount; i++)if (line.glyphAt(i).charIndex >= start) {
-                                let startInLine = i, endInLine = i;
-                                for(; endInLine < lineGlyphCount; endInLine++){
-                                    let info = line.glyphAt(endInLine);
-                                    if (info.charIndex > end) break;
-                                    if (endInLine < lineGlyphCount - trailingWhitespaceCount) {
-                                        left = Math.min(left, info.x);
-                                        right = Math.max(right, info.x + info.width);
-                                    }
-                                }
-                                for(let j = startInLine; j < endInLine; j++){
-                                    const glyphInfo = line.glyphAt(j);
-                                    glyphInfo.x = right - (glyphInfo.x + glyphInfo.width - left);
-                                }
-                                break;
-                            }
-                        }
-                        // Assemble final data arrays
-                        let glyphObj;
-                        const setGlyphObj = (g)=>glyphObj = g;
-                        for(let i = 0; i < lineGlyphCount; i++){
-                            const glyphInfo = line.glyphAt(i);
-                            glyphObj = glyphInfo.glyphObj;
-                            const glyphId = glyphObj.index;
-                            // Replace mirrored characters in rtl
-                            const rtl = bidiLevelsResult.levels[glyphInfo.charIndex] & 1; //odd level means rtl
-                            if (rtl) {
-                                const mirrored = bidi.getMirroredCharacter(text[glyphInfo.charIndex]);
-                                if (mirrored) glyphInfo.fontData.fontObj.forEachGlyph(mirrored, 0, 0, setGlyphObj);
-                            }
-                            // Add caret positions
-                            if (includeCaretPositions) {
-                                const { charIndex, fontData } = glyphInfo;
-                                const caretLeft = glyphInfo.x + anchorXOffset;
-                                const caretRight = glyphInfo.x + glyphInfo.width + anchorXOffset;
-                                caretPositions[charIndex * 4] = rtl ? caretRight : caretLeft; //start edge x
-                                caretPositions[charIndex * 4 + 1] = rtl ? caretLeft : caretRight; //end edge x
-                                caretPositions[charIndex * 4 + 2] = line.baseline + fontData.caretBottom + anchorYOffset; //common bottom y
-                                caretPositions[charIndex * 4 + 3] = line.baseline + fontData.caretTop + anchorYOffset; //common top y
-                                // If we skipped any chars from the previous glyph (due to ligature subs), fill in caret
-                                // positions for those missing char indices; currently this uses a best-guess by dividing
-                                // the ligature's width evenly. In the future we may try to use the font's LigatureCaretList
-                                // table to get better interior caret positions.
-                                const ligCount = charIndex - prevCharIndex;
-                                if (ligCount > 1) fillLigatureCaretPositions(caretPositions, prevCharIndex, ligCount);
-                                prevCharIndex = charIndex;
-                            }
-                            // Track current color range
-                            if (colorRanges) {
-                                const { charIndex } = glyphInfo;
-                                while(charIndex > colorCharIndex){
-                                    colorCharIndex++;
-                                    if (colorRanges.hasOwnProperty(colorCharIndex)) currentColor = colorRanges[colorCharIndex];
-                                }
-                            }
-                            // Get atlas data for renderable glyphs
-                            if (!glyphObj.isWhitespace && !glyphObj.isEmpty) {
-                                const idx = renderableGlyphIndex++;
-                                const { fontSizeMult, src: fontSrc, index: fontIndex } = glyphInfo.fontData;
-                                // Add this glyph's path data
-                                const fontGlyphData = glyphData[fontSrc] || (glyphData[fontSrc] = {});
-                                if (!fontGlyphData[glyphId]) fontGlyphData[glyphId] = {
-                                    path: glyphObj.path,
-                                    pathBounds: [
-                                        glyphObj.xMin,
-                                        glyphObj.yMin,
-                                        glyphObj.xMax,
-                                        glyphObj.yMax
-                                    ]
-                                };
-                                // Determine final glyph position and add to glyphPositions array
-                                const glyphX = glyphInfo.x + anchorXOffset;
-                                const glyphY = glyphInfo.y + line.baseline + anchorYOffset;
-                                glyphPositions[idx * 2] = glyphX;
-                                glyphPositions[idx * 2 + 1] = glyphY;
-                                // Track total visible bounds
-                                const visX0 = glyphX + glyphObj.xMin * fontSizeMult;
-                                const visY0 = glyphY + glyphObj.yMin * fontSizeMult;
-                                const visX1 = glyphX + glyphObj.xMax * fontSizeMult;
-                                const visY1 = glyphY + glyphObj.yMax * fontSizeMult;
-                                if (visX0 < visibleBounds[0]) visibleBounds[0] = visX0;
-                                if (visY0 < visibleBounds[1]) visibleBounds[1] = visY0;
-                                if (visX1 > visibleBounds[2]) visibleBounds[2] = visX1;
-                                if (visY1 > visibleBounds[3]) visibleBounds[3] = visY1;
-                                // Track bounding rects for each chunk of N glyphs
-                                if (idx % chunkedBoundsSize === 0) {
-                                    chunk = {
-                                        start: idx,
-                                        end: idx,
-                                        rect: [
-                                            INF,
-                                            INF,
-                                            -INF,
-                                            -INF
-                                        ]
-                                    };
-                                    chunkedBounds.push(chunk);
-                                }
-                                chunk.end++;
-                                const chunkRect = chunk.rect;
-                                if (visX0 < chunkRect[0]) chunkRect[0] = visX0;
-                                if (visY0 < chunkRect[1]) chunkRect[1] = visY0;
-                                if (visX1 > chunkRect[2]) chunkRect[2] = visX1;
-                                if (visY1 > chunkRect[3]) chunkRect[3] = visY1;
-                                // Add to glyph ids and font indices arrays
-                                glyphIds[idx] = glyphId;
-                                glyphFontIndices[idx] = fontIndex;
-                                // Add colors
-                                if (colorRanges) {
-                                    const start = idx * 3;
-                                    glyphColors[start] = currentColor >> 16 & 255;
-                                    glyphColors[start + 1] = currentColor >> 8 & 255;
-                                    glyphColors[start + 2] = currentColor & 255;
-                                }
-                            }
-                        }
-                    }
-                });
-                // Fill in remaining caret positions in case the final character was a ligature
-                if (caretPositions) {
-                    const ligCount = text.length - prevCharIndex;
-                    if (ligCount > 1) fillLigatureCaretPositions(caretPositions, prevCharIndex, ligCount);
-                }
-            }
-            // Assemble final data about each font used
-            const fontData = [];
-            metricsByFont.forEach(({ index, src, unitsPerEm, ascender, descender, lineHeight, capHeight, xHeight })=>{
-                fontData[index] = {
-                    src,
-                    unitsPerEm,
-                    ascender,
-                    descender,
-                    lineHeight,
-                    capHeight,
-                    xHeight
-                };
-            });
-            // Timing stats
-            timings.typesetting = now() - typesetStart;
-            callback({
-                glyphIds,
-                glyphFontIndices,
-                glyphPositions,
-                glyphData,
-                fontData,
-                caretPositions,
-                // caretHeight, //height of cursor from bottom to top - todo per glyph?
-                glyphColors,
-                chunkedBounds,
-                fontSize,
-                topBaseline: anchorYOffset + lines[0].baseline,
-                blockBounds: [
-                    anchorXOffset,
-                    anchorYOffset - totalHeight,
-                    anchorXOffset + maxLineWidth,
-                    anchorYOffset
-                ],
-                visibleBounds,
-                timings
-            });
-        });
-    }
-    /**
-   * For a given text string and font parameters, determine the resulting block dimensions
-   * after wrapping for the given maxWidth.
-   * @param args
-   * @param callback
-   */ function measure(args, callback) {
-        typeset({
-            ...args,
-            metricsOnly: true
-        }, (result)=>{
-            const [x0, y0, x1, y1] = result.blockBounds;
-            callback({
-                width: x1 - x0,
-                height: y1 - y0
-            });
-        });
-    }
-    function parsePercent(str) {
-        let match = str.match(/^([\d.]+)%$/);
-        let pct = match ? parseFloat(match[1]) : NaN;
-        return isNaN(pct) ? 0 : pct / 100;
-    }
-    function fillLigatureCaretPositions(caretPositions, ligStartIndex, ligCount) {
-        const ligStartX = caretPositions[ligStartIndex * 4];
-        const ligEndX = caretPositions[ligStartIndex * 4 + 1];
-        const ligBottom = caretPositions[ligStartIndex * 4 + 2];
-        const ligTop = caretPositions[ligStartIndex * 4 + 3];
-        const guessedAdvanceX = (ligEndX - ligStartX) / ligCount;
-        for(let i = 0; i < ligCount; i++){
-            const startIndex = (ligStartIndex + i) * 4;
-            caretPositions[startIndex] = ligStartX + guessedAdvanceX * i;
-            caretPositions[startIndex + 1] = ligStartX + guessedAdvanceX * (i + 1);
-            caretPositions[startIndex + 2] = ligBottom;
-            caretPositions[startIndex + 3] = ligTop;
-        }
-    }
-    function now() {
-        return (self.performance || Date).now();
-    }
-    // Array-backed structure for a single line's glyphs data
-    function TextLine() {
-        this.data = [];
-    }
-    const textLineProps = [
-        "glyphObj",
-        "x",
-        "y",
-        "width",
-        "charIndex",
-        "fontData"
-    ];
-    TextLine.prototype = {
-        width: 0,
-        lineHeight: 0,
-        baseline: 0,
-        cap: 0,
-        ex: 0,
-        isSoftWrapped: false,
-        get count () {
-            return Math.ceil(this.data.length / textLineProps.length);
-        },
-        glyphAt (i) {
-            let fly = TextLine.flyweight;
-            fly.data = this.data;
-            fly.index = i;
-            return fly;
-        },
-        splitAt (i) {
-            let newLine = new TextLine();
-            newLine.data = this.data.splice(i * textLineProps.length);
-            return newLine;
-        }
-    };
-    TextLine.flyweight = textLineProps.reduce((obj, prop, i, all)=>{
-        Object.defineProperty(obj, prop, {
-            get () {
-                return this.data[this.index * textLineProps.length + i];
-            },
-            set (val) {
-                this.data[this.index * textLineProps.length + i] = val;
-            }
-        });
-        return obj;
-    }, {
-        data: null,
-        index: 0
-    });
-    return {
-        typeset,
-        measure
-    };
-}
-const now = ()=>(self.performance || Date).now();
-const mainThreadGenerator = /*#__PURE__*/ (0, _webglSdfGeneratorDefault.default)();
-let warned;
-/**
- * Generate an SDF texture image for a single glyph path, placing the result into a webgl canvas at a
- * given location and channel. Utilizes the webgl-sdf-generator external package for GPU-accelerated SDF
- * generation when supported.
- */ function generateSDF(width, height, path, viewBox, distance, exponent, canvas, x, y, channel, useWebGL = true) {
-    // Allow opt-out
-    if (!useWebGL) return generateSDF_JS_Worker(width, height, path, viewBox, distance, exponent, canvas, x, y, channel);
-    // Attempt GPU-accelerated generation first
-    return generateSDF_GL(width, height, path, viewBox, distance, exponent, canvas, x, y, channel).then(null, (err)=>{
-        // WebGL failed either due to a hard error or unexpected results; fall back to JS in workers
-        if (!warned) {
-            console.warn(`WebGL SDF generation failed, falling back to JS`, err);
-            warned = true;
-        }
-        return generateSDF_JS_Worker(width, height, path, viewBox, distance, exponent, canvas, x, y, channel);
-    });
-}
-const queue = [];
-const chunkTimeBudget = 5; // ms
-let timer = 0;
-function nextChunk() {
-    const start = now();
-    while(queue.length && now() - start < chunkTimeBudget)queue.shift()();
-    timer = queue.length ? setTimeout(nextChunk, 0) : 0;
-}
-/**
- * WebGL-based implementation executed on the main thread. Requests are executed in time-bounded
- * macrotask chunks to allow render frames to execute in between.
- */ const generateSDF_GL = (...args)=>{
-    return new Promise((resolve, reject)=>{
-        queue.push(()=>{
-            const start = now();
-            try {
-                mainThreadGenerator.webgl.generateIntoCanvas(...args);
-                resolve({
-                    timing: now() - start
-                });
-            } catch (err) {
-                reject(err);
-            }
-        });
-        if (!timer) timer = setTimeout(nextChunk, 0);
-    });
-};
-const threadCount = 4; // how many workers to spawn
-const idleTimeout = 2000; // workers will be terminated after being idle this many milliseconds
-const threads = {};
-let callNum = 0;
-/**
- * Fallback JS-based implementation, fanned out to a number of worker threads for parallelism
- */ function generateSDF_JS_Worker(width, height, path, viewBox, distance, exponent, canvas, x, y, channel) {
-    const workerId = "TroikaTextSDFGenerator_JS_" + callNum++ % threadCount;
-    let thread = threads[workerId];
-    if (!thread) thread = threads[workerId] = {
-        workerModule: (0, _troikaWorkerUtils.defineWorkerModule)({
-            name: workerId,
-            workerId,
-            dependencies: [
-                (0, _webglSdfGeneratorDefault.default),
-                now
-            ],
-            init (_createSDFGenerator, now) {
-                const generate = _createSDFGenerator().javascript.generate;
-                return function(...args) {
-                    const start = now();
-                    const textureData = generate(...args);
-                    return {
-                        textureData,
-                        timing: now() - start
-                    };
-                };
-            },
-            getTransferables (result) {
-                return [
-                    result.textureData.buffer
-                ];
-            }
-        }),
-        requests: 0,
-        idleTimer: null
-    };
-    thread.requests++;
-    clearTimeout(thread.idleTimer);
-    return thread.workerModule(width, height, path, viewBox, distance, exponent).then(({ textureData, timing })=>{
-        // copy result data into the canvas
-        const start = now();
-        // expand single-channel data into rgba
-        const imageData = new Uint8Array(textureData.length * 4);
-        for(let i = 0; i < textureData.length; i++)imageData[i * 4 + channel] = textureData[i];
-        mainThreadGenerator.webglUtils.renderImageData(canvas, imageData, x, y, width, height, 1 << 3 - channel);
-        timing += now() - start;
-        // clean up workers after a while
-        if (--thread.requests === 0) thread.idleTimer = setTimeout(()=>{
-            (0, _troikaWorkerUtils.terminateWorker)(workerId);
-        }, idleTimeout);
-        return {
-            timing
-        };
-    });
-}
-function warmUpSDFCanvas(canvas) {
-    if (!canvas._warm) {
-        mainThreadGenerator.webgl.isSupported(canvas);
-        canvas._warm = true;
-    }
-}
-const resizeWebGLCanvasWithoutClearing = mainThreadGenerator.webglUtils.resizeWebGLCanvasWithoutClearing;
-const CONFIG = {
-    defaultFontURL: null,
-    unicodeFontsURL: null,
-    sdfGlyphSize: 64,
-    sdfMargin: 1 / 16,
-    sdfExponent: 9,
-    textureWidth: 2048
-};
-const tempColor = /*#__PURE__*/ new (0, _three.Color)();
-let hasRequested = false;
-function now$1() {
-    return (self.performance || Date).now();
-}
-/**
- * Customizes the text builder configuration. This must be called prior to the first font processing
- * request, and applies to all fonts.
- *
- * @param {String} config.defaultFontURL - The URL of the default font to use for text processing
- *                 requests, in case none is specified or the specifiede font fails to load or parse.
- *                 Defaults to "Roboto Regular" from Google Fonts.
- * @param {String} config.unicodeFontsURL - A custom location for the fallback unicode-font-resolver
- *                 data and font files, if you don't want to use the default CDN. See
- *                 https://github.com/lojjic/unicode-font-resolver for details. It can also be
- *                 configured per text instance, but this lets you do it once globally.
- * @param {Number} config.sdfGlyphSize - The default size of each glyph's SDF (signed distance field)
- *                 texture used for rendering. Must be a power-of-two number, and applies to all fonts,
- *                 but note that this can also be overridden per call to `getTextRenderInfo()`.
- *                 Larger sizes can improve the quality of glyph rendering by increasing the sharpness
- *                 of corners and preventing loss of very thin lines, at the expense of memory. Defaults
- *                 to 64 which is generally a good balance of size and quality.
- * @param {Number} config.sdfExponent - The exponent used when encoding the SDF values. A higher exponent
- *                 shifts the encoded 8-bit values to achieve higher precision/accuracy at texels nearer
- *                 the glyph's path, with lower precision further away. Defaults to 9.
- * @param {Number} config.sdfMargin - How much space to reserve in the SDF as margin outside the glyph's
- *                 path, as a percentage of the SDF width. A larger margin increases the quality of
- *                 extruded glyph outlines, but decreases the precision available for the glyph itself.
- *                 Defaults to 1/16th of the glyph size.
- * @param {Number} config.textureWidth - The width of the SDF texture; must be a power of 2. Defaults to
- *                 2048 which is a safe maximum texture dimension according to the stats at
- *                 https://webglstats.com/webgl/parameter/MAX_TEXTURE_SIZE and should allow for a
- *                 reasonably large number of glyphs (default glyph size of 64^2 and safe texture size of
- *                 2048^2, times 4 channels, allows for 4096 glyphs.) This can be increased if you need to
- *                 increase the glyph size and/or have an extraordinary number of glyphs.
- */ function configureTextBuilder(config) {
-    if (hasRequested) console.warn("configureTextBuilder called after first font request; will be ignored.");
-    else assign(CONFIG, config);
-}
-/**
- * Repository for all font SDF atlas textures and their glyph mappings. There is a separate atlas for
- * each sdfGlyphSize. Each atlas has a single Texture that holds all glyphs for all fonts.
- *
- *   {
- *     [sdfGlyphSize]: {
- *       glyphCount: number,
- *       sdfGlyphSize: number,
- *       sdfTexture: Texture,
- *       sdfCanvas: HTMLCanvasElement,
- *       contextLost: boolean,
- *       glyphsByFont: Map<fontURL, Map<glyphID, {path, atlasIndex, sdfViewBox}>>
- *     }
- *   }
- */ const atlases = Object.create(null);
-/**
- * @typedef {object} TroikaTextRenderInfo - Format of the result from `getTextRenderInfo`.
- * @property {TypesetParams} parameters - The normalized input arguments to the render call.
- * @property {Texture} sdfTexture - The SDF atlas texture.
- * @property {number} sdfGlyphSize - The size of each glyph's SDF; see `configureTextBuilder`.
- * @property {number} sdfExponent - The exponent used in encoding the SDF's values; see `configureTextBuilder`.
- * @property {Float32Array} glyphBounds - List of [minX, minY, maxX, maxY] quad bounds for each glyph.
- * @property {Float32Array} glyphAtlasIndices - List holding each glyph's index in the SDF atlas.
- * @property {Uint8Array} [glyphColors] - List holding each glyph's [r, g, b] color, if `colorRanges` was supplied.
- * @property {Float32Array} [caretPositions] - A list of caret positions for all characters in the string; each is
- *           four elements: the starting X, the ending X, the bottom Y, and the top Y for the caret.
- * @property {number} [caretHeight] - An appropriate height for all selection carets.
- * @property {number} ascender - The font's ascender metric.
- * @property {number} descender - The font's descender metric.
- * @property {number} capHeight - The font's cap height metric, based on the height of Latin capital letters.
- * @property {number} xHeight - The font's x height metric, based on the height of Latin lowercase letters.
- * @property {number} lineHeight - The final computed lineHeight measurement.
- * @property {number} topBaseline - The y position of the top line's baseline.
- * @property {Array<number>} blockBounds - The total [minX, minY, maxX, maxY] rect of the whole text block;
- *           this can include extra vertical space beyond the visible glyphs due to lineHeight, and is
- *           equivalent to the dimensions of a block-level text element in CSS.
- * @property {Array<number>} visibleBounds - The total [minX, minY, maxX, maxY] rect of the whole text block;
- *           unlike `blockBounds` this is tightly wrapped to the visible glyph paths.
- * @property {Array<object>} chunkedBounds - List of bounding rects for each consecutive set of N glyphs,
- *           in the format `{start:N, end:N, rect:[minX, minY, maxX, maxY]}`.
- * @property {object} timings - Timing info for various parts of the rendering logic including SDF
- *           generation, typesetting, etc.
- * @frozen
- */ /**
- * @callback getTextRenderInfo~callback
- * @param {TroikaTextRenderInfo} textRenderInfo
- */ /**
- * Main entry point for requesting the data needed to render a text string with given font parameters.
- * This is an asynchronous call, performing most of the logic in a web worker thread.
- * @param {TypesetParams} args
- * @param {getTextRenderInfo~callback} callback
- */ function getTextRenderInfo(args, callback) {
-    hasRequested = true;
-    args = assign({}, args);
-    const totalStart = now$1();
-    // Convert relative URL to absolute so it can be resolved in the worker, and add fallbacks.
-    // In the future we'll allow args.font to be a list with unicode ranges too.
-    const { defaultFontURL } = CONFIG;
-    const fonts = [];
-    if (defaultFontURL) fonts.push({
-        label: "default",
-        src: toAbsoluteURL(defaultFontURL)
-    });
-    if (args.font) fonts.push({
-        label: "user",
-        src: toAbsoluteURL(args.font)
-    });
-    args.font = fonts;
-    // Normalize text to a string
-    args.text = "" + args.text;
-    args.sdfGlyphSize = args.sdfGlyphSize || CONFIG.sdfGlyphSize;
-    args.unicodeFontsURL = args.unicodeFontsURL || CONFIG.unicodeFontsURL;
-    // Normalize colors
-    if (args.colorRanges != null) {
-        let colors = {};
-        for(let key in args.colorRanges)if (args.colorRanges.hasOwnProperty(key)) {
-            let val = args.colorRanges[key];
-            if (typeof val !== "number") val = tempColor.set(val).getHex();
-            colors[key] = val;
-        }
-        args.colorRanges = colors;
-    }
-    Object.freeze(args);
-    // Init the atlas if needed
-    const { textureWidth, sdfExponent } = CONFIG;
-    const { sdfGlyphSize } = args;
-    const glyphsPerRow = textureWidth / sdfGlyphSize * 4;
-    let atlas = atlases[sdfGlyphSize];
-    if (!atlas) {
-        const canvas = document.createElement("canvas");
-        canvas.width = textureWidth;
-        canvas.height = sdfGlyphSize * 256 / glyphsPerRow; // start tall enough to fit 256 glyphs
-        atlas = atlases[sdfGlyphSize] = {
-            glyphCount: 0,
-            sdfGlyphSize,
-            sdfCanvas: canvas,
-            sdfTexture: new (0, _three.Texture)(canvas, undefined, undefined, undefined, (0, _three.LinearFilter), (0, _three.LinearFilter)),
-            contextLost: false,
-            glyphsByFont: new Map()
-        };
-        atlas.sdfTexture.generateMipmaps = false;
-        initContextLossHandling(atlas);
-    }
-    const { sdfTexture, sdfCanvas } = atlas;
-    // Issue request to the typesetting engine in the worker
-    typesetInWorker(args).then((result)=>{
-        const { glyphIds, glyphFontIndices, fontData, glyphPositions, fontSize, timings } = result;
-        const neededSDFs = [];
-        const glyphBounds = new Float32Array(glyphIds.length * 4);
-        let boundsIdx = 0;
-        let positionsIdx = 0;
-        const quadsStart = now$1();
-        const fontGlyphMaps = fontData.map((font)=>{
-            let map = atlas.glyphsByFont.get(font.src);
-            if (!map) atlas.glyphsByFont.set(font.src, map = new Map());
-            return map;
-        });
-        glyphIds.forEach((glyphId, i)=>{
-            const fontIndex = glyphFontIndices[i];
-            const { src: fontSrc, unitsPerEm } = fontData[fontIndex];
-            let glyphInfo = fontGlyphMaps[fontIndex].get(glyphId);
-            // If this is a glyphId not seen before, add it to the atlas
-            if (!glyphInfo) {
-                const { path, pathBounds } = result.glyphData[fontSrc][glyphId];
-                // Margin around path edges in SDF, based on a percentage of the glyph's max dimension.
-                // Note we add an extra 0.5 px over the configured value because the outer 0.5 doesn't contain
-                // useful interpolated values and will be ignored anyway.
-                const fontUnitsMargin = Math.max(pathBounds[2] - pathBounds[0], pathBounds[3] - pathBounds[1]) / sdfGlyphSize * (CONFIG.sdfMargin * sdfGlyphSize + 0.5);
-                const atlasIndex = atlas.glyphCount++;
-                const sdfViewBox = [
-                    pathBounds[0] - fontUnitsMargin,
-                    pathBounds[1] - fontUnitsMargin,
-                    pathBounds[2] + fontUnitsMargin,
-                    pathBounds[3] + fontUnitsMargin
-                ];
-                fontGlyphMaps[fontIndex].set(glyphId, glyphInfo = {
-                    path,
-                    atlasIndex,
-                    sdfViewBox
-                });
-                // Collect those that need SDF generation
-                neededSDFs.push(glyphInfo);
-            }
-            // Calculate bounds for renderable quads
-            // TODO can we get this back off the main thread?
-            const { sdfViewBox } = glyphInfo;
-            const posX = glyphPositions[positionsIdx++];
-            const posY = glyphPositions[positionsIdx++];
-            const fontSizeMult = fontSize / unitsPerEm;
-            glyphBounds[boundsIdx++] = posX + sdfViewBox[0] * fontSizeMult;
-            glyphBounds[boundsIdx++] = posY + sdfViewBox[1] * fontSizeMult;
-            glyphBounds[boundsIdx++] = posX + sdfViewBox[2] * fontSizeMult;
-            glyphBounds[boundsIdx++] = posY + sdfViewBox[3] * fontSizeMult;
-            // Convert glyphId to SDF index for the shader
-            glyphIds[i] = glyphInfo.atlasIndex;
-        });
-        timings.quads = (timings.quads || 0) + (now$1() - quadsStart);
-        const sdfStart = now$1();
-        timings.sdf = {};
-        // Grow the texture height by power of 2 if needed
-        const currentHeight = sdfCanvas.height;
-        const neededRows = Math.ceil(atlas.glyphCount / glyphsPerRow);
-        const neededHeight = Math.pow(2, Math.ceil(Math.log2(neededRows * sdfGlyphSize)));
-        if (neededHeight > currentHeight) {
-            // Since resizing the canvas clears its render buffer, it needs special handling to copy the old contents over
-            console.info(`Increasing SDF texture size ${currentHeight}->${neededHeight}`);
-            resizeWebGLCanvasWithoutClearing(sdfCanvas, textureWidth, neededHeight);
-            // As of Three r136 textures cannot be resized once they're allocated on the GPU, we must dispose to reallocate it
-            sdfTexture.dispose();
-        }
-        Promise.all(neededSDFs.map((glyphInfo)=>generateGlyphSDF(glyphInfo, atlas, args.gpuAccelerateSDF).then(({ timing })=>{
-                timings.sdf[glyphInfo.atlasIndex] = timing;
-            }))).then(()=>{
-            if (neededSDFs.length && !atlas.contextLost) {
-                safariPre15Workaround(atlas);
-                sdfTexture.needsUpdate = true;
-            }
-            timings.sdfTotal = now$1() - sdfStart;
-            timings.total = now$1() - totalStart;
-            // console.log(`SDF - ${timings.sdfTotal}, Total - ${timings.total - timings.fontLoad}`)
-            // Invoke callback with the text layout arrays and updated texture
-            callback(Object.freeze({
-                parameters: args,
-                sdfTexture,
-                sdfGlyphSize,
-                sdfExponent,
-                glyphBounds,
-                glyphAtlasIndices: glyphIds,
-                glyphColors: result.glyphColors,
-                caretPositions: result.caretPositions,
-                chunkedBounds: result.chunkedBounds,
-                ascender: result.ascender,
-                descender: result.descender,
-                lineHeight: result.lineHeight,
-                capHeight: result.capHeight,
-                xHeight: result.xHeight,
-                topBaseline: result.topBaseline,
-                blockBounds: result.blockBounds,
-                visibleBounds: result.visibleBounds,
-                timings: result.timings
-            }));
-        });
-    });
-    // While the typesetting request is being handled, go ahead and make sure the atlas canvas context is
-    // "warmed up"; the first request will be the longest due to shader program compilation so this gets
-    // a head start on that process before SDFs actually start getting processed.
-    Promise.resolve().then(()=>{
-        if (!atlas.contextLost) warmUpSDFCanvas(sdfCanvas);
-    });
-}
-function generateGlyphSDF({ path, atlasIndex, sdfViewBox }, { sdfGlyphSize, sdfCanvas, contextLost }, useGPU) {
-    if (contextLost) // If the context is lost there's nothing we can do, just quit silently and let it
-    // get regenerated when the context is restored
-    return Promise.resolve({
-        timing: -1
-    });
-    const { textureWidth, sdfExponent } = CONFIG;
-    const maxDist = Math.max(sdfViewBox[2] - sdfViewBox[0], sdfViewBox[3] - sdfViewBox[1]);
-    const squareIndex = Math.floor(atlasIndex / 4);
-    const x = squareIndex % (textureWidth / sdfGlyphSize) * sdfGlyphSize;
-    const y = Math.floor(squareIndex / (textureWidth / sdfGlyphSize)) * sdfGlyphSize;
-    const channel = atlasIndex % 4;
-    return generateSDF(sdfGlyphSize, sdfGlyphSize, path, sdfViewBox, maxDist, sdfExponent, sdfCanvas, x, y, channel, useGPU);
-}
-function initContextLossHandling(atlas) {
-    const canvas = atlas.sdfCanvas;
-    /*
-  // Begin context loss simulation
-  if (!window.WebGLDebugUtils) {
-    let script = document.getElementById('WebGLDebugUtilsScript')
-    if (!script) {
-      script = document.createElement('script')
-      script.id = 'WebGLDebugUtils'
-      document.head.appendChild(script)
-      script.src = 'https://cdn.jsdelivr.net/gh/KhronosGroup/WebGLDeveloperTools@b42e702/src/debug/webgl-debug.js'
-    }
-    script.addEventListener('load', () => {
-      initContextLossHandling(atlas)
-    })
-    return
-  }
-  window.WebGLDebugUtils.makeLostContextSimulatingCanvas(canvas)
-  canvas.loseContextInNCalls(500)
-  canvas.addEventListener('webglcontextrestored', (event) => {
-    canvas.loseContextInNCalls(5000)
-  })
-  // End context loss simulation
-  */ canvas.addEventListener("webglcontextlost", (event)=>{
-        console.log("Context Lost", event);
-        event.preventDefault();
-        atlas.contextLost = true;
-    });
-    canvas.addEventListener("webglcontextrestored", (event)=>{
-        console.log("Context Restored", event);
-        atlas.contextLost = false;
-        // Regenerate all glyphs into the restored canvas:
-        const promises = [];
-        atlas.glyphsByFont.forEach((glyphMap)=>{
-            glyphMap.forEach((glyph)=>{
-                promises.push(generateGlyphSDF(glyph, atlas, true));
-            });
-        });
-        Promise.all(promises).then(()=>{
-            safariPre15Workaround(atlas);
-            atlas.sdfTexture.needsUpdate = true;
-        });
-    });
-}
-/**
- * Preload a given font and optionally pre-generate glyph SDFs for one or more character sequences.
- * This can be useful to avoid long pauses when first showing text in a scene, by preloading the
- * needed fonts and glyphs up front along with other assets.
- *
- * @param {object} options
- * @param {string} options.font - URL of the font file to preload. If not given, the default font will
- *        be loaded.
- * @param {string|string[]} options.characters - One or more character sequences for which to pre-
- *        generate glyph SDFs. Note that this will honor ligature substitution, so you may need
- *        to specify ligature sequences in addition to their individual characters to get all
- *        possible glyphs, e.g. `["t", "h", "th"]` to get the "t" and "h" glyphs plus the "th" ligature.
- * @param {number} options.sdfGlyphSize - The size at which to prerender the SDF textures for the
- *        specified `characters`.
- * @param {function} callback - A function that will be called when the preloading is complete.
- */ function preloadFont({ font, characters, sdfGlyphSize }, callback) {
-    let text = Array.isArray(characters) ? characters.join("\n") : "" + characters;
-    getTextRenderInfo({
-        font,
-        sdfGlyphSize,
-        text
-    }, callback);
-}
-// Local assign impl so we don't have to import troika-core
-function assign(toObj, fromObj) {
-    for(let key in fromObj)if (fromObj.hasOwnProperty(key)) toObj[key] = fromObj[key];
-    return toObj;
-}
-// Utility for making URLs absolute
-let linkEl;
-function toAbsoluteURL(path) {
-    if (!linkEl) linkEl = typeof document === "undefined" ? {} : document.createElement("a");
-    linkEl.href = path;
-    return linkEl.href;
-}
-/**
- * Safari < v15 seems unable to use the SDF webgl canvas as a texture. This applies a workaround
- * where it reads the pixels out of that canvas and uploads them as a data texture instead, at
- * a slight performance cost.
- */ function safariPre15Workaround(atlas) {
-    // Use createImageBitmap support as a proxy for Safari<15, all other mainstream browsers
-    // have supported it for a long while so any false positives should be minimal.
-    if (typeof createImageBitmap !== "function") {
-        console.info("Safari<15: applying SDF canvas workaround");
-        const { sdfCanvas, sdfTexture } = atlas;
-        const { width, height } = sdfCanvas;
-        const gl = atlas.sdfCanvas.getContext("webgl");
-        let pixels = sdfTexture.image.data;
-        if (!pixels || pixels.length !== width * height * 4) {
-            pixels = new Uint8Array(width * height * 4);
-            sdfTexture.image = {
-                width,
-                height,
-                data: pixels
-            };
-            sdfTexture.flipY = false;
-            sdfTexture.isDataTexture = true;
-        }
-        gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    }
-}
-const typesetterWorkerModule = /*#__PURE__*/ (0, _troikaWorkerUtils.defineWorkerModule)({
-    name: "Typesetter",
-    dependencies: [
-        createTypesetter,
-        fontResolverWorkerModule,
-        (0, _bidiJsDefault.default)
-    ],
-    init (createTypesetter, fontResolver, bidiFactory) {
-        return createTypesetter(fontResolver, bidiFactory());
-    }
-});
-const typesetInWorker = /*#__PURE__*/ (0, _troikaWorkerUtils.defineWorkerModule)({
-    name: "Typesetter",
-    dependencies: [
-        typesetterWorkerModule
-    ],
-    init (typesetter) {
-        return function(args) {
-            return new Promise((resolve)=>{
-                typesetter.typeset(args, resolve);
-            });
-        };
-    },
-    getTransferables (result) {
-        // Mark array buffers as transferable to avoid cloning during postMessage
-        const transferables = [];
-        for(let p in result)if (result[p] && result[p].buffer) transferables.push(result[p].buffer);
-        return transferables;
-    }
-});
-function dumpSDFTextures() {
-    Object.keys(atlases).forEach((size)=>{
-        const canvas = atlases[size].sdfCanvas;
-        const { width, height } = canvas;
-        console.log("%c.", `
-      background: url(${canvas.toDataURL()});
-      background-size: ${width}px ${height}px;
-      color: transparent;
-      font-size: 0;
-      line-height: ${height}px;
-      padding-left: ${width}px;
-    `);
-    });
-}
-const templateGeometries = {};
-function getTemplateGeometry(detail) {
-    let geom = templateGeometries[detail];
-    if (!geom) {
-        // Geometry is two planes back-to-back, which will always be rendered FrontSide only but
-        // appear as DoubleSide by default. FrontSide/BackSide are emulated using drawRange.
-        // We do it this way to avoid the performance hit of two draw calls for DoubleSide materials
-        // introduced by Three.js in r130 - see https://github.com/mrdoob/three.js/pull/21967
-        const front = new (0, _three.PlaneGeometry)(1, 1, detail, detail);
-        const back = front.clone();
-        const frontAttrs = front.attributes;
-        const backAttrs = back.attributes;
-        const combined = new (0, _three.BufferGeometry)();
-        const vertCount = frontAttrs.uv.count;
-        for(let i = 0; i < vertCount; i++){
-            backAttrs.position.array[i * 3] *= -1; // flip position x
-            backAttrs.normal.array[i * 3 + 2] *= -1; // flip normal z
-        }
-        [
-            "position",
-            "normal",
-            "uv"
-        ].forEach((name)=>{
-            combined.setAttribute(name, new (0, _three.Float32BufferAttribute)([
-                ...frontAttrs[name].array,
-                ...backAttrs[name].array
-            ], frontAttrs[name].itemSize));
-        });
-        combined.setIndex([
-            ...front.index.array,
-            ...back.index.array.map((n)=>n + vertCount)
-        ]);
-        combined.translate(0.5, 0.5, 0);
-        geom = templateGeometries[detail] = combined;
-    }
-    return geom;
-}
-const glyphBoundsAttrName = "aTroikaGlyphBounds";
-const glyphIndexAttrName = "aTroikaGlyphIndex";
-const glyphColorAttrName = "aTroikaGlyphColor";
-/**
-@class GlyphsGeometry
-
-A specialized Geometry for rendering a set of text glyphs. Uses InstancedBufferGeometry to
-render the glyphs using GPU instancing of a single quad, rather than constructing a whole
-geometry with vertices, for much smaller attribute arraybuffers according to this math:
-
-  Where N = number of glyphs...
-
-  Instanced:
-  - position: 4 * 3
-  - index: 2 * 3
-  - normal: 4 * 3
-  - uv: 4 * 2
-  - glyph x/y bounds: N * 4
-  - glyph indices: N * 1
-  = 5N + 38
-
-  Non-instanced:
-  - position: N * 4 * 3
-  - index: N * 2 * 3
-  - normal: N * 4 * 3
-  - uv: N * 4 * 2
-  - glyph indices: N * 1
-  = 39N
-
-A downside of this is the rare-but-possible lack of the instanced arrays extension,
-which we could potentially work around with a fallback non-instanced implementation.
-
-*/ class GlyphsGeometry extends (0, _three.InstancedBufferGeometry) {
-    constructor(){
-        super();
-        this.detail = 1;
-        this.curveRadius = 0;
-        // Define groups for rendering text outline as a separate pass; these will only
-        // be used when the `material` getter returns an array, i.e. outlineWidth > 0.
-        this.groups = [
-            {
-                start: 0,
-                count: Infinity,
-                materialIndex: 0
-            },
-            {
-                start: 0,
-                count: Infinity,
-                materialIndex: 1
-            }
-        ];
-        // Preallocate empty bounding objects
-        this.boundingSphere = new (0, _three.Sphere)();
-        this.boundingBox = new (0, _three.Box3)();
-    }
-    computeBoundingSphere() {
-    // No-op; we'll sync the boundingSphere proactively when needed.
-    }
-    computeBoundingBox() {
-    // No-op; we'll sync the boundingBox proactively when needed.
-    }
-    // Since our base geometry contains triangles for both front and back sides, we can emulate
-    // the "side" by restricting the draw range.
-    setSide(side) {
-        const verts = this.getIndex().count;
-        this.setDrawRange(side === (0, _three.BackSide) ? verts / 2 : 0, side === (0, _three.DoubleSide) ? verts : verts / 2);
-    }
-    set detail(detail) {
-        if (detail !== this._detail) {
-            this._detail = detail;
-            if (typeof detail !== "number" || detail < 1) detail = 1;
-            let tpl = getTemplateGeometry(detail);
-            [
-                "position",
-                "normal",
-                "uv"
-            ].forEach((attr)=>{
-                this.attributes[attr] = tpl.attributes[attr].clone();
-            });
-            this.setIndex(tpl.getIndex().clone());
-        }
-    }
-    get detail() {
-        return this._detail;
-    }
-    set curveRadius(r) {
-        if (r !== this._curveRadius) {
-            this._curveRadius = r;
-            this._updateBounds();
-        }
-    }
-    get curveRadius() {
-        return this._curveRadius;
-    }
-    /**
-   * Update the geometry for a new set of glyphs.
-   * @param {Float32Array} glyphBounds - An array holding the planar bounds for all glyphs
-   *        to be rendered, 4 entries for each glyph: x1,x2,y1,y1
-   * @param {Float32Array} glyphAtlasIndices - An array holding the index of each glyph within
-   *        the SDF atlas texture.
-   * @param {Array} blockBounds - An array holding the [minX, minY, maxX, maxY] across all glyphs
-   * @param {Array} [chunkedBounds] - An array of objects describing bounds for each chunk of N
-   *        consecutive glyphs: `{start:N, end:N, rect:[minX, minY, maxX, maxY]}`. This can be
-   *        used with `applyClipRect` to choose an optimized `instanceCount`.
-   * @param {Uint8Array} [glyphColors] - An array holding r,g,b values for each glyph.
-   */ updateGlyphs(glyphBounds, glyphAtlasIndices, blockBounds, chunkedBounds, glyphColors) {
-        // Update the instance attributes
-        updateBufferAttr(this, glyphBoundsAttrName, glyphBounds, 4);
-        updateBufferAttr(this, glyphIndexAttrName, glyphAtlasIndices, 1);
-        updateBufferAttr(this, glyphColorAttrName, glyphColors, 3);
-        this._blockBounds = blockBounds;
-        this._chunkedBounds = chunkedBounds;
-        this.instanceCount = glyphAtlasIndices.length;
-        this._updateBounds();
-    }
-    _updateBounds() {
-        const bounds = this._blockBounds;
-        if (bounds) {
-            const { curveRadius, boundingBox: bbox } = this;
-            if (curveRadius) {
-                const { PI, floor, min, max, sin, cos } = Math;
-                const halfPi = PI / 2;
-                const twoPi = PI * 2;
-                const absR = Math.abs(curveRadius);
-                const leftAngle = bounds[0] / absR;
-                const rightAngle = bounds[2] / absR;
-                const minX = floor((leftAngle + halfPi) / twoPi) !== floor((rightAngle + halfPi) / twoPi) ? -absR : min(sin(leftAngle) * absR, sin(rightAngle) * absR);
-                const maxX = floor((leftAngle - halfPi) / twoPi) !== floor((rightAngle - halfPi) / twoPi) ? absR : max(sin(leftAngle) * absR, sin(rightAngle) * absR);
-                const maxZ = floor((leftAngle + PI) / twoPi) !== floor((rightAngle + PI) / twoPi) ? absR * 2 : max(absR - cos(leftAngle) * absR, absR - cos(rightAngle) * absR);
-                bbox.min.set(minX, bounds[1], curveRadius < 0 ? -maxZ : 0);
-                bbox.max.set(maxX, bounds[3], curveRadius < 0 ? 0 : maxZ);
-            } else {
-                bbox.min.set(bounds[0], bounds[1], 0);
-                bbox.max.set(bounds[2], bounds[3], 0);
-            }
-            bbox.getBoundingSphere(this.boundingSphere);
-        }
-    }
-    /**
-   * Given a clipping rect, and the chunkedBounds from the last updateGlyphs call, choose the lowest
-   * `instanceCount` that will show all glyphs within the clipped view. This is an optimization
-   * for long blocks of text that are clipped, to skip vertex shader evaluation for glyphs that would
-   * be clipped anyway.
-   *
-   * Note that since `drawElementsInstanced[ANGLE]` only accepts an instance count and not a starting
-   * offset, this optimization becomes less effective as the clipRect moves closer to the end of the
-   * text block. We could fix that by switching from instancing to a full geometry with a drawRange,
-   * but at the expense of much larger attribute buffers (see classdoc above.)
-   *
-   * @param {Vector4} clipRect
-   */ applyClipRect(clipRect) {
-        let count = this.getAttribute(glyphIndexAttrName).count;
-        let chunks = this._chunkedBounds;
-        if (chunks) for(let i = chunks.length; i--;){
-            count = chunks[i].end;
-            let rect = chunks[i].rect;
-            // note: both rects are l-b-r-t
-            if (rect[1] < clipRect.w && rect[3] > clipRect.y && rect[0] < clipRect.z && rect[2] > clipRect.x) break;
-        }
-        this.instanceCount = count;
-    }
-}
-function updateBufferAttr(geom, attrName, newArray, itemSize) {
-    const attr = geom.getAttribute(attrName);
-    if (newArray) {
-        // If length isn't changing, just update the attribute's array data
-        if (attr && attr.array.length === newArray.length) {
-            attr.array.set(newArray);
-            attr.needsUpdate = true;
-        } else {
-            geom.setAttribute(attrName, new (0, _three.InstancedBufferAttribute)(newArray, itemSize));
-            // If the new attribute has a different size, we also have to (as of r117) manually clear the
-            // internal cached max instance count. See https://github.com/mrdoob/three.js/issues/19706
-            // It's unclear if this is a threejs bug or a truly unsupported scenario; discussion in
-            // that ticket is ambiguous as to whether replacing a BufferAttribute with one of a
-            // different size is supported, but https://github.com/mrdoob/three.js/pull/17418 strongly
-            // implies it should be supported. It's possible we need to
-            delete geom._maxInstanceCount; //for r117+, could be fragile
-            geom.dispose(); //for r118+, more robust feeling, but more heavy-handed than I'd like
-        }
-    } else if (attr) geom.deleteAttribute(attrName);
-}
-// language=GLSL
-const VERTEX_DEFS = `
-uniform vec2 uTroikaSDFTextureSize;
-uniform float uTroikaSDFGlyphSize;
-uniform vec4 uTroikaTotalBounds;
-uniform vec4 uTroikaClipRect;
-uniform mat3 uTroikaOrient;
-uniform bool uTroikaUseGlyphColors;
-uniform float uTroikaDistanceOffset;
-uniform float uTroikaBlurRadius;
-uniform vec2 uTroikaPositionOffset;
-uniform float uTroikaCurveRadius;
-attribute vec4 aTroikaGlyphBounds;
-attribute float aTroikaGlyphIndex;
-attribute vec3 aTroikaGlyphColor;
-varying vec2 vTroikaGlyphUV;
-varying vec4 vTroikaTextureUVBounds;
-varying float vTroikaTextureChannel;
-varying vec3 vTroikaGlyphColor;
-varying vec2 vTroikaGlyphDimensions;
-`;
-// language=GLSL prefix="void main() {" suffix="}"
-const VERTEX_TRANSFORM = `
-vec4 bounds = aTroikaGlyphBounds;
-bounds.xz += uTroikaPositionOffset.x;
-bounds.yw -= uTroikaPositionOffset.y;
-
-vec4 outlineBounds = vec4(
-  bounds.xy - uTroikaDistanceOffset - uTroikaBlurRadius,
-  bounds.zw + uTroikaDistanceOffset + uTroikaBlurRadius
-);
-vec4 clippedBounds = vec4(
-  clamp(outlineBounds.xy, uTroikaClipRect.xy, uTroikaClipRect.zw),
-  clamp(outlineBounds.zw, uTroikaClipRect.xy, uTroikaClipRect.zw)
-);
-
-vec2 clippedXY = (mix(clippedBounds.xy, clippedBounds.zw, position.xy) - bounds.xy) / (bounds.zw - bounds.xy);
-
-position.xy = mix(bounds.xy, bounds.zw, clippedXY);
-
-uv = (position.xy - uTroikaTotalBounds.xy) / (uTroikaTotalBounds.zw - uTroikaTotalBounds.xy);
-
-float rad = uTroikaCurveRadius;
-if (rad != 0.0) {
-  float angle = position.x / rad;
-  position.xz = vec2(sin(angle) * rad, rad - cos(angle) * rad);
-  normal.xz = vec2(sin(angle), cos(angle));
-}
-  
-position = uTroikaOrient * position;
-normal = uTroikaOrient * normal;
-
-vTroikaGlyphUV = clippedXY.xy;
-vTroikaGlyphDimensions = vec2(bounds[2] - bounds[0], bounds[3] - bounds[1]);
-
-${"" /* NOTE: it seems important to calculate the glyph's bounding texture UVs here in the
-  vertex shader, rather than in the fragment shader, as the latter gives strange artifacts
-  on some glyphs (those in the leftmost texture column) on some systems. The exact reason
-  isn't understood but doing this here, then mix()-ing in the fragment shader, seems to work. */ }
-float txCols = uTroikaSDFTextureSize.x / uTroikaSDFGlyphSize;
-vec2 txUvPerSquare = uTroikaSDFGlyphSize / uTroikaSDFTextureSize;
-vec2 txStartUV = txUvPerSquare * vec2(
-  mod(floor(aTroikaGlyphIndex / 4.0), txCols),
-  floor(floor(aTroikaGlyphIndex / 4.0) / txCols)
-);
-vTroikaTextureUVBounds = vec4(txStartUV, vec2(txStartUV) + txUvPerSquare);
-vTroikaTextureChannel = mod(aTroikaGlyphIndex, 4.0);
-`;
-// language=GLSL
-const FRAGMENT_DEFS = `
-uniform sampler2D uTroikaSDFTexture;
-uniform vec2 uTroikaSDFTextureSize;
-uniform float uTroikaSDFGlyphSize;
-uniform float uTroikaSDFExponent;
-uniform float uTroikaDistanceOffset;
-uniform float uTroikaFillOpacity;
-uniform float uTroikaOutlineOpacity;
-uniform float uTroikaBlurRadius;
-uniform vec3 uTroikaStrokeColor;
-uniform float uTroikaStrokeWidth;
-uniform float uTroikaStrokeOpacity;
-uniform bool uTroikaSDFDebug;
-varying vec2 vTroikaGlyphUV;
-varying vec4 vTroikaTextureUVBounds;
-varying float vTroikaTextureChannel;
-varying vec2 vTroikaGlyphDimensions;
-
-float troikaSdfValueToSignedDistance(float alpha) {
-  // Inverse of exponential encoding in webgl-sdf-generator
-  ${"" /* TODO - there's some slight inaccuracy here when dealing with interpolated alpha values; those
-    are linearly interpolated where the encoding is exponential. Look into improving this by rounding
-    to nearest 2 whole texels, decoding those exponential values, and linearly interpolating the result.
-  */ }
-  float maxDimension = max(vTroikaGlyphDimensions.x, vTroikaGlyphDimensions.y);
-  float absDist = (1.0 - pow(2.0 * (alpha > 0.5 ? 1.0 - alpha : alpha), 1.0 / uTroikaSDFExponent)) * maxDimension;
-  float signedDist = absDist * (alpha > 0.5 ? -1.0 : 1.0);
-  return signedDist;
-}
-
-float troikaGlyphUvToSdfValue(vec2 glyphUV) {
-  vec2 textureUV = mix(vTroikaTextureUVBounds.xy, vTroikaTextureUVBounds.zw, glyphUV);
-  vec4 rgba = texture2D(uTroikaSDFTexture, textureUV);
-  float ch = floor(vTroikaTextureChannel + 0.5); //NOTE: can't use round() in WebGL1
-  return ch == 0.0 ? rgba.r : ch == 1.0 ? rgba.g : ch == 2.0 ? rgba.b : rgba.a;
-}
-
-float troikaGlyphUvToDistance(vec2 uv) {
-  return troikaSdfValueToSignedDistance(troikaGlyphUvToSdfValue(uv));
-}
-
-float troikaGetAADist() {
-  ${"" /*
-    When the standard derivatives extension is available, we choose an antialiasing alpha threshold based
-    on the potential change in the SDF's alpha from this fragment to its neighbor. This strategy maximizes 
-    readability and edge crispness at all sizes and screen resolutions.
-  */ }
-  #if defined(GL_OES_standard_derivatives) || __VERSION__ >= 300
-  return length(fwidth(vTroikaGlyphUV * vTroikaGlyphDimensions)) * 0.5;
-  #else
-  return vTroikaGlyphDimensions.x / 64.0;
-  #endif
-}
-
-float troikaGetFragDistValue() {
-  vec2 clampedGlyphUV = clamp(vTroikaGlyphUV, 0.5 / uTroikaSDFGlyphSize, 1.0 - 0.5 / uTroikaSDFGlyphSize);
-  float distance = troikaGlyphUvToDistance(clampedGlyphUV);
- 
-  // Extrapolate distance when outside bounds:
-  distance += clampedGlyphUV == vTroikaGlyphUV ? 0.0 : 
-    length((vTroikaGlyphUV - clampedGlyphUV) * vTroikaGlyphDimensions);
-
-  ${"" /* 
-  // TODO more refined extrapolated distance by adjusting for angle of gradient at edge...
-  // This has potential but currently gives very jagged extensions, maybe due to precision issues?
-  float uvStep = 1.0 / uTroikaSDFGlyphSize;
-  vec2 neighbor1UV = clampedGlyphUV + (
-    vTroikaGlyphUV.x != clampedGlyphUV.x ? vec2(0.0, uvStep * sign(0.5 - vTroikaGlyphUV.y)) :
-    vTroikaGlyphUV.y != clampedGlyphUV.y ? vec2(uvStep * sign(0.5 - vTroikaGlyphUV.x), 0.0) :
-    vec2(0.0)
-  );
-  vec2 neighbor2UV = clampedGlyphUV + (
-    vTroikaGlyphUV.x != clampedGlyphUV.x ? vec2(0.0, uvStep * -sign(0.5 - vTroikaGlyphUV.y)) :
-    vTroikaGlyphUV.y != clampedGlyphUV.y ? vec2(uvStep * -sign(0.5 - vTroikaGlyphUV.x), 0.0) :
-    vec2(0.0)
-  );
-  float neighbor1Distance = troikaGlyphUvToDistance(neighbor1UV);
-  float neighbor2Distance = troikaGlyphUvToDistance(neighbor2UV);
-  float distToUnclamped = length((vTroikaGlyphUV - clampedGlyphUV) * vTroikaGlyphDimensions);
-  float distToNeighbor = length((clampedGlyphUV - neighbor1UV) * vTroikaGlyphDimensions);
-  float gradientAngle1 = min(asin(abs(neighbor1Distance - distance) / distToNeighbor), PI / 2.0);
-  float gradientAngle2 = min(asin(abs(neighbor2Distance - distance) / distToNeighbor), PI / 2.0);
-  distance += (cos(gradientAngle1) + cos(gradientAngle2)) / 2.0 * distToUnclamped;
-  */ }
-
-  return distance;
-}
-
-float troikaGetEdgeAlpha(float distance, float distanceOffset, float aaDist) {
-  #if defined(IS_DEPTH_MATERIAL) || defined(IS_DISTANCE_MATERIAL)
-  float alpha = step(-distanceOffset, -distance);
-  #else
-
-  float alpha = smoothstep(
-    distanceOffset + aaDist,
-    distanceOffset - aaDist,
-    distance
-  );
-  #endif
-
-  return alpha;
-}
-`;
-// language=GLSL prefix="void main() {" suffix="}"
-const FRAGMENT_TRANSFORM = `
-float aaDist = troikaGetAADist();
-float fragDistance = troikaGetFragDistValue();
-float edgeAlpha = uTroikaSDFDebug ?
-  troikaGlyphUvToSdfValue(vTroikaGlyphUV) :
-  troikaGetEdgeAlpha(fragDistance, uTroikaDistanceOffset, max(aaDist, uTroikaBlurRadius));
-
-#if !defined(IS_DEPTH_MATERIAL) && !defined(IS_DISTANCE_MATERIAL)
-vec4 fillRGBA = gl_FragColor;
-fillRGBA.a *= uTroikaFillOpacity;
-vec4 strokeRGBA = uTroikaStrokeWidth == 0.0 ? fillRGBA : vec4(uTroikaStrokeColor, uTroikaStrokeOpacity);
-if (fillRGBA.a == 0.0) fillRGBA.rgb = strokeRGBA.rgb;
-gl_FragColor = mix(fillRGBA, strokeRGBA, smoothstep(
-  -uTroikaStrokeWidth - aaDist,
-  -uTroikaStrokeWidth + aaDist,
-  fragDistance
-));
-gl_FragColor.a *= edgeAlpha;
-#endif
-
-if (edgeAlpha == 0.0) {
-  discard;
-}
-`;
-/**
- * Create a material for rendering text, derived from a baseMaterial
- */ function createTextDerivedMaterial(baseMaterial) {
-    const textMaterial = (0, _troikaThreeUtils.createDerivedMaterial)(baseMaterial, {
-        chained: true,
-        extensions: {
-            derivatives: true
-        },
-        uniforms: {
-            uTroikaSDFTexture: {
-                value: null
-            },
-            uTroikaSDFTextureSize: {
-                value: new (0, _three.Vector2)()
-            },
-            uTroikaSDFGlyphSize: {
-                value: 0
-            },
-            uTroikaSDFExponent: {
-                value: 0
-            },
-            uTroikaTotalBounds: {
-                value: new (0, _three.Vector4)(0, 0, 0, 0)
-            },
-            uTroikaClipRect: {
-                value: new (0, _three.Vector4)(0, 0, 0, 0)
-            },
-            uTroikaDistanceOffset: {
-                value: 0
-            },
-            uTroikaOutlineOpacity: {
-                value: 0
-            },
-            uTroikaFillOpacity: {
-                value: 1
-            },
-            uTroikaPositionOffset: {
-                value: new (0, _three.Vector2)()
-            },
-            uTroikaCurveRadius: {
-                value: 0
-            },
-            uTroikaBlurRadius: {
-                value: 0
-            },
-            uTroikaStrokeWidth: {
-                value: 0
-            },
-            uTroikaStrokeColor: {
-                value: new (0, _three.Color)()
-            },
-            uTroikaStrokeOpacity: {
-                value: 1
-            },
-            uTroikaOrient: {
-                value: new (0, _three.Matrix3)()
-            },
-            uTroikaUseGlyphColors: {
-                value: true
-            },
-            uTroikaSDFDebug: {
-                value: false
-            }
-        },
-        vertexDefs: VERTEX_DEFS,
-        vertexTransform: VERTEX_TRANSFORM,
-        fragmentDefs: FRAGMENT_DEFS,
-        fragmentColorTransform: FRAGMENT_TRANSFORM,
-        customRewriter ({ vertexShader, fragmentShader }) {
-            let uDiffuseRE = /\buniform\s+vec3\s+diffuse\b/;
-            if (uDiffuseRE.test(fragmentShader)) {
-                // Replace all instances of `diffuse` with our varying
-                fragmentShader = fragmentShader.replace(uDiffuseRE, "varying vec3 vTroikaGlyphColor").replace(/\bdiffuse\b/g, "vTroikaGlyphColor");
-                // Make sure the vertex shader declares the uniform so we can grab it as a fallback
-                if (!uDiffuseRE.test(vertexShader)) vertexShader = vertexShader.replace((0, _troikaThreeUtils.voidMainRegExp), "uniform vec3 diffuse;\n$&\nvTroikaGlyphColor = uTroikaUseGlyphColors ? aTroikaGlyphColor / 255.0 : diffuse;\n");
-            }
-            return {
-                vertexShader,
-                fragmentShader
-            };
-        }
-    });
-    // Force transparency - TODO is this reasonable?
-    textMaterial.transparent = true;
-    Object.defineProperties(textMaterial, {
-        isTroikaTextMaterial: {
-            value: true
-        },
-        // WebGLShadowMap reverses the side of the shadow material by default, which fails
-        // for planes, so here we force the `shadowSide` to always match the main side.
-        shadowSide: {
-            get () {
-                return this.side;
-            },
-            set () {
-            //no-op
-            }
-        }
-    });
-    return textMaterial;
-}
-const defaultMaterial = /*#__PURE__*/ new (0, _three.MeshBasicMaterial)({
-    color: 0xffffff,
-    side: (0, _three.DoubleSide),
-    transparent: true
-});
-const defaultStrokeColor = 0x808080;
-const tempMat4 = /*#__PURE__*/ new (0, _three.Matrix4)();
-const tempVec3a = /*#__PURE__*/ new (0, _three.Vector3)();
-const tempVec3b = /*#__PURE__*/ new (0, _three.Vector3)();
-const tempArray = [];
-const origin = /*#__PURE__*/ new (0, _three.Vector3)();
-const defaultOrient = "+x+y";
-function first(o) {
-    return Array.isArray(o) ? o[0] : o;
-}
-let getFlatRaycastMesh = ()=>{
-    const mesh = new (0, _three.Mesh)(new (0, _three.PlaneGeometry)(1, 1), defaultMaterial);
-    getFlatRaycastMesh = ()=>mesh;
-    return mesh;
-};
-let getCurvedRaycastMesh = ()=>{
-    const mesh = new (0, _three.Mesh)(new (0, _three.PlaneGeometry)(1, 1, 32, 1), defaultMaterial);
-    getCurvedRaycastMesh = ()=>mesh;
-    return mesh;
-};
-const syncStartEvent = {
-    type: "syncstart"
-};
-const syncCompleteEvent = {
-    type: "synccomplete"
-};
-const SYNCABLE_PROPS = [
-    "font",
-    "fontSize",
-    "fontStyle",
-    "fontWeight",
-    "lang",
-    "letterSpacing",
-    "lineHeight",
-    "maxWidth",
-    "overflowWrap",
-    "text",
-    "direction",
-    "textAlign",
-    "textIndent",
-    "whiteSpace",
-    "anchorX",
-    "anchorY",
-    "colorRanges",
-    "sdfGlyphSize"
-];
-const COPYABLE_PROPS = SYNCABLE_PROPS.concat("material", "color", "depthOffset", "clipRect", "curveRadius", "orientation", "glyphGeometryDetail");
-/**
- * @class Text
- *
- * A ThreeJS Mesh that renders a string of text on a plane in 3D space using signed distance
- * fields (SDF).
- */ class Text extends (0, _three.Mesh) {
-    constructor(){
-        const geometry = new GlyphsGeometry();
-        super(geometry, null);
-        // === Text layout properties: === //
-        /**
-     * @member {string} text
-     * The string of text to be rendered.
-     */ this.text = "";
-        /**
-     * @member {number|string} anchorX
-     * Defines the horizontal position in the text block that should line up with the local origin.
-     * Can be specified as a numeric x position in local units, a string percentage of the total
-     * text block width e.g. `'25%'`, or one of the following keyword strings: 'left', 'center',
-     * or 'right'.
-     */ this.anchorX = 0;
-        /**
-     * @member {number|string} anchorY
-     * Defines the vertical position in the text block that should line up with the local origin.
-     * Can be specified as a numeric y position in local units (note: down is negative y), a string
-     * percentage of the total text block height e.g. `'25%'`, or one of the following keyword strings:
-     * 'top', 'top-baseline', 'top-cap', 'top-ex', 'middle', 'bottom-baseline', or 'bottom'.
-     */ this.anchorY = 0;
-        /**
-     * @member {number} curveRadius
-     * Defines a cylindrical radius along which the text's plane will be curved. Positive numbers put
-     * the cylinder's centerline (oriented vertically) that distance in front of the text, for a concave
-     * curvature, while negative numbers put it behind the text for a convex curvature. The centerline
-     * will be aligned with the text's local origin; you can use `anchorX` to offset it.
-     *
-     * Since each glyph is by default rendered with a simple quad, each glyph remains a flat plane
-     * internally. You can use `glyphGeometryDetail` to add more vertices for curvature inside glyphs.
-     */ this.curveRadius = 0;
-        /**
-     * @member {string} direction
-     * Sets the base direction for the text. The default value of "auto" will choose a direction based
-     * on the text's content according to the bidi spec. A value of "ltr" or "rtl" will force the direction.
-     */ this.direction = "auto";
-        /**
-     * @member {string|null} font
-     * URL of a custom font to be used. Font files can be in .ttf, .otf, or .woff (not .woff2) formats.
-     * Defaults to Noto Sans.
-     */ this.font = null; //will use default from TextBuilder
-        this.unicodeFontsURL = null; //defaults to CDN
-        /**
-     * @member {number} fontSize
-     * The size at which to render the font in local units; corresponds to the em-box height
-     * of the chosen `font`.
-     */ this.fontSize = 0.1;
-        /**
-     * @member {number|'normal'|'bold'}
-     * The weight of the font. Currently only used for fallback Noto fonts.
-     */ this.fontWeight = "normal";
-        /**
-     * @member {'normal'|'italic'}
-     * The style of the font. Currently only used for fallback Noto fonts.
-     */ this.fontStyle = "normal";
-        /**
-     * @member {string|null} lang
-     * The language code of this text; can be used for explicitly selecting certain CJK fonts.
-     */ this.lang = null;
-        /**
-     * @member {number} letterSpacing
-     * Sets a uniform adjustment to spacing between letters after kerning is applied. Positive
-     * numbers increase spacing and negative numbers decrease it.
-     */ this.letterSpacing = 0;
-        /**
-     * @member {number|string} lineHeight
-     * Sets the height of each line of text, as a multiple of the `fontSize`. Defaults to 'normal'
-     * which chooses a reasonable height based on the chosen font's ascender/descender metrics.
-     */ this.lineHeight = "normal";
-        /**
-     * @member {number} maxWidth
-     * The maximum width of the text block, above which text may start wrapping according to the
-     * `whiteSpace` and `overflowWrap` properties.
-     */ this.maxWidth = Infinity;
-        /**
-     * @member {string} overflowWrap
-     * Defines how text wraps if the `whiteSpace` property is `normal`. Can be either `'normal'`
-     * to break at whitespace characters, or `'break-word'` to allow breaking within words.
-     * Defaults to `'normal'`.
-     */ this.overflowWrap = "normal";
-        /**
-     * @member {string} textAlign
-     * The horizontal alignment of each line of text within the overall text bounding box.
-     */ this.textAlign = "left";
-        /**
-     * @member {number} textIndent
-     * Indentation for the first character of a line; see CSS `text-indent`.
-     */ this.textIndent = 0;
-        /**
-     * @member {string} whiteSpace
-     * Defines whether text should wrap when a line reaches the `maxWidth`. Can
-     * be either `'normal'` (the default), to allow wrapping according to the `overflowWrap` property,
-     * or `'nowrap'` to prevent wrapping. Note that `'normal'` here honors newline characters to
-     * manually break lines, making it behave more like `'pre-wrap'` does in CSS.
-     */ this.whiteSpace = "normal";
-        // === Presentation properties: === //
-        /**
-     * @member {THREE.Material} material
-     * Defines a _base_ material to be used when rendering the text. This material will be
-     * automatically replaced with a material derived from it, that adds shader code to
-     * decrease the alpha for each fragment (pixel) outside the text glyphs, with antialiasing.
-     * By default it will derive from a simple white MeshBasicMaterial, but you can use any
-     * of the other mesh materials to gain other features like lighting, texture maps, etc.
-     *
-     * Also see the `color` shortcut property.
-     */ this.material = null;
-        /**
-     * @member {string|number|THREE.Color} color
-     * This is a shortcut for setting the `color` of the text's material. You can use this
-     * if you don't want to specify a whole custom `material`. Also, if you do use a custom
-     * `material`, this color will only be used for this particuar Text instance, even if
-     * that same material instance is shared across multiple Text objects.
-     */ this.color = null;
-        /**
-     * @member {object|null} colorRanges
-     * WARNING: This API is experimental and may change.
-     * This allows more fine-grained control of colors for individual or ranges of characters,
-     * taking precedence over the material's `color`. Its format is an Object whose keys each
-     * define a starting character index for a range, and whose values are the color for each
-     * range. The color value can be a numeric hex color value, a `THREE.Color` object, or
-     * any of the strings accepted by `THREE.Color`.
-     */ this.colorRanges = null;
-        /**
-     * @member {number|string} outlineWidth
-     * WARNING: This API is experimental and may change.
-     * The width of an outline/halo to be drawn around each text glyph using the `outlineColor` and `outlineOpacity`.
-     * Can be specified as either an absolute number in local units, or as a percentage string e.g.
-     * `"12%"` which is treated as a percentage of the `fontSize`. Defaults to `0`, which means
-     * no outline will be drawn unless an `outlineOffsetX/Y` or `outlineBlur` is set.
-     */ this.outlineWidth = 0;
-        /**
-     * @member {string|number|THREE.Color} outlineColor
-     * WARNING: This API is experimental and may change.
-     * The color of the text outline, if `outlineWidth`/`outlineBlur`/`outlineOffsetX/Y` are set.
-     * Defaults to black.
-     */ this.outlineColor = 0x000000;
-        /**
-     * @member {number} outlineOpacity
-     * WARNING: This API is experimental and may change.
-     * The opacity of the outline, if `outlineWidth`/`outlineBlur`/`outlineOffsetX/Y` are set.
-     * Defaults to `1`.
-     */ this.outlineOpacity = 1;
-        /**
-     * @member {number|string} outlineBlur
-     * WARNING: This API is experimental and may change.
-     * A blur radius applied to the outer edge of the text's outline. If the `outlineWidth` is
-     * zero, the blur will be applied at the glyph edge, like CSS's `text-shadow` blur radius.
-     * Can be specified as either an absolute number in local units, or as a percentage string e.g.
-     * `"12%"` which is treated as a percentage of the `fontSize`. Defaults to `0`.
-     */ this.outlineBlur = 0;
-        /**
-     * @member {number|string} outlineOffsetX
-     * WARNING: This API is experimental and may change.
-     * A horizontal offset for the text outline.
-     * Can be specified as either an absolute number in local units, or as a percentage string e.g. `"12%"`
-     * which is treated as a percentage of the `fontSize`. Defaults to `0`.
-     */ this.outlineOffsetX = 0;
-        /**
-     * @member {number|string} outlineOffsetY
-     * WARNING: This API is experimental and may change.
-     * A vertical offset for the text outline.
-     * Can be specified as either an absolute number in local units, or as a percentage string e.g. `"12%"`
-     * which is treated as a percentage of the `fontSize`. Defaults to `0`.
-     */ this.outlineOffsetY = 0;
-        /**
-     * @member {number|string} strokeWidth
-     * WARNING: This API is experimental and may change.
-     * The width of an inner stroke drawn inside each text glyph using the `strokeColor` and `strokeOpacity`.
-     * Can be specified as either an absolute number in local units, or as a percentage string e.g. `"12%"`
-     * which is treated as a percentage of the `fontSize`. Defaults to `0`.
-     */ this.strokeWidth = 0;
-        /**
-     * @member {string|number|THREE.Color} strokeColor
-     * WARNING: This API is experimental and may change.
-     * The color of the text stroke, if `strokeWidth` is greater than zero. Defaults to gray.
-     */ this.strokeColor = defaultStrokeColor;
-        /**
-     * @member {number} strokeOpacity
-     * WARNING: This API is experimental and may change.
-     * The opacity of the stroke, if `strokeWidth` is greater than zero. Defaults to `1`.
-     */ this.strokeOpacity = 1;
-        /**
-     * @member {number} fillOpacity
-     * WARNING: This API is experimental and may change.
-     * The opacity of the glyph's fill from 0 to 1. This behaves like the material's `opacity` but allows
-     * giving the fill a different opacity than the `strokeOpacity`. A fillOpacity of `0` makes the
-     * interior of the glyph invisible, leaving just the `strokeWidth`. Defaults to `1`.
-     */ this.fillOpacity = 1;
-        /**
-     * @member {number} depthOffset
-     * This is a shortcut for setting the material's `polygonOffset` and related properties,
-     * which can be useful in preventing z-fighting when this text is laid on top of another
-     * plane in the scene. Positive numbers are further from the camera, negatives closer.
-     */ this.depthOffset = 0;
-        /**
-     * @member {Array<number>} clipRect
-     * If specified, defines a `[minX, minY, maxX, maxY]` of a rectangle outside of which all
-     * pixels will be discarded. This can be used for example to clip overflowing text when
-     * `whiteSpace='nowrap'`.
-     */ this.clipRect = null;
-        /**
-     * @member {string} orientation
-     * Defines the axis plane on which the text should be laid out when the mesh has no extra
-     * rotation transform. It is specified as a string with two axes: the horizontal axis with
-     * positive pointing right, and the vertical axis with positive pointing up. By default this
-     * is '+x+y', meaning the text sits on the xy plane with the text's top toward positive y
-     * and facing positive z. A value of '+x-z' would place it on the xz plane with the text's
-     * top toward negative z and facing positive y.
-     */ this.orientation = defaultOrient;
-        /**
-     * @member {number} glyphGeometryDetail
-     * Controls number of vertical/horizontal segments that make up each glyph's rectangular
-     * plane. Defaults to 1. This can be increased to provide more geometrical detail for custom
-     * vertex shader effects, for example.
-     */ this.glyphGeometryDetail = 1;
-        /**
-     * @member {number|null} sdfGlyphSize
-     * The size of each glyph's SDF (signed distance field) used for rendering. This must be a
-     * power-of-two number. Defaults to 64 which is generally a good balance of size and quality
-     * for most fonts. Larger sizes can improve the quality of glyph rendering by increasing
-     * the sharpness of corners and preventing loss of very thin lines, at the expense of
-     * increased memory footprint and longer SDF generation time.
-     */ this.sdfGlyphSize = null;
-        /**
-     * @member {boolean} gpuAccelerateSDF
-     * When `true`, the SDF generation process will be GPU-accelerated with WebGL when possible,
-     * making it much faster especially for complex glyphs, and falling back to a JavaScript version
-     * executed in web workers when support isn't available. It should automatically detect support,
-     * but it's still somewhat experimental, so you can set it to `false` to force it to use the JS
-     * version if you encounter issues with it.
-     */ this.gpuAccelerateSDF = true;
-        this.debugSDF = false;
-    }
-    /**
-   * Updates the text rendering according to the current text-related configuration properties.
-   * This is an async process, so you can pass in a callback function to be executed when it
-   * finishes.
-   * @param {function} [callback]
-   */ sync(callback) {
-        if (this._needsSync) {
-            this._needsSync = false;
-            // If there's another sync still in progress, queue
-            if (this._isSyncing) (this._queuedSyncs || (this._queuedSyncs = [])).push(callback);
-            else {
-                this._isSyncing = true;
-                this.dispatchEvent(syncStartEvent);
-                getTextRenderInfo({
-                    text: this.text,
-                    font: this.font,
-                    lang: this.lang,
-                    fontSize: this.fontSize || 0.1,
-                    fontWeight: this.fontWeight || "normal",
-                    fontStyle: this.fontStyle || "normal",
-                    letterSpacing: this.letterSpacing || 0,
-                    lineHeight: this.lineHeight || "normal",
-                    maxWidth: this.maxWidth,
-                    direction: this.direction || "auto",
-                    textAlign: this.textAlign,
-                    textIndent: this.textIndent,
-                    whiteSpace: this.whiteSpace,
-                    overflowWrap: this.overflowWrap,
-                    anchorX: this.anchorX,
-                    anchorY: this.anchorY,
-                    colorRanges: this.colorRanges,
-                    includeCaretPositions: true,
-                    sdfGlyphSize: this.sdfGlyphSize,
-                    gpuAccelerateSDF: this.gpuAccelerateSDF,
-                    unicodeFontsURL: this.unicodeFontsURL
-                }, (textRenderInfo)=>{
-                    this._isSyncing = false;
-                    // Save result for later use in onBeforeRender
-                    this._textRenderInfo = textRenderInfo;
-                    // Update the geometry attributes
-                    this.geometry.updateGlyphs(textRenderInfo.glyphBounds, textRenderInfo.glyphAtlasIndices, textRenderInfo.blockBounds, textRenderInfo.chunkedBounds, textRenderInfo.glyphColors);
-                    // If we had extra sync requests queued up, kick it off
-                    const queued = this._queuedSyncs;
-                    if (queued) {
-                        this._queuedSyncs = null;
-                        this._needsSync = true;
-                        this.sync(()=>{
-                            queued.forEach((fn)=>fn && fn());
-                        });
-                    }
-                    this.dispatchEvent(syncCompleteEvent);
-                    if (callback) callback();
-                });
-            }
-        }
-    }
-    /**
-   * Initiate a sync if needed - note it won't complete until next frame at the
-   * earliest so if possible it's a good idea to call sync() manually as soon as
-   * all the properties have been set.
-   * @override
-   */ onBeforeRender(renderer, scene, camera, geometry, material, group) {
-        this.sync();
-        // This may not always be a text material, e.g. if there's a scene.overrideMaterial present
-        if (material.isTroikaTextMaterial) this._prepareForRender(material);
-        // We need to force the material to FrontSide to avoid the double-draw-call performance hit
-        // introduced in Three.js r130: https://github.com/mrdoob/three.js/pull/21967 - The sidedness
-        // is instead applied via drawRange in the GlyphsGeometry.
-        material._hadOwnSide = material.hasOwnProperty("side");
-        this.geometry.setSide(material._actualSide = material.side);
-        material.side = (0, _three.FrontSide);
-    }
-    onAfterRender(renderer, scene, camera, geometry, material, group) {
-        // Restore original material side
-        if (material._hadOwnSide) material.side = material._actualSide;
-        else delete material.side; // back to inheriting from base material
-    }
-    /**
-   * Shortcut to dispose the geometry specific to this instance.
-   * Note: we don't also dispose the derived material here because if anything else is
-   * sharing the same base material it will result in a pause next frame as the program
-   * is recompiled. Instead users can dispose the base material manually, like normal,
-   * and we'll also dispose the derived material at that time.
-   */ dispose() {
-        this.geometry.dispose();
-    }
-    /**
-   * @property {TroikaTextRenderInfo|null} textRenderInfo
-   * @readonly
-   * The current processed rendering data for this TextMesh, returned by the TextBuilder after
-   * a `sync()` call. This will be `null` initially, and may be stale for a short period until
-   * the asynchrous `sync()` process completes.
-   */ get textRenderInfo() {
-        return this._textRenderInfo || null;
-    }
-    // Handler for automatically wrapping the base material with our upgrades. We do the wrapping
-    // lazily on _read_ rather than write to avoid unnecessary wrapping on transient values.
-    get material() {
-        let derivedMaterial = this._derivedMaterial;
-        const baseMaterial = this._baseMaterial || this._defaultMaterial || (this._defaultMaterial = defaultMaterial.clone());
-        if (!derivedMaterial || derivedMaterial.baseMaterial !== baseMaterial) {
-            derivedMaterial = this._derivedMaterial = createTextDerivedMaterial(baseMaterial);
-            // dispose the derived material when its base material is disposed:
-            baseMaterial.addEventListener("dispose", function onDispose() {
-                baseMaterial.removeEventListener("dispose", onDispose);
-                derivedMaterial.dispose();
-            });
-        }
-        // If text outline is configured, render it as a preliminary draw using Three's multi-material
-        // feature (see GlyphsGeometry which sets up `groups` for this purpose) Doing it with multi
-        // materials ensures the layers are always rendered consecutively in a consistent order.
-        // Each layer will trigger onBeforeRender with the appropriate material.
-        if (this.outlineWidth || this.outlineBlur || this.outlineOffsetX || this.outlineOffsetY) {
-            let outlineMaterial = derivedMaterial._outlineMtl;
-            if (!outlineMaterial) {
-                outlineMaterial = derivedMaterial._outlineMtl = Object.create(derivedMaterial, {
-                    id: {
-                        value: derivedMaterial.id + 0.1
-                    }
-                });
-                outlineMaterial.isTextOutlineMaterial = true;
-                outlineMaterial.depthWrite = false;
-                outlineMaterial.map = null; //???
-                derivedMaterial.addEventListener("dispose", function onDispose() {
-                    derivedMaterial.removeEventListener("dispose", onDispose);
-                    outlineMaterial.dispose();
-                });
-            }
-            return [
-                outlineMaterial,
-                derivedMaterial
-            ];
-        } else return derivedMaterial;
-    }
-    set material(baseMaterial) {
-        if (baseMaterial && baseMaterial.isTroikaTextMaterial) {
-            this._derivedMaterial = baseMaterial;
-            this._baseMaterial = baseMaterial.baseMaterial;
-        } else this._baseMaterial = baseMaterial;
-    }
-    get glyphGeometryDetail() {
-        return this.geometry.detail;
-    }
-    set glyphGeometryDetail(detail) {
-        this.geometry.detail = detail;
-    }
-    get curveRadius() {
-        return this.geometry.curveRadius;
-    }
-    set curveRadius(r) {
-        this.geometry.curveRadius = r;
-    }
-    // Create and update material for shadows upon request:
-    get customDepthMaterial() {
-        return first(this.material).getDepthMaterial();
-    }
-    get customDistanceMaterial() {
-        return first(this.material).getDistanceMaterial();
-    }
-    _prepareForRender(material) {
-        const isOutline = material.isTextOutlineMaterial;
-        const uniforms = material.uniforms;
-        const textInfo = this.textRenderInfo;
-        if (textInfo) {
-            const { sdfTexture, blockBounds } = textInfo;
-            uniforms.uTroikaSDFTexture.value = sdfTexture;
-            uniforms.uTroikaSDFTextureSize.value.set(sdfTexture.image.width, sdfTexture.image.height);
-            uniforms.uTroikaSDFGlyphSize.value = textInfo.sdfGlyphSize;
-            uniforms.uTroikaSDFExponent.value = textInfo.sdfExponent;
-            uniforms.uTroikaTotalBounds.value.fromArray(blockBounds);
-            uniforms.uTroikaUseGlyphColors.value = !isOutline && !!textInfo.glyphColors;
-            let distanceOffset = 0;
-            let blurRadius = 0;
-            let strokeWidth = 0;
-            let fillOpacity;
-            let strokeOpacity;
-            let strokeColor;
-            let offsetX = 0;
-            let offsetY = 0;
-            if (isOutline) {
-                let { outlineWidth, outlineOffsetX, outlineOffsetY, outlineBlur, outlineOpacity } = this;
-                distanceOffset = this._parsePercent(outlineWidth) || 0;
-                blurRadius = Math.max(0, this._parsePercent(outlineBlur) || 0);
-                fillOpacity = outlineOpacity;
-                offsetX = this._parsePercent(outlineOffsetX) || 0;
-                offsetY = this._parsePercent(outlineOffsetY) || 0;
-            } else {
-                strokeWidth = Math.max(0, this._parsePercent(this.strokeWidth) || 0);
-                if (strokeWidth) {
-                    strokeColor = this.strokeColor;
-                    uniforms.uTroikaStrokeColor.value.set(strokeColor == null ? defaultStrokeColor : strokeColor);
-                    strokeOpacity = this.strokeOpacity;
-                    if (strokeOpacity == null) strokeOpacity = 1;
-                }
-                fillOpacity = this.fillOpacity;
-            }
-            uniforms.uTroikaDistanceOffset.value = distanceOffset;
-            uniforms.uTroikaPositionOffset.value.set(offsetX, offsetY);
-            uniforms.uTroikaBlurRadius.value = blurRadius;
-            uniforms.uTroikaStrokeWidth.value = strokeWidth;
-            uniforms.uTroikaStrokeOpacity.value = strokeOpacity;
-            uniforms.uTroikaFillOpacity.value = fillOpacity == null ? 1 : fillOpacity;
-            uniforms.uTroikaCurveRadius.value = this.curveRadius || 0;
-            let clipRect = this.clipRect;
-            if (clipRect && Array.isArray(clipRect) && clipRect.length === 4) uniforms.uTroikaClipRect.value.fromArray(clipRect);
-            else {
-                // no clipping - choose a finite rect that shouldn't ever be reached by overflowing glyphs or outlines
-                const pad = (this.fontSize || 0.1) * 100;
-                uniforms.uTroikaClipRect.value.set(blockBounds[0] - pad, blockBounds[1] - pad, blockBounds[2] + pad, blockBounds[3] + pad);
-            }
-            this.geometry.applyClipRect(uniforms.uTroikaClipRect.value);
-        }
-        uniforms.uTroikaSDFDebug.value = !!this.debugSDF;
-        material.polygonOffset = !!this.depthOffset;
-        material.polygonOffsetFactor = material.polygonOffsetUnits = this.depthOffset || 0;
-        // Shortcut for setting material color via `color` prop on the mesh; this is
-        // applied only to the derived material to avoid mutating a shared base material.
-        const color = isOutline ? this.outlineColor || 0 : this.color;
-        if (color == null) delete material.color; //inherit from base
-        else {
-            const colorObj = material.hasOwnProperty("color") ? material.color : material.color = new (0, _three.Color)();
-            if (color !== colorObj._input || typeof color === "object") colorObj.set(colorObj._input = color);
-        }
-        // base orientation
-        let orient = this.orientation || defaultOrient;
-        if (orient !== material._orientation) {
-            let rotMat = uniforms.uTroikaOrient.value;
-            orient = orient.replace(/[^-+xyz]/g, "");
-            let match = orient !== defaultOrient && orient.match(/^([-+])([xyz])([-+])([xyz])$/);
-            if (match) {
-                let [, hSign, hAxis, vSign, vAxis] = match;
-                tempVec3a.set(0, 0, 0)[hAxis] = hSign === "-" ? 1 : -1;
-                tempVec3b.set(0, 0, 0)[vAxis] = vSign === "-" ? -1 : 1;
-                tempMat4.lookAt(origin, tempVec3a.cross(tempVec3b), tempVec3b);
-                rotMat.setFromMatrix4(tempMat4);
-            } else rotMat.identity();
-            material._orientation = orient;
-        }
-    }
-    _parsePercent(value) {
-        if (typeof value === "string") {
-            let match = value.match(/^(-?[\d.]+)%$/);
-            let pct = match ? parseFloat(match[1]) : NaN;
-            value = (isNaN(pct) ? 0 : pct / 100) * this.fontSize;
-        }
-        return value;
-    }
-    /**
-   * Translate a point in local space to an x/y in the text plane.
-   */ localPositionToTextCoords(position, target = new (0, _three.Vector2)()) {
-        target.copy(position); //simple non-curved case is 1:1
-        const r = this.curveRadius;
-        if (r) target.x = Math.atan2(position.x, Math.abs(r) - Math.abs(position.z)) * Math.abs(r);
-        return target;
-    }
-    /**
-   * Translate a point in world space to an x/y in the text plane.
-   */ worldPositionToTextCoords(position, target = new (0, _three.Vector2)()) {
-        tempVec3a.copy(position);
-        return this.localPositionToTextCoords(this.worldToLocal(tempVec3a), target);
-    }
-    /**
-   * @override Custom raycasting to test against the whole text block's max rectangular bounds
-   * TODO is there any reason to make this more granular, like within individual line or glyph rects?
-   */ raycast(raycaster, intersects) {
-        const { textRenderInfo, curveRadius } = this;
-        if (textRenderInfo) {
-            const bounds = textRenderInfo.blockBounds;
-            const raycastMesh = curveRadius ? getCurvedRaycastMesh() : getFlatRaycastMesh();
-            const geom = raycastMesh.geometry;
-            const { position, uv } = geom.attributes;
-            for(let i = 0; i < uv.count; i++){
-                let x = bounds[0] + uv.getX(i) * (bounds[2] - bounds[0]);
-                const y = bounds[1] + uv.getY(i) * (bounds[3] - bounds[1]);
-                let z = 0;
-                if (curveRadius) {
-                    z = curveRadius - Math.cos(x / curveRadius) * curveRadius;
-                    x = Math.sin(x / curveRadius) * curveRadius;
-                }
-                position.setXYZ(i, x, y, z);
-            }
-            geom.boundingSphere = this.geometry.boundingSphere;
-            geom.boundingBox = this.geometry.boundingBox;
-            raycastMesh.matrixWorld = this.matrixWorld;
-            raycastMesh.material.side = this.material.side;
-            tempArray.length = 0;
-            raycastMesh.raycast(raycaster, tempArray);
-            for(let i = 0; i < tempArray.length; i++){
-                tempArray[i].object = this;
-                intersects.push(tempArray[i]);
-            }
-        }
-    }
-    copy(source) {
-        // Prevent copying the geometry reference so we don't end up sharing attributes between instances
-        const geom = this.geometry;
-        super.copy(source);
-        this.geometry = geom;
-        COPYABLE_PROPS.forEach((prop)=>{
-            this[prop] = source[prop];
-        });
-        return this;
-    }
-    clone() {
-        return new this.constructor().copy(this);
-    }
-}
-// Create setters for properties that affect text layout:
-SYNCABLE_PROPS.forEach((prop)=>{
-    const privateKey = "_private_" + prop;
-    Object.defineProperty(Text.prototype, prop, {
-        get () {
-            return this[privateKey];
-        },
-        set (value) {
-            if (value !== this[privateKey]) {
-                this[privateKey] = value;
-                this._needsSync = true;
-            }
-        }
-    });
-});
-//=== Utility functions for dealing with carets and selection ranges ===//
-/**
- * @typedef {object} TextCaret
- * @property {number} x - x position of the caret
- * @property {number} y - y position of the caret's bottom
- * @property {number} height - height of the caret
- * @property {number} charIndex - the index in the original input string of this caret's target
- *   character; the caret will be for the position _before_ that character.
- */ /**
- * Given a local x/y coordinate in the text block plane, find the nearest caret position.
- * @param {TroikaTextRenderInfo} textRenderInfo - a result object from TextBuilder#getTextRenderInfo
- * @param {number} x
- * @param {number} y
- * @return {TextCaret | null}
- */ function getCaretAtPoint(textRenderInfo, x, y) {
-    let closestCaret = null;
-    const rows = groupCaretsByRow(textRenderInfo);
-    // Find nearest row by y first
-    let closestRow = null;
-    rows.forEach((row)=>{
-        if (!closestRow || Math.abs(y - (row.top + row.bottom) / 2) < Math.abs(y - (closestRow.top + closestRow.bottom) / 2)) closestRow = row;
-    });
-    // Then find closest caret by x within that row
-    closestRow.carets.forEach((caret)=>{
-        if (!closestCaret || Math.abs(x - caret.x) < Math.abs(x - closestCaret.x)) closestCaret = caret;
-    });
-    return closestCaret;
-}
-const _rectsCache = new WeakMap();
-/**
- * Given start and end character indexes, return a list of rectangles covering all the
- * characters within that selection.
- * @param {TroikaTextRenderInfo} textRenderInfo
- * @param {number} start - index of the first char in the selection
- * @param {number} end - index of the first char after the selection
- * @return {Array<{left, top, right, bottom}> | null}
- */ function getSelectionRects(textRenderInfo, start, end) {
-    let rects;
-    if (textRenderInfo) {
-        // Check cache - textRenderInfo is frozen so it's safe to cache based on it
-        let prevResult = _rectsCache.get(textRenderInfo);
-        if (prevResult && prevResult.start === start && prevResult.end === end) return prevResult.rects;
-        const { caretPositions } = textRenderInfo;
-        // Normalize
-        if (end < start) {
-            const s = start;
-            start = end;
-            end = s;
-        }
-        start = Math.max(start, 0);
-        end = Math.min(end, caretPositions.length + 1);
-        // Build list of rects, expanding the current rect for all characters in a run and starting
-        // a new rect whenever reaching a new line or a new bidi direction
-        rects = [];
-        let currentRect = null;
-        for(let i = start; i < end; i++){
-            const x1 = caretPositions[i * 4];
-            const x2 = caretPositions[i * 4 + 1];
-            const left = Math.min(x1, x2);
-            const right = Math.max(x1, x2);
-            const bottom = caretPositions[i * 4 + 2];
-            const top = caretPositions[i * 4 + 3];
-            if (!currentRect || bottom !== currentRect.bottom || top !== currentRect.top || left > currentRect.right || right < currentRect.left) {
-                currentRect = {
-                    left: Infinity,
-                    right: -Infinity,
-                    bottom,
-                    top
-                };
-                rects.push(currentRect);
-            }
-            currentRect.left = Math.min(left, currentRect.left);
-            currentRect.right = Math.max(right, currentRect.right);
-        }
-        // Merge any overlapping rects, e.g. those formed by adjacent bidi runs
-        rects.sort((a, b)=>b.bottom - a.bottom || a.left - b.left);
-        for(let i = rects.length - 1; i-- > 0;){
-            const rectA = rects[i];
-            const rectB = rects[i + 1];
-            if (rectA.bottom === rectB.bottom && rectA.top === rectB.top && rectA.left <= rectB.right && rectA.right >= rectB.left) {
-                rectB.left = Math.min(rectB.left, rectA.left);
-                rectB.right = Math.max(rectB.right, rectA.right);
-                rects.splice(i, 1);
-            }
-        }
-        _rectsCache.set(textRenderInfo, {
-            start,
-            end,
-            rects
-        });
-    }
-    return rects;
-}
-const _caretsByRowCache = new WeakMap();
-/**
- * Group a set of carets by row of text, caching the result. A single row of text may contain carets of
- * differing positions/heights if it has multiple fonts, and they may overlap slightly across rows, so this
- * uses an assumption of "at least overlapping by half" to put them in the same row.
- * @return Array<{bottom: number, top: number, carets: TextCaret[]}>
- */ function groupCaretsByRow(textRenderInfo) {
-    // textRenderInfo is frozen so it's safe to cache based on it
-    let rows = _caretsByRowCache.get(textRenderInfo);
-    if (!rows) {
-        rows = [];
-        const { caretPositions } = textRenderInfo;
-        let curRow;
-        const visitCaret = (x, bottom, top, charIndex)=>{
-            // new row if not overlapping by at least half
-            if (!curRow || top < (curRow.top + curRow.bottom) / 2) rows.push(curRow = {
-                bottom,
-                top,
-                carets: []
-            });
-            // expand vertical limits if necessary
-            if (top > curRow.top) curRow.top = top;
-            if (bottom < curRow.bottom) curRow.bottom = bottom;
-            curRow.carets.push({
-                x,
-                y: bottom,
-                height: top - bottom,
-                charIndex
-            });
-        };
-        let i = 0;
-        for(; i < caretPositions.length; i += 4)visitCaret(caretPositions[i], caretPositions[i + 2], caretPositions[i + 3], i / 4);
-        // Add one more caret after the final char
-        visitCaret(caretPositions[i - 3], caretPositions[i - 2], caretPositions[i - 1], i / 4);
-    }
-    _caretsByRowCache.set(textRenderInfo, rows);
-    return rows;
-}
-
-},{"three":"ktPTu","troika-worker-utils":"6LSIy","webgl-sdf-generator":"4CUsR","bidi-js":"liRR6","troika-three-utils":"1jmjW","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6LSIy":[function(require,module,exports) {
-/**
- * Main content for the worker that handles the loading and execution of
- * modules within it.
- */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "defineWorkerModule", ()=>defineWorkerModule);
-parcelHelpers.export(exports, "stringifyFunction", ()=>stringifyFunction);
-parcelHelpers.export(exports, "terminateWorker", ()=>terminateWorker);
-var process = require("e07c6a4a1e670adf");
-function workerBootstrap() {
-    var modules = Object.create(null);
-    // Handle messages for registering a module
-    function registerModule(ref, callback) {
-        var id = ref.id;
-        var name = ref.name;
-        var dependencies = ref.dependencies;
-        if (dependencies === void 0) dependencies = [];
-        var init = ref.init;
-        if (init === void 0) init = function() {};
-        var getTransferables = ref.getTransferables;
-        if (getTransferables === void 0) getTransferables = null;
-        // Only register once
-        if (modules[id]) return;
-        try {
-            // If any dependencies are modules, ensure they're registered and grab their value
-            dependencies = dependencies.map(function(dep) {
-                if (dep && dep.isWorkerModule) {
-                    registerModule(dep, function(depResult) {
-                        if (depResult instanceof Error) throw depResult;
-                    });
-                    dep = modules[dep.id].value;
-                }
-                return dep;
-            });
-            // Rehydrate functions
-            init = rehydrate("<" + name + ">.init", init);
-            if (getTransferables) getTransferables = rehydrate("<" + name + ">.getTransferables", getTransferables);
-            // Initialize the module and store its value
-            var value = null;
-            if (typeof init === "function") value = init.apply(void 0, dependencies);
-            else console.error("worker module init function failed to rehydrate");
-            modules[id] = {
-                id: id,
-                value: value,
-                getTransferables: getTransferables
-            };
-            callback(value);
-        } catch (err) {
-            if (!(err && err.noLog)) console.error(err);
-            callback(err);
-        }
-    }
-    // Handle messages for calling a registered module's result function
-    function callModule(ref, callback) {
-        var ref$1;
-        var id = ref.id;
-        var args = ref.args;
-        if (!modules[id] || typeof modules[id].value !== "function") callback(new Error("Worker module " + id + ": not found or its 'init' did not return a function"));
-        try {
-            var result = (ref$1 = modules[id]).value.apply(ref$1, args);
-            if (result && typeof result.then === "function") result.then(handleResult, function(rej) {
-                return callback(rej instanceof Error ? rej : new Error("" + rej));
-            });
-            else handleResult(result);
-        } catch (err) {
-            callback(err);
-        }
-        function handleResult(result) {
-            try {
-                var tx = modules[id].getTransferables && modules[id].getTransferables(result);
-                if (!tx || !Array.isArray(tx) || !tx.length) tx = undefined; //postMessage is very picky about not passing null or empty transferables
-                callback(result, tx);
-            } catch (err) {
-                console.error(err);
-                callback(err);
-            }
-        }
-    }
-    function rehydrate(name, str) {
-        var result = void 0;
-        self.troikaDefine = function(r) {
-            return result = r;
-        };
-        var url = URL.createObjectURL(new Blob([
-            "/** " + name.replace(/\*/g, "") + " **/\n\ntroikaDefine(\n" + str + "\n)"
-        ], {
-            type: "application/javascript"
-        }));
-        try {
-            importScripts(url);
-        } catch (err) {
-            console.error(err);
-        }
-        URL.revokeObjectURL(url);
-        delete self.troikaDefine;
-        return result;
-    }
-    // Handler for all messages within the worker
-    self.addEventListener("message", function(e) {
-        var ref = e.data;
-        var messageId = ref.messageId;
-        var action = ref.action;
-        var data = ref.data;
-        try {
-            // Module registration
-            if (action === "registerModule") registerModule(data, function(result) {
-                if (result instanceof Error) postMessage({
-                    messageId: messageId,
-                    success: false,
-                    error: result.message
-                });
-                else postMessage({
-                    messageId: messageId,
-                    success: true,
-                    result: {
-                        isCallable: typeof result === "function"
-                    }
-                });
-            });
-            // Invocation
-            if (action === "callModule") callModule(data, function(result, transferables) {
-                if (result instanceof Error) postMessage({
-                    messageId: messageId,
-                    success: false,
-                    error: result.message
-                });
-                else postMessage({
-                    messageId: messageId,
-                    success: true,
-                    result: result
-                }, transferables || undefined);
-            });
-        } catch (err) {
-            postMessage({
-                messageId: messageId,
-                success: false,
-                error: err.stack
-            });
-        }
-    });
-}
-/**
- * Fallback for `defineWorkerModule` that behaves identically but runs in the main
- * thread, for when the execution environment doesn't support web workers or they
- * are disallowed due to e.g. CSP security restrictions.
- */ function defineMainThreadModule(options) {
-    var moduleFunc = function() {
-        var args = [], len = arguments.length;
-        while(len--)args[len] = arguments[len];
-        return moduleFunc._getInitResult().then(function(initResult) {
-            if (typeof initResult === "function") return initResult.apply(void 0, args);
-            else throw new Error("Worker module function was called but `init` did not return a callable function");
-        });
-    };
-    moduleFunc._getInitResult = function() {
-        // We can ignore getTransferables in main thread. TODO workerId?
-        var dependencies = options.dependencies;
-        var init = options.init;
-        // Resolve dependencies
-        dependencies = Array.isArray(dependencies) ? dependencies.map(function(dep) {
-            return dep && dep._getInitResult ? dep._getInitResult() : dep;
-        }) : [];
-        // Invoke init with the resolved dependencies
-        var initPromise = Promise.all(dependencies).then(function(deps) {
-            return init.apply(null, deps);
-        });
-        // Cache the resolved promise for subsequent calls
-        moduleFunc._getInitResult = function() {
-            return initPromise;
-        };
-        return initPromise;
-    };
-    return moduleFunc;
-}
-var supportsWorkers = function() {
-    var supported = false;
-    // Only attempt worker initialization in browsers; elsewhere it would just be
-    // noise e.g. loading into a Node environment for SSR.
-    if (typeof window !== "undefined" && typeof window.document !== "undefined") try {
-        // TODO additional checks for things like importScripts within the worker?
-        //  Would need to be an async check.
-        var worker = new Worker(URL.createObjectURL(new Blob([
-            ""
-        ], {
-            type: "application/javascript"
-        })));
-        worker.terminate();
-        supported = true;
-    } catch (err) {
-        typeof process;
-        console.log("Troika createWorkerModule: web workers not allowed; falling back to main thread execution. Cause: [" + err.message + "]");
-    }
-    // Cached result
-    supportsWorkers = function() {
-        return supported;
-    };
-    return supported;
-};
-var _workerModuleId = 0;
-var _messageId = 0;
-var _allowInitAsString = false;
-var workers = Object.create(null);
-var registeredModules = Object.create(null); //workerId -> Set<unregisterFn>
-var openRequests = Object.create(null);
-/**
- * Define a module of code that will be executed with a web worker. This provides a simple
- * interface for moving chunks of logic off the main thread, and managing their dependencies
- * among one another.
- *
- * @param {object} options
- * @param {function} options.init
- * @param {array} [options.dependencies]
- * @param {function} [options.getTransferables]
- * @param {string} [options.name]
- * @param {string} [options.workerId]
- * @return {function(...[*]): {then}}
- */ function defineWorkerModule(options) {
-    if ((!options || typeof options.init !== "function") && !_allowInitAsString) throw new Error("requires `options.init` function");
-    var dependencies = options.dependencies;
-    var init = options.init;
-    var getTransferables = options.getTransferables;
-    var workerId = options.workerId;
-    if (!supportsWorkers()) return defineMainThreadModule(options);
-    if (workerId == null) workerId = "#default";
-    var id = "workerModule" + ++_workerModuleId;
-    var name = options.name || id;
-    var registrationPromise = null;
-    dependencies = dependencies && dependencies.map(function(dep) {
-        // Wrap raw functions as worker modules with no dependencies
-        if (typeof dep === "function" && !dep.workerModuleData) {
-            _allowInitAsString = true;
-            dep = defineWorkerModule({
-                workerId: workerId,
-                name: "<" + name + "> function dependency: " + dep.name,
-                init: "function(){return (\n" + stringifyFunction(dep) + "\n)}"
-            });
-            _allowInitAsString = false;
-        }
-        // Grab postable data for worker modules
-        if (dep && dep.workerModuleData) dep = dep.workerModuleData;
-        return dep;
-    });
-    function moduleFunc() {
-        var args = [], len = arguments.length;
-        while(len--)args[len] = arguments[len];
-        // Register this module if needed
-        if (!registrationPromise) {
-            registrationPromise = callWorker(workerId, "registerModule", moduleFunc.workerModuleData);
-            var unregister = function() {
-                registrationPromise = null;
-                registeredModules[workerId].delete(unregister);
-            };
-            (registeredModules[workerId] || (registeredModules[workerId] = new Set())).add(unregister);
-        }
-        // Invoke the module, returning a promise
-        return registrationPromise.then(function(ref) {
-            var isCallable = ref.isCallable;
-            if (isCallable) return callWorker(workerId, "callModule", {
-                id: id,
-                args: args
-            });
-            else throw new Error("Worker module function was called but `init` did not return a callable function");
-        });
-    }
-    moduleFunc.workerModuleData = {
-        isWorkerModule: true,
-        id: id,
-        name: name,
-        dependencies: dependencies,
-        init: stringifyFunction(init),
-        getTransferables: getTransferables && stringifyFunction(getTransferables)
-    };
-    return moduleFunc;
-}
-/**
- * Terminate an active Worker by a workerId that was passed to defineWorkerModule.
- * This only terminates the Worker itself; the worker module will remain available
- * and if you call it again its Worker will be respawned.
- * @param {string} workerId
- */ function terminateWorker(workerId) {
-    // Unregister all modules that were registered in that worker
-    if (registeredModules[workerId]) registeredModules[workerId].forEach(function(unregister) {
-        unregister();
-    });
-    // Terminate the Worker object
-    if (workers[workerId]) {
-        workers[workerId].terminate();
-        delete workers[workerId];
-    }
-}
-/**
- * Stringifies a function into a form that can be deserialized in the worker
- * @param fn
- */ function stringifyFunction(fn) {
-    var str = fn.toString();
-    // If it was defined in object method/property format, it needs to be modified
-    if (!/^function/.test(str) && /^\w+\s*\(/.test(str)) str = "function " + str;
-    return str;
-}
-function getWorker(workerId) {
-    var worker = workers[workerId];
-    if (!worker) {
-        // Bootstrap the worker's content
-        var bootstrap = stringifyFunction(workerBootstrap);
-        // Create the worker from the bootstrap function content
-        worker = workers[workerId] = new Worker(URL.createObjectURL(new Blob([
-            "/** Worker Module Bootstrap: " + workerId.replace(/\*/g, "") + " **/\n\n;(" + bootstrap + ")()"
-        ], {
-            type: "application/javascript"
-        })));
-        // Single handler for response messages from the worker
-        worker.onmessage = function(e) {
-            var response = e.data;
-            var msgId = response.messageId;
-            var callback = openRequests[msgId];
-            if (!callback) throw new Error("WorkerModule response with empty or unknown messageId");
-            delete openRequests[msgId];
-            callback(response);
-        };
-    }
-    return worker;
-}
-// Issue a call to the worker with a callback to handle the response
-function callWorker(workerId, action, data) {
-    return new Promise(function(resolve, reject) {
-        var messageId = ++_messageId;
-        openRequests[messageId] = function(response) {
-            if (response.success) resolve(response.result);
-            else reject(new Error("Error in worker " + action + " call: " + response.error));
-        };
-        getWorker(workerId).postMessage({
-            messageId: messageId,
-            action: action,
-            data: data
-        });
-    });
-}
-
-},{"e07c6a4a1e670adf":"d5jf4","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"d5jf4":[function(require,module,exports) {
-// shim for using process in browser
-var process = module.exports = {};
-// cached from whatever global is present so that test runners that stub it
-// don't break things.  But we need to wrap it in a try catch in case it is
-// wrapped in strict mode code which doesn't define any globals.  It's inside a
-// function because try/catches deoptimize in certain engines.
-var cachedSetTimeout;
-var cachedClearTimeout;
-function defaultSetTimout() {
-    throw new Error("setTimeout has not been defined");
-}
-function defaultClearTimeout() {
-    throw new Error("clearTimeout has not been defined");
-}
-(function() {
-    try {
-        if (typeof setTimeout === "function") cachedSetTimeout = setTimeout;
-        else cachedSetTimeout = defaultSetTimout;
-    } catch (e) {
-        cachedSetTimeout = defaultSetTimout;
-    }
-    try {
-        if (typeof clearTimeout === "function") cachedClearTimeout = clearTimeout;
-        else cachedClearTimeout = defaultClearTimeout;
-    } catch (e) {
-        cachedClearTimeout = defaultClearTimeout;
-    }
-})();
-function runTimeout(fun) {
-    if (cachedSetTimeout === setTimeout) //normal enviroments in sane situations
-    return setTimeout(fun, 0);
-    // if setTimeout wasn't available but was latter defined
-    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
-        cachedSetTimeout = setTimeout;
-        return setTimeout(fun, 0);
-    }
-    try {
-        // when when somebody has screwed with setTimeout but no I.E. maddness
-        return cachedSetTimeout(fun, 0);
-    } catch (e) {
-        try {
-            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
-            return cachedSetTimeout.call(null, fun, 0);
-        } catch (e) {
-            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
-            return cachedSetTimeout.call(this, fun, 0);
-        }
-    }
-}
-function runClearTimeout(marker) {
-    if (cachedClearTimeout === clearTimeout) //normal enviroments in sane situations
-    return clearTimeout(marker);
-    // if clearTimeout wasn't available but was latter defined
-    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
-        cachedClearTimeout = clearTimeout;
-        return clearTimeout(marker);
-    }
-    try {
-        // when when somebody has screwed with setTimeout but no I.E. maddness
-        return cachedClearTimeout(marker);
-    } catch (e) {
-        try {
-            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
-            return cachedClearTimeout.call(null, marker);
-        } catch (e) {
-            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
-            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
-            return cachedClearTimeout.call(this, marker);
-        }
-    }
-}
-var queue = [];
-var draining = false;
-var currentQueue;
-var queueIndex = -1;
-function cleanUpNextTick() {
-    if (!draining || !currentQueue) return;
-    draining = false;
-    if (currentQueue.length) queue = currentQueue.concat(queue);
-    else queueIndex = -1;
-    if (queue.length) drainQueue();
-}
-function drainQueue() {
-    if (draining) return;
-    var timeout = runTimeout(cleanUpNextTick);
-    draining = true;
-    var len = queue.length;
-    while(len){
-        currentQueue = queue;
-        queue = [];
-        while(++queueIndex < len)if (currentQueue) currentQueue[queueIndex].run();
-        queueIndex = -1;
-        len = queue.length;
-    }
-    currentQueue = null;
-    draining = false;
-    runClearTimeout(timeout);
-}
-process.nextTick = function(fun) {
-    var args = new Array(arguments.length - 1);
-    if (arguments.length > 1) for(var i = 1; i < arguments.length; i++)args[i - 1] = arguments[i];
-    queue.push(new Item(fun, args));
-    if (queue.length === 1 && !draining) runTimeout(drainQueue);
-};
-// v8 likes predictible objects
-function Item(fun, array) {
-    this.fun = fun;
-    this.array = array;
-}
-Item.prototype.run = function() {
-    this.fun.apply(null, this.array);
-};
-process.title = "browser";
-process.browser = true;
-process.env = {};
-process.argv = [];
-process.version = ""; // empty string to avoid regexp issues
-process.versions = {};
-function noop() {}
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
-process.prependListener = noop;
-process.prependOnceListener = noop;
-process.listeners = function(name) {
-    return [];
-};
-process.binding = function(name) {
-    throw new Error("process.binding is not supported");
-};
-process.cwd = function() {
-    return "/";
-};
-process.chdir = function(dir) {
-    throw new Error("process.chdir is not supported");
-};
-process.umask = function() {
-    return 0;
-};
-
-},{}],"4CUsR":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "default", ()=>SDFGenerator);
-function SDFGenerator() {
-    var exports = function(exports) {
-        /**
-   * Find the point on a quadratic bezier curve at t where t is in the range [0, 1]
-   */ function pointOnQuadraticBezier(x0, y0, x1, y1, x2, y2, t, pointOut) {
-            var t2 = 1 - t;
-            pointOut.x = t2 * t2 * x0 + 2 * t2 * t * x1 + t * t * x2;
-            pointOut.y = t2 * t2 * y0 + 2 * t2 * t * y1 + t * t * y2;
-        }
-        /**
-   * Find the point on a cubic bezier curve at t where t is in the range [0, 1]
-   */ function pointOnCubicBezier(x0, y0, x1, y1, x2, y2, x3, y3, t, pointOut) {
-            var t2 = 1 - t;
-            pointOut.x = t2 * t2 * t2 * x0 + 3 * t2 * t2 * t * x1 + 3 * t2 * t * t * x2 + t * t * t * x3;
-            pointOut.y = t2 * t2 * t2 * y0 + 3 * t2 * t2 * t * y1 + 3 * t2 * t * t * y2 + t * t * t * y3;
-        }
-        /**
-   * Parse a path string into its constituent line/curve commands, invoking a callback for each.
-   * @param {string} pathString - An SVG-like path string to parse; should only contain commands: M/L/Q/C/Z
-   * @param {function(
-   *   command: 'L'|'Q'|'C',
-   *   startX: number,
-   *   startY: number,
-   *   endX: number,
-   *   endY: number,
-   *   ctrl1X?: number,
-   *   ctrl1Y?: number,
-   *   ctrl2X?: number,
-   *   ctrl2Y?: number
-   * )} commandCallback - A callback function that will be called once for each parsed path command, passing the
-   *                      command identifier (only L/Q/C commands) and its numeric arguments.
-   */ function forEachPathCommand(pathString, commandCallback) {
-            var segmentRE = /([MLQCZ])([^MLQCZ]*)/g;
-            var match, firstX, firstY, prevX, prevY;
-            while(match = segmentRE.exec(pathString)){
-                var args = match[2].replace(/^\s*|\s*$/g, "").split(/[,\s]+/).map(function(v) {
-                    return parseFloat(v);
-                });
-                switch(match[1]){
-                    case "M":
-                        prevX = firstX = args[0];
-                        prevY = firstY = args[1];
-                        break;
-                    case "L":
-                        if (args[0] !== prevX || args[1] !== prevY) commandCallback("L", prevX, prevY, prevX = args[0], prevY = args[1]);
-                        break;
-                    case "Q":
-                        commandCallback("Q", prevX, prevY, prevX = args[2], prevY = args[3], args[0], args[1]);
-                        break;
-                    case "C":
-                        commandCallback("C", prevX, prevY, prevX = args[4], prevY = args[5], args[0], args[1], args[2], args[3]);
-                        break;
-                    case "Z":
-                        if (prevX !== firstX || prevY !== firstY) commandCallback("L", prevX, prevY, firstX, firstY);
-                        break;
-                }
-            }
-        }
-        /**
-   * Convert a path string to a series of straight line segments
-   * @param {string} pathString - An SVG-like path string to parse; should only contain commands: M/L/Q/C/Z
-   * @param {function(x1:number, y1:number, x2:number, y2:number)} segmentCallback - A callback
-   *        function that will be called once for every line segment
-   * @param {number} [curvePoints] - How many straight line segments to use when approximating a
-   *        bezier curve in the path. Defaults to 16.
-   */ function pathToLineSegments(pathString, segmentCallback, curvePoints) {
-            if (curvePoints === void 0) curvePoints = 16;
-            var tempPoint = {
-                x: 0,
-                y: 0
-            };
-            forEachPathCommand(pathString, function(command, startX, startY, endX, endY, ctrl1X, ctrl1Y, ctrl2X, ctrl2Y) {
-                switch(command){
-                    case "L":
-                        segmentCallback(startX, startY, endX, endY);
-                        break;
-                    case "Q":
-                        var prevCurveX = startX;
-                        var prevCurveY = startY;
-                        for(var i = 1; i < curvePoints; i++){
-                            pointOnQuadraticBezier(startX, startY, ctrl1X, ctrl1Y, endX, endY, i / (curvePoints - 1), tempPoint);
-                            segmentCallback(prevCurveX, prevCurveY, tempPoint.x, tempPoint.y);
-                            prevCurveX = tempPoint.x;
-                            prevCurveY = tempPoint.y;
-                        }
-                        break;
-                    case "C":
-                        var prevCurveX$1 = startX;
-                        var prevCurveY$1 = startY;
-                        for(var i$1 = 1; i$1 < curvePoints; i$1++){
-                            pointOnCubicBezier(startX, startY, ctrl1X, ctrl1Y, ctrl2X, ctrl2Y, endX, endY, i$1 / (curvePoints - 1), tempPoint);
-                            segmentCallback(prevCurveX$1, prevCurveY$1, tempPoint.x, tempPoint.y);
-                            prevCurveX$1 = tempPoint.x;
-                            prevCurveY$1 = tempPoint.y;
-                        }
-                        break;
-                }
-            });
-        }
-        var viewportQuadVertex = "precision highp float;attribute vec2 aUV;varying vec2 vUV;void main(){vUV=aUV;gl_Position=vec4(mix(vec2(-1.0),vec2(1.0),aUV),0.0,1.0);}";
-        var copyTexFragment = "precision highp float;uniform sampler2D tex;varying vec2 vUV;void main(){gl_FragColor=texture2D(tex,vUV);}";
-        var cache = new WeakMap();
-        var glContextParams = {
-            premultipliedAlpha: false,
-            preserveDrawingBuffer: true,
-            antialias: false,
-            depth: false
-        };
-        /**
-   * This is a little helper library for WebGL. It assists with state management for a GL context.
-   * It's pretty tightly wrapped to the needs of this package, not very general-purpose.
-   *
-   * @param { WebGLRenderingContext | HTMLCanvasElement | OffscreenCanvas } glOrCanvas - the GL context to wrap
-   * @param { ({gl, getExtension, withProgram, withTexture, withTextureFramebuffer, handleContextLoss}) => void } callback
-   */ function withWebGLContext(glOrCanvas, callback) {
-            var gl = glOrCanvas.getContext ? glOrCanvas.getContext("webgl", glContextParams) : glOrCanvas;
-            var wrapper = cache.get(gl);
-            if (!wrapper) {
-                var isWebGL2 = typeof WebGL2RenderingContext !== "undefined" && gl instanceof WebGL2RenderingContext;
-                var extensions = {};
-                var programs = {};
-                var textures = {};
-                var textureUnit = -1;
-                var framebufferStack = [];
-                gl.canvas.addEventListener("webglcontextlost", function(e) {
-                    handleContextLoss();
-                    e.preventDefault();
-                }, false);
-                function getExtension(name) {
-                    var ext = extensions[name];
-                    if (!ext) {
-                        ext = extensions[name] = gl.getExtension(name);
-                        if (!ext) throw new Error(name + " not supported");
-                    }
-                    return ext;
-                }
-                function compileShader(src, type) {
-                    var shader = gl.createShader(type);
-                    gl.shaderSource(shader, src);
-                    gl.compileShader(shader);
-                    // const status = gl.getShaderParameter(shader, gl.COMPILE_STATUS)
-                    // if (!status && !gl.isContextLost()) {
-                    //   throw new Error(gl.getShaderInfoLog(shader).trim())
-                    // }
-                    return shader;
-                }
-                function withProgram(name, vert, frag, func) {
-                    if (!programs[name]) {
-                        var attributes = {};
-                        var uniforms = {};
-                        var program = gl.createProgram();
-                        gl.attachShader(program, compileShader(vert, gl.VERTEX_SHADER));
-                        gl.attachShader(program, compileShader(frag, gl.FRAGMENT_SHADER));
-                        gl.linkProgram(program);
-                        programs[name] = {
-                            program: program,
-                            transaction: function transaction(func) {
-                                gl.useProgram(program);
-                                func({
-                                    setUniform: function setUniform(type, name) {
-                                        var values = [], len = arguments.length - 2;
-                                        while(len-- > 0)values[len] = arguments[len + 2];
-                                        var uniformLoc = uniforms[name] || (uniforms[name] = gl.getUniformLocation(program, name));
-                                        gl["uniform" + type].apply(gl, [
-                                            uniformLoc
-                                        ].concat(values));
-                                    },
-                                    setAttribute: function setAttribute(name, size, usage, instancingDivisor, data) {
-                                        var attr = attributes[name];
-                                        if (!attr) attr = attributes[name] = {
-                                            buf: gl.createBuffer(),
-                                            loc: gl.getAttribLocation(program, name),
-                                            data: null
-                                        };
-                                        gl.bindBuffer(gl.ARRAY_BUFFER, attr.buf);
-                                        gl.vertexAttribPointer(attr.loc, size, gl.FLOAT, false, 0, 0);
-                                        gl.enableVertexAttribArray(attr.loc);
-                                        if (isWebGL2) gl.vertexAttribDivisor(attr.loc, instancingDivisor);
-                                        else getExtension("ANGLE_instanced_arrays").vertexAttribDivisorANGLE(attr.loc, instancingDivisor);
-                                        if (data !== attr.data) {
-                                            gl.bufferData(gl.ARRAY_BUFFER, data, usage);
-                                            attr.data = data;
-                                        }
-                                    }
-                                });
-                            }
-                        };
-                    }
-                    programs[name].transaction(func);
-                }
-                function withTexture(name, func) {
-                    textureUnit++;
-                    try {
-                        gl.activeTexture(gl.TEXTURE0 + textureUnit);
-                        var texture = textures[name];
-                        if (!texture) {
-                            texture = textures[name] = gl.createTexture();
-                            gl.bindTexture(gl.TEXTURE_2D, texture);
-                            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-                            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-                        }
-                        gl.bindTexture(gl.TEXTURE_2D, texture);
-                        func(texture, textureUnit);
-                    } finally{
-                        textureUnit--;
-                    }
-                }
-                function withTextureFramebuffer(texture, textureUnit, func) {
-                    var framebuffer = gl.createFramebuffer();
-                    framebufferStack.push(framebuffer);
-                    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-                    gl.activeTexture(gl.TEXTURE0 + textureUnit);
-                    gl.bindTexture(gl.TEXTURE_2D, texture);
-                    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-                    try {
-                        func(framebuffer);
-                    } finally{
-                        gl.deleteFramebuffer(framebuffer);
-                        gl.bindFramebuffer(gl.FRAMEBUFFER, framebufferStack[--framebufferStack.length - 1] || null);
-                    }
-                }
-                function handleContextLoss() {
-                    extensions = {};
-                    programs = {};
-                    textures = {};
-                    textureUnit = -1;
-                    framebufferStack.length = 0;
-                }
-                cache.set(gl, wrapper = {
-                    gl: gl,
-                    isWebGL2: isWebGL2,
-                    getExtension: getExtension,
-                    withProgram: withProgram,
-                    withTexture: withTexture,
-                    withTextureFramebuffer: withTextureFramebuffer,
-                    handleContextLoss: handleContextLoss
-                });
-            }
-            callback(wrapper);
-        }
-        function renderImageData(glOrCanvas, imageData, x, y, width, height, channels, framebuffer) {
-            if (channels === void 0) channels = 15;
-            if (framebuffer === void 0) framebuffer = null;
-            withWebGLContext(glOrCanvas, function(ref) {
-                var gl = ref.gl;
-                var withProgram = ref.withProgram;
-                var withTexture = ref.withTexture;
-                withTexture("copy", function(tex, texUnit) {
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, imageData);
-                    withProgram("copy", viewportQuadVertex, copyTexFragment, function(ref) {
-                        var setUniform = ref.setUniform;
-                        var setAttribute = ref.setAttribute;
-                        setAttribute("aUV", 2, gl.STATIC_DRAW, 0, new Float32Array([
-                            0,
-                            0,
-                            2,
-                            0,
-                            0,
-                            2
-                        ]));
-                        setUniform("1i", "image", texUnit);
-                        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer || null);
-                        gl.disable(gl.BLEND);
-                        gl.colorMask(channels & 8, channels & 4, channels & 2, channels & 1);
-                        gl.viewport(x, y, width, height);
-                        gl.scissor(x, y, width, height);
-                        gl.drawArrays(gl.TRIANGLES, 0, 3);
-                    });
-                });
-            });
-        }
-        /**
-   * Resizing a canvas clears its contents; this utility copies the previous contents over.
-   * @param canvas
-   * @param newWidth
-   * @param newHeight
-   */ function resizeWebGLCanvasWithoutClearing(canvas, newWidth, newHeight) {
-            var width = canvas.width;
-            var height = canvas.height;
-            withWebGLContext(canvas, function(ref) {
-                var gl = ref.gl;
-                var data = new Uint8Array(width * height * 4);
-                gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
-                canvas.width = newWidth;
-                canvas.height = newHeight;
-                renderImageData(gl, data, 0, 0, width, height);
-            });
-        }
-        var webglUtils = /*#__PURE__*/ Object.freeze({
-            __proto__: null,
-            withWebGLContext: withWebGLContext,
-            renderImageData: renderImageData,
-            resizeWebGLCanvasWithoutClearing: resizeWebGLCanvasWithoutClearing
-        });
-        function generate$2(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent) {
-            if (sdfExponent === void 0) sdfExponent = 1;
-            var textureData = new Uint8Array(sdfWidth * sdfHeight);
-            var viewBoxWidth = viewBox[2] - viewBox[0];
-            var viewBoxHeight = viewBox[3] - viewBox[1];
-            // Decompose all paths into straight line segments and add them to an index
-            var segments = [];
-            pathToLineSegments(path, function(x1, y1, x2, y2) {
-                segments.push({
-                    x1: x1,
-                    y1: y1,
-                    x2: x2,
-                    y2: y2,
-                    minX: Math.min(x1, x2),
-                    minY: Math.min(y1, y2),
-                    maxX: Math.max(x1, x2),
-                    maxY: Math.max(y1, y2)
-                });
-            });
-            // Sort segments by maxX, this will let us short-circuit some loops below
-            segments.sort(function(a, b) {
-                return a.maxX - b.maxX;
-            });
-            // For each target SDF texel, find the distance from its center to its nearest line segment,
-            // map that distance to an alpha value, and write that alpha to the texel
-            for(var sdfX = 0; sdfX < sdfWidth; sdfX++)for(var sdfY = 0; sdfY < sdfHeight; sdfY++){
-                var signedDist = findNearestSignedDistance(viewBox[0] + viewBoxWidth * (sdfX + 0.5) / sdfWidth, viewBox[1] + viewBoxHeight * (sdfY + 0.5) / sdfHeight);
-                // Use an exponential scale to ensure the texels very near the glyph path have adequate
-                // precision, while allowing the distance field to cover the entire texture, given that
-                // there are only 8 bits available. Formula visualized: https://www.desmos.com/calculator/uiaq5aqiam
-                var alpha = Math.pow(1 - Math.abs(signedDist) / maxDistance, sdfExponent) / 2;
-                if (signedDist < 0) alpha = 1 - alpha;
-                alpha = Math.max(0, Math.min(255, Math.round(alpha * 255))); //clamp
-                textureData[sdfY * sdfWidth + sdfX] = alpha;
-            }
-            return textureData;
-            /**
-     * For a given x/y, search the index for the closest line segment and return
-     * its signed distance. Negative = inside, positive = outside, zero = on edge
-     * @param x
-     * @param y
-     * @returns {number}
-     */ function findNearestSignedDistance(x, y) {
-                var closestDistSq = Infinity;
-                var closestDist = Infinity;
-                for(var i = segments.length; i--;){
-                    var seg = segments[i];
-                    if (seg.maxX + closestDist <= x) break;
-                     //sorting by maxX means no more can be closer, so we can short-circuit
-                    if (x + closestDist > seg.minX && y - closestDist < seg.maxY && y + closestDist > seg.minY) {
-                        var distSq = absSquareDistanceToLineSegment(x, y, seg.x1, seg.y1, seg.x2, seg.y2);
-                        if (distSq < closestDistSq) {
-                            closestDistSq = distSq;
-                            closestDist = Math.sqrt(closestDistSq);
-                        }
-                    }
-                }
-                // Flip to negative distance if inside the poly
-                if (isPointInPoly(x, y)) closestDist = -closestDist;
-                return closestDist;
-            }
-            /**
-     * Determine whether the given point lies inside or outside the glyph. Uses a simple
-     * winding-number ray casting algorithm using a ray pointing east from the point.
-     */ function isPointInPoly(x, y) {
-                var winding = 0;
-                for(var i = segments.length; i--;){
-                    var seg = segments[i];
-                    if (seg.maxX <= x) break;
-                     //sorting by maxX means no more can cross, so we can short-circuit
-                    var intersects = seg.y1 > y !== seg.y2 > y && x < (seg.x2 - seg.x1) * (y - seg.y1) / (seg.y2 - seg.y1) + seg.x1;
-                    if (intersects) winding += seg.y1 < seg.y2 ? 1 : -1;
-                }
-                return winding !== 0;
-            }
-        }
-        function generateIntoCanvas$2(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent, canvas, x, y, channel) {
-            if (sdfExponent === void 0) sdfExponent = 1;
-            if (x === void 0) x = 0;
-            if (y === void 0) y = 0;
-            if (channel === void 0) channel = 0;
-            generateIntoFramebuffer$1(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent, canvas, null, x, y, channel);
-        }
-        function generateIntoFramebuffer$1(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent, glOrCanvas, framebuffer, x, y, channel) {
-            if (sdfExponent === void 0) sdfExponent = 1;
-            if (x === void 0) x = 0;
-            if (y === void 0) y = 0;
-            if (channel === void 0) channel = 0;
-            var data = generate$2(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent);
-            // Expand single-channel data to rbga
-            var rgbaData = new Uint8Array(data.length * 4);
-            for(var i = 0; i < data.length; i++)rgbaData[i * 4 + channel] = data[i];
-            renderImageData(glOrCanvas, rgbaData, x, y, sdfWidth, sdfHeight, 1 << 3 - channel, framebuffer);
-        }
-        /**
-   * Find the absolute distance from a point to a line segment at closest approach
-   */ function absSquareDistanceToLineSegment(x, y, lineX0, lineY0, lineX1, lineY1) {
-            var ldx = lineX1 - lineX0;
-            var ldy = lineY1 - lineY0;
-            var lengthSq = ldx * ldx + ldy * ldy;
-            var t = lengthSq ? Math.max(0, Math.min(1, ((x - lineX0) * ldx + (y - lineY0) * ldy) / lengthSq)) : 0;
-            var dx = x - (lineX0 + t * ldx);
-            var dy = y - (lineY0 + t * ldy);
-            return dx * dx + dy * dy;
-        }
-        var javascript = /*#__PURE__*/ Object.freeze({
-            __proto__: null,
-            generate: generate$2,
-            generateIntoCanvas: generateIntoCanvas$2,
-            generateIntoFramebuffer: generateIntoFramebuffer$1
-        });
-        var mainVertex = "precision highp float;uniform vec4 uGlyphBounds;attribute vec2 aUV;attribute vec4 aLineSegment;varying vec4 vLineSegment;varying vec2 vGlyphXY;void main(){vLineSegment=aLineSegment;vGlyphXY=mix(uGlyphBounds.xy,uGlyphBounds.zw,aUV);gl_Position=vec4(mix(vec2(-1.0),vec2(1.0),aUV),0.0,1.0);}";
-        var mainFragment = "precision highp float;uniform vec4 uGlyphBounds;uniform float uMaxDistance;uniform float uExponent;varying vec4 vLineSegment;varying vec2 vGlyphXY;float absDistToSegment(vec2 point,vec2 lineA,vec2 lineB){vec2 lineDir=lineB-lineA;float lenSq=dot(lineDir,lineDir);float t=lenSq==0.0 ? 0.0 : clamp(dot(point-lineA,lineDir)/lenSq,0.0,1.0);vec2 linePt=lineA+t*lineDir;return distance(point,linePt);}void main(){vec4 seg=vLineSegment;vec2 p=vGlyphXY;float dist=absDistToSegment(p,seg.xy,seg.zw);float val=pow(1.0-clamp(dist/uMaxDistance,0.0,1.0),uExponent)*0.5;bool crossing=(seg.y>p.y!=seg.w>p.y)&&(p.x<(seg.z-seg.x)*(p.y-seg.y)/(seg.w-seg.y)+seg.x);bool crossingUp=crossing&&vLineSegment.y<vLineSegment.w;gl_FragColor=vec4(crossingUp ? 1.0/255.0 : 0.0,crossing&&!crossingUp ? 1.0/255.0 : 0.0,0.0,val);}";
-        var postFragment = "precision highp float;uniform sampler2D tex;varying vec2 vUV;void main(){vec4 color=texture2D(tex,vUV);bool inside=color.r!=color.g;float val=inside ? 1.0-color.a : color.a;gl_FragColor=vec4(val);}";
-        // Single triangle covering viewport
-        var viewportUVs = new Float32Array([
-            0,
-            0,
-            2,
-            0,
-            0,
-            2
-        ]);
-        var implicitContext = null;
-        var isTestingSupport = false;
-        var NULL_OBJECT = {};
-        var supportByCanvas = new WeakMap(); // canvas -> bool
-        function validateSupport(glOrCanvas) {
-            if (!isTestingSupport && !isSupported(glOrCanvas)) throw new Error("WebGL generation not supported");
-        }
-        function generate$1(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent, glOrCanvas) {
-            if (sdfExponent === void 0) sdfExponent = 1;
-            if (glOrCanvas === void 0) glOrCanvas = null;
-            if (!glOrCanvas) {
-                glOrCanvas = implicitContext;
-                if (!glOrCanvas) {
-                    var canvas = typeof OffscreenCanvas === "function" ? new OffscreenCanvas(1, 1) : typeof document !== "undefined" ? document.createElement("canvas") : null;
-                    if (!canvas) throw new Error("OffscreenCanvas or DOM canvas not supported");
-                    glOrCanvas = implicitContext = canvas.getContext("webgl", {
-                        depth: false
-                    });
-                }
-            }
-            validateSupport(glOrCanvas);
-            var rgbaData = new Uint8Array(sdfWidth * sdfHeight * 4); //not Uint8ClampedArray, cuz Safari
-            // Render into a background texture framebuffer
-            withWebGLContext(glOrCanvas, function(ref) {
-                var gl = ref.gl;
-                var withTexture = ref.withTexture;
-                var withTextureFramebuffer = ref.withTextureFramebuffer;
-                withTexture("readable", function(texture, textureUnit) {
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, sdfWidth, sdfHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-                    withTextureFramebuffer(texture, textureUnit, function(framebuffer) {
-                        generateIntoFramebuffer(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent, gl, framebuffer, 0, 0, 0 // red channel
-                        );
-                        gl.readPixels(0, 0, sdfWidth, sdfHeight, gl.RGBA, gl.UNSIGNED_BYTE, rgbaData);
-                    });
-                });
-            });
-            // Throw away all but the red channel
-            var data = new Uint8Array(sdfWidth * sdfHeight);
-            for(var i = 0, j = 0; i < rgbaData.length; i += 4)data[j++] = rgbaData[i];
-            return data;
-        }
-        function generateIntoCanvas$1(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent, canvas, x, y, channel) {
-            if (sdfExponent === void 0) sdfExponent = 1;
-            if (x === void 0) x = 0;
-            if (y === void 0) y = 0;
-            if (channel === void 0) channel = 0;
-            generateIntoFramebuffer(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent, canvas, null, x, y, channel);
-        }
-        function generateIntoFramebuffer(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent, glOrCanvas, framebuffer, x, y, channel) {
-            if (sdfExponent === void 0) sdfExponent = 1;
-            if (x === void 0) x = 0;
-            if (y === void 0) y = 0;
-            if (channel === void 0) channel = 0;
-            // Verify support
-            validateSupport(glOrCanvas);
-            // Compute path segments
-            var lineSegmentCoords = [];
-            pathToLineSegments(path, function(x1, y1, x2, y2) {
-                lineSegmentCoords.push(x1, y1, x2, y2);
-            });
-            lineSegmentCoords = new Float32Array(lineSegmentCoords);
-            withWebGLContext(glOrCanvas, function(ref) {
-                var gl = ref.gl;
-                var isWebGL2 = ref.isWebGL2;
-                var getExtension = ref.getExtension;
-                var withProgram = ref.withProgram;
-                var withTexture = ref.withTexture;
-                var withTextureFramebuffer = ref.withTextureFramebuffer;
-                var handleContextLoss = ref.handleContextLoss;
-                withTexture("rawDistances", function(intermediateTexture, intermediateTextureUnit) {
-                    if (sdfWidth !== intermediateTexture._lastWidth || sdfHeight !== intermediateTexture._lastHeight) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, intermediateTexture._lastWidth = sdfWidth, intermediateTexture._lastHeight = sdfHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-                    // Unsigned distance pass
-                    withProgram("main", mainVertex, mainFragment, function(ref) {
-                        var setAttribute = ref.setAttribute;
-                        var setUniform = ref.setUniform;
-                        // Init extensions
-                        var instancingExtension = !isWebGL2 && getExtension("ANGLE_instanced_arrays");
-                        var blendMinMaxExtension = !isWebGL2 && getExtension("EXT_blend_minmax");
-                        // Init/update attributes
-                        setAttribute("aUV", 2, gl.STATIC_DRAW, 0, viewportUVs);
-                        setAttribute("aLineSegment", 4, gl.DYNAMIC_DRAW, 1, lineSegmentCoords);
-                        // Init/update uniforms
-                        setUniform.apply(void 0, [
-                            "4f",
-                            "uGlyphBounds"
-                        ].concat(viewBox));
-                        setUniform("1f", "uMaxDistance", maxDistance);
-                        setUniform("1f", "uExponent", sdfExponent);
-                        // Render initial unsigned distance / winding number info to a texture
-                        withTextureFramebuffer(intermediateTexture, intermediateTextureUnit, function(framebuffer) {
-                            gl.enable(gl.BLEND);
-                            gl.colorMask(true, true, true, true);
-                            gl.viewport(0, 0, sdfWidth, sdfHeight);
-                            gl.scissor(0, 0, sdfWidth, sdfHeight);
-                            gl.blendFunc(gl.ONE, gl.ONE);
-                            // Red+Green channels are incremented (FUNC_ADD) for segment-ray crossings to give a "winding number".
-                            // Alpha holds the closest (MAX) unsigned distance.
-                            gl.blendEquationSeparate(gl.FUNC_ADD, isWebGL2 ? gl.MAX : blendMinMaxExtension.MAX_EXT);
-                            gl.clear(gl.COLOR_BUFFER_BIT);
-                            if (isWebGL2) gl.drawArraysInstanced(gl.TRIANGLES, 0, 3, lineSegmentCoords.length / 4);
-                            else instancingExtension.drawArraysInstancedANGLE(gl.TRIANGLES, 0, 3, lineSegmentCoords.length / 4);
-                        // Debug
-                        // const debug = new Uint8Array(sdfWidth * sdfHeight * 4)
-                        // gl.readPixels(0, 0, sdfWidth, sdfHeight, gl.RGBA, gl.UNSIGNED_BYTE, debug)
-                        // console.log('intermediate texture data: ', debug)
-                        });
-                    });
-                    // Use the data stored in the texture to apply inside/outside and write to the output framebuffer rect+channel.
-                    withProgram("post", viewportQuadVertex, postFragment, function(program) {
-                        program.setAttribute("aUV", 2, gl.STATIC_DRAW, 0, viewportUVs);
-                        program.setUniform("1i", "tex", intermediateTextureUnit);
-                        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-                        gl.disable(gl.BLEND);
-                        gl.colorMask(channel === 0, channel === 1, channel === 2, channel === 3);
-                        gl.viewport(x, y, sdfWidth, sdfHeight);
-                        gl.scissor(x, y, sdfWidth, sdfHeight);
-                        gl.drawArrays(gl.TRIANGLES, 0, 3);
-                    });
-                });
-                // Handle context loss occurring during any of the above calls
-                if (gl.isContextLost()) {
-                    handleContextLoss();
-                    throw new Error("webgl context lost");
-                }
-            });
-        }
-        function isSupported(glOrCanvas) {
-            var key = !glOrCanvas || glOrCanvas === implicitContext ? NULL_OBJECT : glOrCanvas.canvas || glOrCanvas;
-            var supported = supportByCanvas.get(key);
-            if (supported === undefined) {
-                isTestingSupport = true;
-                var failReason = null;
-                try {
-                    // Since we can't detect all failure modes up front, let's just do a trial run of a
-                    // simple path and compare what we get back to the correct expected result. This will
-                    // also serve to prime the shader compilation.
-                    var expectedResult = [
-                        97,
-                        106,
-                        97,
-                        61,
-                        99,
-                        137,
-                        118,
-                        80,
-                        80,
-                        118,
-                        137,
-                        99,
-                        61,
-                        97,
-                        106,
-                        97
-                    ];
-                    var testResult = generate$1(4, 4, "M8,8L16,8L24,24L16,24Z", [
-                        0,
-                        0,
-                        32,
-                        32
-                    ], 24, 1, glOrCanvas);
-                    supported = testResult && expectedResult.length === testResult.length && testResult.every(function(val, i) {
-                        return val === expectedResult[i];
-                    });
-                    if (!supported) {
-                        failReason = "bad trial run results";
-                        console.info(expectedResult, testResult);
-                    }
-                } catch (err) {
-                    // TODO if it threw due to webgl context loss, should we maybe leave isSupported as null and try again later?
-                    supported = false;
-                    failReason = err.message;
-                }
-                if (failReason) console.warn("WebGL SDF generation not supported:", failReason);
-                isTestingSupport = false;
-                supportByCanvas.set(key, supported);
-            }
-            return supported;
-        }
-        var webgl = /*#__PURE__*/ Object.freeze({
-            __proto__: null,
-            generate: generate$1,
-            generateIntoCanvas: generateIntoCanvas$1,
-            generateIntoFramebuffer: generateIntoFramebuffer,
-            isSupported: isSupported
-        });
-        /**
-   * Generate an SDF texture image for a 2D path.
-   *
-   * @param {number} sdfWidth - width of the SDF output image in pixels.
-   * @param {number} sdfHeight - height of the SDF output image in pixels.
-   * @param {string} path - an SVG-like path string describing the glyph; should only contain commands: M/L/Q/C/Z.
-   * @param {number[]} viewBox - [minX, minY, maxX, maxY] in font units aligning with the texture's edges.
-   * @param {number} maxDistance - the maximum distance from the glyph path in font units that will be encoded; defaults
-   *        to half the maximum viewBox dimension.
-   * @param {number} [sdfExponent] - specifies an exponent for encoding the SDF's distance values; higher exponents
-   *        will give greater precision nearer the glyph's path.
-   * @return {Uint8Array}
-   */ function generate(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent) {
-            if (maxDistance === void 0) maxDistance = Math.max(viewBox[2] - viewBox[0], viewBox[3] - viewBox[1]) / 2;
-            if (sdfExponent === void 0) sdfExponent = 1;
-            try {
-                return generate$1.apply(webgl, arguments);
-            } catch (e) {
-                console.info("WebGL SDF generation failed, falling back to JS", e);
-                return generate$2.apply(javascript, arguments);
-            }
-        }
-        /**
-   * Generate an SDF texture image for a 2D path, inserting the result into a WebGL `canvas` at a given x/y position
-   * and color channel. This is generally much faster than calling `generate` because it does not require reading pixels
-   * back from the GPU->CPU -- the `canvas` can be used directly as a WebGL texture image, so it all stays on the GPU.
-   *
-   * @param {number} sdfWidth - width of the SDF output image in pixels.
-   * @param {number} sdfHeight - height of the SDF output image in pixels.
-   * @param {string} path - an SVG-like path string describing the glyph; should only contain commands: M/L/Q/C/Z.
-   * @param {number[]} viewBox - [minX, minY, maxX, maxY] in font units aligning with the texture's edges.
-   * @param {number} maxDistance - the maximum distance from the glyph path in font units that will be encoded; defaults
-   *        to half the maximum viewBox dimension.
-   * @param {number} [sdfExponent] - specifies an exponent for encoding the SDF's distance values; higher exponents
-   *        will give greater precision nearer the glyph's path.
-   * @param {HTMLCanvasElement|OffscreenCanvas} canvas - a WebGL-enabled canvas into which the SDF will be rendered.
-   *        Only the relevant rect/channel will be modified, the rest will be preserved. To avoid unpredictable results
-   *        due to shared GL context state, this canvas should be dedicated to use by this library alone.
-   * @param {number} x - the x position at which to render the SDF.
-   * @param {number} y - the y position at which to render the SDF.
-   * @param {number} channel - the color channel index (0-4) into which the SDF will be rendered.
-   * @return {Uint8Array}
-   */ function generateIntoCanvas(sdfWidth, sdfHeight, path, viewBox, maxDistance, sdfExponent, canvas, x, y, channel) {
-            if (maxDistance === void 0) maxDistance = Math.max(viewBox[2] - viewBox[0], viewBox[3] - viewBox[1]) / 2;
-            if (sdfExponent === void 0) sdfExponent = 1;
-            if (x === void 0) x = 0;
-            if (y === void 0) y = 0;
-            if (channel === void 0) channel = 0;
-            try {
-                return generateIntoCanvas$1.apply(webgl, arguments);
-            } catch (e) {
-                console.info("WebGL SDF generation failed, falling back to JS", e);
-                return generateIntoCanvas$2.apply(javascript, arguments);
-            }
-        }
-        exports.forEachPathCommand = forEachPathCommand;
-        exports.generate = generate;
-        exports.generateIntoCanvas = generateIntoCanvas;
-        exports.javascript = javascript;
-        exports.pathToLineSegments = pathToLineSegments;
-        exports.webgl = webgl;
-        exports.webglUtils = webglUtils;
-        Object.defineProperty(exports, "__esModule", {
-            value: true
-        });
-        return exports;
-    }({});
-    return exports;
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"liRR6":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-function bidiFactory() {
-    var bidi = function(exports) {
-        // Bidi character types data, auto generated
-        var DATA = {
-            "R": "13k,1a,2,3,3,2+1j,ch+16,a+1,5+2,2+n,5,a,4,6+16,4+3,h+1b,4mo,179q,2+9,2+11,2i9+7y,2+68,4,3+4,5+13,4+3,2+4k,3+29,8+cf,1t+7z,w+17,3+3m,1t+3z,16o1+5r,8+30,8+mc,29+1r,29+4v,75+73",
-            "EN": "1c+9,3d+1,6,187+9,513,4+5,7+9,sf+j,175h+9,qw+q,161f+1d,4xt+a,25i+9",
-            "ES": "17,2,6dp+1,f+1,av,16vr,mx+1,4o,2",
-            "ET": "z+2,3h+3,b+1,ym,3e+1,2o,p4+1,8,6u,7c,g6,1wc,1n9+4,30+1b,2n,6d,qhx+1,h0m,a+1,49+2,63+1,4+1,6bb+3,12jj",
-            "AN": "16o+5,2j+9,2+1,35,ed,1ff2+9,87+u",
-            "CS": "18,2+1,b,2u,12k,55v,l,17v0,2,3,53,2+1,b",
-            "B": "a,3,f+2,2v,690",
-            "S": "9,2,k",
-            "WS": "c,k,4f4,1vk+a,u,1j,335",
-            "ON": "x+1,4+4,h+5,r+5,r+3,z,5+3,2+1,2+1,5,2+2,3+4,o,w,ci+1,8+d,3+d,6+8,2+g,39+1,9,6+1,2,33,b8,3+1,3c+1,7+1,5r,b,7h+3,sa+5,2,3i+6,jg+3,ur+9,2v,ij+1,9g+9,7+a,8m,4+1,49+x,14u,2+2,c+2,e+2,e+2,e+1,i+n,e+e,2+p,u+2,e+2,36+1,2+3,2+1,b,2+2,6+5,2,2,2,h+1,5+4,6+3,3+f,16+2,5+3l,3+81,1y+p,2+40,q+a,m+13,2r+ch,2+9e,75+hf,3+v,2+2w,6e+5,f+6,75+2a,1a+p,2+2g,d+5x,r+b,6+3,4+o,g,6+1,6+2,2k+1,4,2j,5h+z,1m+1,1e+f,t+2,1f+e,d+3,4o+3,2s+1,w,535+1r,h3l+1i,93+2,2s,b+1,3l+x,2v,4g+3,21+3,kz+1,g5v+1,5a,j+9,n+v,2,3,2+8,2+1,3+2,2,3,46+1,4+4,h+5,r+5,r+a,3h+2,4+6,b+4,78,1r+24,4+c,4,1hb,ey+6,103+j,16j+c,1ux+7,5+g,fsh,jdq+1t,4,57+2e,p1,1m,1m,1m,1m,4kt+1,7j+17,5+2r,d+e,3+e,2+e,2+10,m+4,w,1n+5,1q,4z+5,4b+rb,9+c,4+c,4+37,d+2g,8+b,l+b,5+1j,9+9,7+13,9+t,3+1,27+3c,2+29,2+3q,d+d,3+4,4+2,6+6,a+o,8+6,a+2,e+6,16+42,2+1i",
-            "BN": "0+8,6+d,2s+5,2+p,e,4m9,1kt+2,2b+5,5+5,17q9+v,7k,6p+8,6+1,119d+3,440+7,96s+1,1ekf+1,1ekf+1,1ekf+1,1ekf+1,1ekf+1,1ekf+1,1ekf+1,1ekf+1,1ekf+1,1ekf+1,1ekf+1,1ekf+75,6p+2rz,1ben+1,1ekf+1,1ekf+1",
-            "NSM": "lc+33,7o+6,7c+18,2,2+1,2+1,2,21+a,1d+k,h,2u+6,3+5,3+1,2+3,10,v+q,2k+a,1n+8,a,p+3,2+8,2+2,2+4,18+2,3c+e,2+v,1k,2,5+7,5,4+6,b+1,u,1n,5+3,9,l+1,r,3+1,1m,5+1,5+1,3+2,4,v+1,4,c+1,1m,5+4,2+1,5,l+1,n+5,2,1n,3,2+3,9,8+1,c+1,v,1q,d,1f,4,1m+2,6+2,2+3,8+1,c+1,u,1n,g+1,l+1,t+1,1m+1,5+3,9,l+1,u,21,8+2,2,2j,3+6,d+7,2r,3+8,c+5,23+1,s,2,2,1k+d,2+4,2+1,6+a,2+z,a,2v+3,2+5,2+1,3+1,q+1,5+2,h+3,e,3+1,7,g,jk+2,qb+2,u+2,u+1,v+1,1t+1,2+6,9,3+a,a,1a+2,3c+1,z,3b+2,5+1,a,7+2,64+1,3,1n,2+6,2,2,3+7,7+9,3,1d+g,1s+3,1d,2+4,2,6,15+8,d+1,x+3,3+1,2+2,1l,2+1,4,2+2,1n+7,3+1,49+2,2+c,2+6,5,7,4+1,5j+1l,2+4,k1+w,2db+2,3y,2p+v,ff+3,30+1,n9x+3,2+9,x+1,29+1,7l,4,5,q+1,6,48+1,r+h,e,13+7,q+a,1b+2,1d,3+3,3+1,14,1w+5,3+1,3+1,d,9,1c,1g,2+2,3+1,6+1,2,17+1,9,6n,3,5,fn5,ki+f,h+f,r2,6b,46+4,1af+2,2+1,6+3,15+2,5,4m+1,fy+3,as+1,4a+a,4x,1j+e,1l+2,1e+3,3+1,1y+2,11+4,2+7,1r,d+1,1h+8,b+3,3,2o+2,3,2+1,7,4h,4+7,m+1,1m+1,4,12+6,4+4,5g+7,3+2,2,o,2d+5,2,5+1,2+1,6n+3,7+1,2+1,s+1,2e+7,3,2+1,2z,2,3+5,2,2u+2,3+3,2+4,78+8,2+1,75+1,2,5,41+3,3+1,5,x+5,3+1,15+5,3+3,9,a+5,3+2,1b+c,2+1,bb+6,2+5,2d+l,3+6,2+1,2+1,3f+5,4,2+1,2+6,2,21+1,4,2,9o+1,f0c+4,1o+6,t5,1s+3,2a,f5l+1,43t+2,i+7,3+6,v+3,45+2,1j0+1i,5+1d,9,f,n+4,2+e,11t+6,2+g,3+6,2+1,2+4,7a+6,c6+3,15t+6,32+6,gzhy+6n",
-            "AL": "16w,3,2,e+1b,z+2,2+2s,g+1,8+1,b+m,2+t,s+2i,c+e,4h+f,1d+1e,1bwe+dp,3+3z,x+c,2+1,35+3y,2rm+z,5+7,b+5,dt+l,c+u,17nl+27,1t+27,4x+6n,3+d",
-            "LRO": "6ct",
-            "RLO": "6cu",
-            "LRE": "6cq",
-            "RLE": "6cr",
-            "PDF": "6cs",
-            "LRI": "6ee",
-            "RLI": "6ef",
-            "FSI": "6eg",
-            "PDI": "6eh"
-        };
-        var TYPES = {};
-        var TYPES_TO_NAMES = {};
-        TYPES.L = 1; //L is the default
-        TYPES_TO_NAMES[1] = "L";
-        Object.keys(DATA).forEach(function(type, i) {
-            TYPES[type] = 1 << i + 1;
-            TYPES_TO_NAMES[TYPES[type]] = type;
-        });
-        Object.freeze(TYPES);
-        var ISOLATE_INIT_TYPES = TYPES.LRI | TYPES.RLI | TYPES.FSI;
-        var STRONG_TYPES = TYPES.L | TYPES.R | TYPES.AL;
-        var NEUTRAL_ISOLATE_TYPES = TYPES.B | TYPES.S | TYPES.WS | TYPES.ON | TYPES.FSI | TYPES.LRI | TYPES.RLI | TYPES.PDI;
-        var BN_LIKE_TYPES = TYPES.BN | TYPES.RLE | TYPES.LRE | TYPES.RLO | TYPES.LRO | TYPES.PDF;
-        var TRAILING_TYPES = TYPES.S | TYPES.WS | TYPES.B | ISOLATE_INIT_TYPES | TYPES.PDI | BN_LIKE_TYPES;
-        var map = null;
-        function parseData() {
-            if (!map) {
-                //const start = performance.now()
-                map = new Map();
-                var loop = function(type) {
-                    if (DATA.hasOwnProperty(type)) {
-                        var lastCode = 0;
-                        DATA[type].split(",").forEach(function(range) {
-                            var ref = range.split("+");
-                            var skip = ref[0];
-                            var step = ref[1];
-                            skip = parseInt(skip, 36);
-                            step = step ? parseInt(step, 36) : 0;
-                            map.set(lastCode += skip, TYPES[type]);
-                            for(var i = 0; i < step; i++)map.set(++lastCode, TYPES[type]);
-                        });
-                    }
-                };
-                for(var type in DATA)loop(type);
-            //console.log(`char types parsed in ${performance.now() - start}ms`)
-            }
-        }
-        /**
-   * @param {string} char
-   * @return {number}
-   */ function getBidiCharType(char) {
-            parseData();
-            return map.get(char.codePointAt(0)) || TYPES.L;
-        }
-        function getBidiCharTypeName(char) {
-            return TYPES_TO_NAMES[getBidiCharType(char)];
-        }
-        // Bidi bracket pairs data, auto generated
-        var data$1 = {
-            "pairs": "14>1,1e>2,u>2,2wt>1,1>1,1ge>1,1wp>1,1j>1,f>1,hm>1,1>1,u>1,u6>1,1>1,+5,28>1,w>1,1>1,+3,b8>1,1>1,+3,1>3,-1>-1,3>1,1>1,+2,1s>1,1>1,x>1,th>1,1>1,+2,db>1,1>1,+3,3>1,1>1,+2,14qm>1,1>1,+1,4q>1,1e>2,u>2,2>1,+1",
-            "canonical": "6f1>-6dx,6dy>-6dx,6ec>-6ed,6ee>-6ed,6ww>2jj,-2ji>2jj,14r4>-1e7l,1e7m>-1e7l,1e7m>-1e5c,1e5d>-1e5b,1e5c>-14qx,14qy>-14qx,14vn>-1ecg,1ech>-1ecg,1edu>-1ecg,1eci>-1ecg,1eda>-1ecg,1eci>-1ecg,1eci>-168q,168r>-168q,168s>-14ye,14yf>-14ye"
-        };
-        /**
-   * Parses an string that holds encoded codepoint mappings, e.g. for bracket pairs or
-   * mirroring characters, as encoded by scripts/generateBidiData.js. Returns an object
-   * holding the `map`, and optionally a `reverseMap` if `includeReverse:true`.
-   * @param {string} encodedString
-   * @param {boolean} includeReverse - true if you want reverseMap in the output
-   * @return {{map: Map<number, number>, reverseMap?: Map<number, number>}}
-   */ function parseCharacterMap(encodedString, includeReverse) {
-            var radix = 36;
-            var lastCode = 0;
-            var map = new Map();
-            var reverseMap = includeReverse && new Map();
-            var prevPair;
-            encodedString.split(",").forEach(function visit(entry) {
-                if (entry.indexOf("+") !== -1) for(var i = +entry; i--;)visit(prevPair);
-                else {
-                    prevPair = entry;
-                    var ref = entry.split(">");
-                    var a = ref[0];
-                    var b = ref[1];
-                    a = String.fromCodePoint(lastCode += parseInt(a, radix));
-                    b = String.fromCodePoint(lastCode += parseInt(b, radix));
-                    map.set(a, b);
-                    includeReverse && reverseMap.set(b, a);
-                }
-            });
-            return {
-                map: map,
-                reverseMap: reverseMap
-            };
-        }
-        var openToClose, closeToOpen, canonical;
-        function parse$1() {
-            if (!openToClose) {
-                //const start = performance.now()
-                var ref = parseCharacterMap(data$1.pairs, true);
-                var map = ref.map;
-                var reverseMap = ref.reverseMap;
-                openToClose = map;
-                closeToOpen = reverseMap;
-                canonical = parseCharacterMap(data$1.canonical, false).map;
-            //console.log(`brackets parsed in ${performance.now() - start}ms`)
-            }
-        }
-        function openingToClosingBracket(char) {
-            parse$1();
-            return openToClose.get(char) || null;
-        }
-        function closingToOpeningBracket(char) {
-            parse$1();
-            return closeToOpen.get(char) || null;
-        }
-        function getCanonicalBracket(char) {
-            parse$1();
-            return canonical.get(char) || null;
-        }
-        // Local type aliases
-        var TYPE_L = TYPES.L;
-        var TYPE_R = TYPES.R;
-        var TYPE_EN = TYPES.EN;
-        var TYPE_ES = TYPES.ES;
-        var TYPE_ET = TYPES.ET;
-        var TYPE_AN = TYPES.AN;
-        var TYPE_CS = TYPES.CS;
-        var TYPE_B = TYPES.B;
-        var TYPE_S = TYPES.S;
-        var TYPE_ON = TYPES.ON;
-        var TYPE_BN = TYPES.BN;
-        var TYPE_NSM = TYPES.NSM;
-        var TYPE_AL = TYPES.AL;
-        var TYPE_LRO = TYPES.LRO;
-        var TYPE_RLO = TYPES.RLO;
-        var TYPE_LRE = TYPES.LRE;
-        var TYPE_RLE = TYPES.RLE;
-        var TYPE_PDF = TYPES.PDF;
-        var TYPE_LRI = TYPES.LRI;
-        var TYPE_RLI = TYPES.RLI;
-        var TYPE_FSI = TYPES.FSI;
-        var TYPE_PDI = TYPES.PDI;
-        /**
-   * @typedef {object} GetEmbeddingLevelsResult
-   * @property {{start, end, level}[]} paragraphs
-   * @property {Uint8Array} levels
-   */ /**
-   * This function applies the Bidirectional Algorithm to a string, returning the resolved embedding levels
-   * in a single Uint8Array plus a list of objects holding each paragraph's start and end indices and resolved
-   * base embedding level.
-   *
-   * @param {string} string - The input string
-   * @param {"ltr"|"rtl"|"auto"} [baseDirection] - Use "ltr" or "rtl" to force a base paragraph direction,
-   *        otherwise a direction will be chosen automatically from each paragraph's contents.
-   * @return {GetEmbeddingLevelsResult}
-   */ function getEmbeddingLevels(string, baseDirection) {
-            var MAX_DEPTH = 125;
-            // Start by mapping all characters to their unicode type, as a bitmask integer
-            var charTypes = new Uint32Array(string.length);
-            for(var i = 0; i < string.length; i++)charTypes[i] = getBidiCharType(string[i]);
-            var charTypeCounts = new Map(); //will be cleared at start of each paragraph
-            function changeCharType(i, type) {
-                var oldType = charTypes[i];
-                charTypes[i] = type;
-                charTypeCounts.set(oldType, charTypeCounts.get(oldType) - 1);
-                if (oldType & NEUTRAL_ISOLATE_TYPES) charTypeCounts.set(NEUTRAL_ISOLATE_TYPES, charTypeCounts.get(NEUTRAL_ISOLATE_TYPES) - 1);
-                charTypeCounts.set(type, (charTypeCounts.get(type) || 0) + 1);
-                if (type & NEUTRAL_ISOLATE_TYPES) charTypeCounts.set(NEUTRAL_ISOLATE_TYPES, (charTypeCounts.get(NEUTRAL_ISOLATE_TYPES) || 0) + 1);
-            }
-            var embedLevels = new Uint8Array(string.length);
-            var isolationPairs = new Map(); //init->pdi and pdi->init
-            // === 3.3.1 The Paragraph Level ===
-            // 3.3.1 P1: Split the text into paragraphs
-            var paragraphs = []; // [{start, end, level}, ...]
-            var paragraph = null;
-            for(var i$1 = 0; i$1 < string.length; i$1++){
-                if (!paragraph) paragraphs.push(paragraph = {
-                    start: i$1,
-                    end: string.length - 1,
-                    // 3.3.1 P2-P3: Determine the paragraph level
-                    level: baseDirection === "rtl" ? 1 : baseDirection === "ltr" ? 0 : determineAutoEmbedLevel(i$1, false)
-                });
-                if (charTypes[i$1] & TYPE_B) {
-                    paragraph.end = i$1;
-                    paragraph = null;
-                }
-            }
-            var FORMATTING_TYPES = TYPE_RLE | TYPE_LRE | TYPE_RLO | TYPE_LRO | ISOLATE_INIT_TYPES | TYPE_PDI | TYPE_PDF | TYPE_B;
-            var nextEven = function(n) {
-                return n + (n & 1 ? 1 : 2);
-            };
-            var nextOdd = function(n) {
-                return n + (n & 1 ? 2 : 1);
-            };
-            // Everything from here on will operate per paragraph.
-            for(var paraIdx = 0; paraIdx < paragraphs.length; paraIdx++){
-                paragraph = paragraphs[paraIdx];
-                var statusStack = [
-                    {
-                        _level: paragraph.level,
-                        _override: 0,
-                        _isolate: 0 //bool
-                    }
-                ];
-                var stackTop = void 0;
-                var overflowIsolateCount = 0;
-                var overflowEmbeddingCount = 0;
-                var validIsolateCount = 0;
-                charTypeCounts.clear();
-                // === 3.3.2 Explicit Levels and Directions ===
-                for(var i$2 = paragraph.start; i$2 <= paragraph.end; i$2++){
-                    var charType = charTypes[i$2];
-                    stackTop = statusStack[statusStack.length - 1];
-                    // Set initial counts
-                    charTypeCounts.set(charType, (charTypeCounts.get(charType) || 0) + 1);
-                    if (charType & NEUTRAL_ISOLATE_TYPES) charTypeCounts.set(NEUTRAL_ISOLATE_TYPES, (charTypeCounts.get(NEUTRAL_ISOLATE_TYPES) || 0) + 1);
-                    // Explicit Embeddings: 3.3.2 X2 - X3
-                    if (charType & FORMATTING_TYPES) {
-                        if (charType & (TYPE_RLE | TYPE_LRE)) {
-                            embedLevels[i$2] = stackTop._level; // 5.2
-                            var level = (charType === TYPE_RLE ? nextOdd : nextEven)(stackTop._level);
-                            if (level <= MAX_DEPTH && !overflowIsolateCount && !overflowEmbeddingCount) statusStack.push({
-                                _level: level,
-                                _override: 0,
-                                _isolate: 0
-                            });
-                            else if (!overflowIsolateCount) overflowEmbeddingCount++;
-                        } else if (charType & (TYPE_RLO | TYPE_LRO)) {
-                            embedLevels[i$2] = stackTop._level; // 5.2
-                            var level$1 = (charType === TYPE_RLO ? nextOdd : nextEven)(stackTop._level);
-                            if (level$1 <= MAX_DEPTH && !overflowIsolateCount && !overflowEmbeddingCount) statusStack.push({
-                                _level: level$1,
-                                _override: charType & TYPE_RLO ? TYPE_R : TYPE_L,
-                                _isolate: 0
-                            });
-                            else if (!overflowIsolateCount) overflowEmbeddingCount++;
-                        } else if (charType & ISOLATE_INIT_TYPES) {
-                            // X5c - FSI becomes either RLI or LRI
-                            if (charType & TYPE_FSI) charType = determineAutoEmbedLevel(i$2 + 1, true) === 1 ? TYPE_RLI : TYPE_LRI;
-                            embedLevels[i$2] = stackTop._level;
-                            if (stackTop._override) changeCharType(i$2, stackTop._override);
-                            var level$2 = (charType === TYPE_RLI ? nextOdd : nextEven)(stackTop._level);
-                            if (level$2 <= MAX_DEPTH && overflowIsolateCount === 0 && overflowEmbeddingCount === 0) {
-                                validIsolateCount++;
-                                statusStack.push({
-                                    _level: level$2,
-                                    _override: 0,
-                                    _isolate: 1,
-                                    _isolInitIndex: i$2
-                                });
-                            } else overflowIsolateCount++;
-                        } else if (charType & TYPE_PDI) {
-                            if (overflowIsolateCount > 0) overflowIsolateCount--;
-                            else if (validIsolateCount > 0) {
-                                overflowEmbeddingCount = 0;
-                                while(!statusStack[statusStack.length - 1]._isolate)statusStack.pop();
-                                // Add to isolation pairs bidirectional mapping:
-                                var isolInitIndex = statusStack[statusStack.length - 1]._isolInitIndex;
-                                if (isolInitIndex != null) {
-                                    isolationPairs.set(isolInitIndex, i$2);
-                                    isolationPairs.set(i$2, isolInitIndex);
-                                }
-                                statusStack.pop();
-                                validIsolateCount--;
-                            }
-                            stackTop = statusStack[statusStack.length - 1];
-                            embedLevels[i$2] = stackTop._level;
-                            if (stackTop._override) changeCharType(i$2, stackTop._override);
-                        } else if (charType & TYPE_PDF) {
-                            if (overflowIsolateCount === 0) {
-                                if (overflowEmbeddingCount > 0) overflowEmbeddingCount--;
-                                else if (!stackTop._isolate && statusStack.length > 1) {
-                                    statusStack.pop();
-                                    stackTop = statusStack[statusStack.length - 1];
-                                }
-                            }
-                            embedLevels[i$2] = stackTop._level; // 5.2
-                        } else if (charType & TYPE_B) embedLevels[i$2] = paragraph.level;
-                    } else {
-                        embedLevels[i$2] = stackTop._level;
-                        // NOTE: This exclusion of BN seems to go against what section 5.2 says, but is required for test passage
-                        if (stackTop._override && charType !== TYPE_BN) changeCharType(i$2, stackTop._override);
-                    }
-                }
-                // === 3.3.3 Preparations for Implicit Processing ===
-                // Remove all RLE, LRE, RLO, LRO, PDF, and BN characters: 3.3.3 X9
-                // Note: Due to section 5.2, we won't remove them, but we'll use the BN_LIKE_TYPES bitset to
-                // easily ignore them all from here on out.
-                // 3.3.3 X10
-                // Compute the set of isolating run sequences as specified by BD13
-                var levelRuns = [];
-                var currentRun = null;
-                for(var i$3 = paragraph.start; i$3 <= paragraph.end; i$3++){
-                    var charType$1 = charTypes[i$3];
-                    if (!(charType$1 & BN_LIKE_TYPES)) {
-                        var lvl = embedLevels[i$3];
-                        var isIsolInit = charType$1 & ISOLATE_INIT_TYPES;
-                        var isPDI = charType$1 === TYPE_PDI;
-                        if (currentRun && lvl === currentRun._level) {
-                            currentRun._end = i$3;
-                            currentRun._endsWithIsolInit = isIsolInit;
-                        } else levelRuns.push(currentRun = {
-                            _start: i$3,
-                            _end: i$3,
-                            _level: lvl,
-                            _startsWithPDI: isPDI,
-                            _endsWithIsolInit: isIsolInit
-                        });
-                    }
-                }
-                var isolatingRunSeqs = []; // [{seqIndices: [], sosType: L|R, eosType: L|R}]
-                for(var runIdx = 0; runIdx < levelRuns.length; runIdx++){
-                    var run = levelRuns[runIdx];
-                    if (!run._startsWithPDI || run._startsWithPDI && !isolationPairs.has(run._start)) {
-                        var seqRuns = [
-                            currentRun = run
-                        ];
-                        for(var pdiIndex = void 0; currentRun && currentRun._endsWithIsolInit && (pdiIndex = isolationPairs.get(currentRun._end)) != null;){
-                            for(var i$4 = runIdx + 1; i$4 < levelRuns.length; i$4++)if (levelRuns[i$4]._start === pdiIndex) {
-                                seqRuns.push(currentRun = levelRuns[i$4]);
-                                break;
-                            }
-                        }
-                        // build flat list of indices across all runs:
-                        var seqIndices = [];
-                        for(var i$5 = 0; i$5 < seqRuns.length; i$5++){
-                            var run$1 = seqRuns[i$5];
-                            for(var j = run$1._start; j <= run$1._end; j++)seqIndices.push(j);
-                        }
-                        // determine the sos/eos types:
-                        var firstLevel = embedLevels[seqIndices[0]];
-                        var prevLevel = paragraph.level;
-                        for(var i$6 = seqIndices[0] - 1; i$6 >= 0; i$6--)if (!(charTypes[i$6] & BN_LIKE_TYPES)) {
-                            prevLevel = embedLevels[i$6];
-                            break;
-                        }
-                        var lastIndex = seqIndices[seqIndices.length - 1];
-                        var lastLevel = embedLevels[lastIndex];
-                        var nextLevel = paragraph.level;
-                        if (!(charTypes[lastIndex] & ISOLATE_INIT_TYPES)) {
-                            for(var i$7 = lastIndex + 1; i$7 <= paragraph.end; i$7++)if (!(charTypes[i$7] & BN_LIKE_TYPES)) {
-                                nextLevel = embedLevels[i$7];
-                                break;
-                            }
-                        }
-                        isolatingRunSeqs.push({
-                            _seqIndices: seqIndices,
-                            _sosType: Math.max(prevLevel, firstLevel) % 2 ? TYPE_R : TYPE_L,
-                            _eosType: Math.max(nextLevel, lastLevel) % 2 ? TYPE_R : TYPE_L
-                        });
-                    }
-                }
-                // The next steps are done per isolating run sequence
-                for(var seqIdx = 0; seqIdx < isolatingRunSeqs.length; seqIdx++){
-                    var ref = isolatingRunSeqs[seqIdx];
-                    var seqIndices$1 = ref._seqIndices;
-                    var sosType = ref._sosType;
-                    var eosType = ref._eosType;
-                    /**
-         * All the level runs in an isolating run sequence have the same embedding level.
-         * 
-         * DO NOT change any `embedLevels[i]` within the current scope.
-         */ var embedDirection = embedLevels[seqIndices$1[0]] & 1 ? TYPE_R : TYPE_L;
-                    // === 3.3.4 Resolving Weak Types ===
-                    // W1 + 5.2. Search backward from each NSM to the first character in the isolating run sequence whose
-                    // bidirectional type is not BN, and set the NSM to ON if it is an isolate initiator or PDI, and to its
-                    // type otherwise. If the NSM is the first non-BN character, change the NSM to the type of sos.
-                    if (charTypeCounts.get(TYPE_NSM)) for(var si = 0; si < seqIndices$1.length; si++){
-                        var i$8 = seqIndices$1[si];
-                        if (charTypes[i$8] & TYPE_NSM) {
-                            var prevType = sosType;
-                            for(var sj = si - 1; sj >= 0; sj--)if (!(charTypes[seqIndices$1[sj]] & BN_LIKE_TYPES)) {
-                                prevType = charTypes[seqIndices$1[sj]];
-                                break;
-                            }
-                            changeCharType(i$8, prevType & (ISOLATE_INIT_TYPES | TYPE_PDI) ? TYPE_ON : prevType);
-                        }
-                    }
-                    // W2. Search backward from each instance of a European number until the first strong type (R, L, AL, or sos)
-                    // is found. If an AL is found, change the type of the European number to Arabic number.
-                    if (charTypeCounts.get(TYPE_EN)) for(var si$1 = 0; si$1 < seqIndices$1.length; si$1++){
-                        var i$9 = seqIndices$1[si$1];
-                        if (charTypes[i$9] & TYPE_EN) for(var sj$1 = si$1 - 1; sj$1 >= -1; sj$1--){
-                            var prevCharType = sj$1 === -1 ? sosType : charTypes[seqIndices$1[sj$1]];
-                            if (prevCharType & STRONG_TYPES) {
-                                if (prevCharType === TYPE_AL) changeCharType(i$9, TYPE_AN);
-                                break;
-                            }
-                        }
-                    }
-                    // W3. Change all ALs to R
-                    if (charTypeCounts.get(TYPE_AL)) for(var si$2 = 0; si$2 < seqIndices$1.length; si$2++){
-                        var i$10 = seqIndices$1[si$2];
-                        if (charTypes[i$10] & TYPE_AL) changeCharType(i$10, TYPE_R);
-                    }
-                    // W4. A single European separator between two European numbers changes to a European number. A single common
-                    // separator between two numbers of the same type changes to that type.
-                    if (charTypeCounts.get(TYPE_ES) || charTypeCounts.get(TYPE_CS)) for(var si$3 = 1; si$3 < seqIndices$1.length - 1; si$3++){
-                        var i$11 = seqIndices$1[si$3];
-                        if (charTypes[i$11] & (TYPE_ES | TYPE_CS)) {
-                            var prevType$1 = 0, nextType = 0;
-                            for(var sj$2 = si$3 - 1; sj$2 >= 0; sj$2--){
-                                prevType$1 = charTypes[seqIndices$1[sj$2]];
-                                if (!(prevType$1 & BN_LIKE_TYPES)) break;
-                            }
-                            for(var sj$3 = si$3 + 1; sj$3 < seqIndices$1.length; sj$3++){
-                                nextType = charTypes[seqIndices$1[sj$3]];
-                                if (!(nextType & BN_LIKE_TYPES)) break;
-                            }
-                            if (prevType$1 === nextType && (charTypes[i$11] === TYPE_ES ? prevType$1 === TYPE_EN : prevType$1 & (TYPE_EN | TYPE_AN))) changeCharType(i$11, prevType$1);
-                        }
-                    }
-                    // W5. A sequence of European terminators adjacent to European numbers changes to all European numbers.
-                    if (charTypeCounts.get(TYPE_EN)) for(var si$4 = 0; si$4 < seqIndices$1.length; si$4++){
-                        var i$12 = seqIndices$1[si$4];
-                        if (charTypes[i$12] & TYPE_EN) {
-                            for(var sj$4 = si$4 - 1; sj$4 >= 0 && charTypes[seqIndices$1[sj$4]] & (TYPE_ET | BN_LIKE_TYPES); sj$4--)changeCharType(seqIndices$1[sj$4], TYPE_EN);
-                            for(si$4++; si$4 < seqIndices$1.length && charTypes[seqIndices$1[si$4]] & (TYPE_ET | BN_LIKE_TYPES | TYPE_EN); si$4++)if (charTypes[seqIndices$1[si$4]] !== TYPE_EN) changeCharType(seqIndices$1[si$4], TYPE_EN);
-                        }
-                    }
-                    // W6. Otherwise, separators and terminators change to Other Neutral.
-                    if (charTypeCounts.get(TYPE_ET) || charTypeCounts.get(TYPE_ES) || charTypeCounts.get(TYPE_CS)) for(var si$5 = 0; si$5 < seqIndices$1.length; si$5++){
-                        var i$13 = seqIndices$1[si$5];
-                        if (charTypes[i$13] & (TYPE_ET | TYPE_ES | TYPE_CS)) {
-                            changeCharType(i$13, TYPE_ON);
-                            // 5.2 transform adjacent BNs too:
-                            for(var sj$5 = si$5 - 1; sj$5 >= 0 && charTypes[seqIndices$1[sj$5]] & BN_LIKE_TYPES; sj$5--)changeCharType(seqIndices$1[sj$5], TYPE_ON);
-                            for(var sj$6 = si$5 + 1; sj$6 < seqIndices$1.length && charTypes[seqIndices$1[sj$6]] & BN_LIKE_TYPES; sj$6++)changeCharType(seqIndices$1[sj$6], TYPE_ON);
-                        }
-                    }
-                    // W7. Search backward from each instance of a European number until the first strong type (R, L, or sos)
-                    // is found. If an L is found, then change the type of the European number to L.
-                    // NOTE: implemented in single forward pass for efficiency
-                    if (charTypeCounts.get(TYPE_EN)) for(var si$6 = 0, prevStrongType = sosType; si$6 < seqIndices$1.length; si$6++){
-                        var i$14 = seqIndices$1[si$6];
-                        var type = charTypes[i$14];
-                        if (type & TYPE_EN) {
-                            if (prevStrongType === TYPE_L) changeCharType(i$14, TYPE_L);
-                        } else if (type & STRONG_TYPES) prevStrongType = type;
-                    }
-                    // === 3.3.5 Resolving Neutral and Isolate Formatting Types ===
-                    if (charTypeCounts.get(NEUTRAL_ISOLATE_TYPES)) {
-                        // N0. Process bracket pairs in an isolating run sequence sequentially in the logical order of the text
-                        // positions of the opening paired brackets using the logic given below. Within this scope, bidirectional
-                        // types EN and AN are treated as R.
-                        var R_TYPES_FOR_N_STEPS = TYPE_R | TYPE_EN | TYPE_AN;
-                        var STRONG_TYPES_FOR_N_STEPS = R_TYPES_FOR_N_STEPS | TYPE_L;
-                        // * Identify the bracket pairs in the current isolating run sequence according to BD16.
-                        var bracketPairs = [];
-                        var openerStack = [];
-                        for(var si$7 = 0; si$7 < seqIndices$1.length; si$7++)// NOTE: for any potential bracket character we also test that it still carries a NI
-                        // type, as that may have been changed earlier. This doesn't seem to be explicitly
-                        // called out in the spec, but is required for passage of certain tests.
-                        if (charTypes[seqIndices$1[si$7]] & NEUTRAL_ISOLATE_TYPES) {
-                            var char = string[seqIndices$1[si$7]];
-                            var oppositeBracket = void 0;
-                            // Opening bracket
-                            if (openingToClosingBracket(char) !== null) {
-                                if (openerStack.length < 63) openerStack.push({
-                                    char: char,
-                                    seqIndex: si$7
-                                });
-                                else break;
-                            } else if ((oppositeBracket = closingToOpeningBracket(char)) !== null) for(var stackIdx = openerStack.length - 1; stackIdx >= 0; stackIdx--){
-                                var stackChar = openerStack[stackIdx].char;
-                                if (stackChar === oppositeBracket || stackChar === closingToOpeningBracket(getCanonicalBracket(char)) || openingToClosingBracket(getCanonicalBracket(stackChar)) === char) {
-                                    bracketPairs.push([
-                                        openerStack[stackIdx].seqIndex,
-                                        si$7
-                                    ]);
-                                    openerStack.length = stackIdx; //pop the matching bracket and all following
-                                    break;
-                                }
-                            }
-                        }
-                        bracketPairs.sort(function(a, b) {
-                            return a[0] - b[0];
-                        });
-                        // * For each bracket-pair element in the list of pairs of text positions
-                        for(var pairIdx = 0; pairIdx < bracketPairs.length; pairIdx++){
-                            var ref$1 = bracketPairs[pairIdx];
-                            var openSeqIdx = ref$1[0];
-                            var closeSeqIdx = ref$1[1];
-                            // a. Inspect the bidirectional types of the characters enclosed within the bracket pair.
-                            // b. If any strong type (either L or R) matching the embedding direction is found, set the type for both
-                            // brackets in the pair to match the embedding direction.
-                            var foundStrongType = false;
-                            var useStrongType = 0;
-                            for(var si$8 = openSeqIdx + 1; si$8 < closeSeqIdx; si$8++){
-                                var i$15 = seqIndices$1[si$8];
-                                if (charTypes[i$15] & STRONG_TYPES_FOR_N_STEPS) {
-                                    foundStrongType = true;
-                                    var lr = charTypes[i$15] & R_TYPES_FOR_N_STEPS ? TYPE_R : TYPE_L;
-                                    if (lr === embedDirection) {
-                                        useStrongType = lr;
-                                        break;
-                                    }
-                                }
-                            }
-                            // c. Otherwise, if there is a strong type it must be opposite the embedding direction. Therefore, test
-                            // for an established context with a preceding strong type by checking backwards before the opening paired
-                            // bracket until the first strong type (L, R, or sos) is found.
-                            //    1. If the preceding strong type is also opposite the embedding direction, context is established, so
-                            //    set the type for both brackets in the pair to that direction.
-                            //    2. Otherwise set the type for both brackets in the pair to the embedding direction.
-                            if (foundStrongType && !useStrongType) {
-                                useStrongType = sosType;
-                                for(var si$9 = openSeqIdx - 1; si$9 >= 0; si$9--){
-                                    var i$16 = seqIndices$1[si$9];
-                                    if (charTypes[i$16] & STRONG_TYPES_FOR_N_STEPS) {
-                                        var lr$1 = charTypes[i$16] & R_TYPES_FOR_N_STEPS ? TYPE_R : TYPE_L;
-                                        if (lr$1 !== embedDirection) useStrongType = lr$1;
-                                        else useStrongType = embedDirection;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (useStrongType) {
-                                charTypes[seqIndices$1[openSeqIdx]] = charTypes[seqIndices$1[closeSeqIdx]] = useStrongType;
-                                // * Any number of characters that had original bidirectional character type NSM prior to the application
-                                // of W1 that immediately follow a paired bracket which changed to L or R under N0 should change to match
-                                // the type of their preceding bracket.
-                                if (useStrongType !== embedDirection) {
-                                    for(var si$10 = openSeqIdx + 1; si$10 < seqIndices$1.length; si$10++)if (!(charTypes[seqIndices$1[si$10]] & BN_LIKE_TYPES)) {
-                                        if (getBidiCharType(string[seqIndices$1[si$10]]) & TYPE_NSM) charTypes[seqIndices$1[si$10]] = useStrongType;
-                                        break;
-                                    }
-                                }
-                                if (useStrongType !== embedDirection) {
-                                    for(var si$11 = closeSeqIdx + 1; si$11 < seqIndices$1.length; si$11++)if (!(charTypes[seqIndices$1[si$11]] & BN_LIKE_TYPES)) {
-                                        if (getBidiCharType(string[seqIndices$1[si$11]]) & TYPE_NSM) charTypes[seqIndices$1[si$11]] = useStrongType;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        // N1. A sequence of NIs takes the direction of the surrounding strong text if the text on both sides has the
-                        // same direction.
-                        // N2. Any remaining NIs take the embedding direction.
-                        for(var si$12 = 0; si$12 < seqIndices$1.length; si$12++)if (charTypes[seqIndices$1[si$12]] & NEUTRAL_ISOLATE_TYPES) {
-                            var niRunStart = si$12, niRunEnd = si$12;
-                            var prevType$2 = sosType; //si === 0 ? sosType : (charTypes[seqIndices[si - 1]] & R_TYPES_FOR_N_STEPS) ? TYPE_R : TYPE_L
-                            for(var si2 = si$12 - 1; si2 >= 0; si2--)if (charTypes[seqIndices$1[si2]] & BN_LIKE_TYPES) niRunStart = si2; //5.2 treat BNs adjacent to NIs as NIs
-                            else {
-                                prevType$2 = charTypes[seqIndices$1[si2]] & R_TYPES_FOR_N_STEPS ? TYPE_R : TYPE_L;
-                                break;
-                            }
-                            var nextType$1 = eosType;
-                            for(var si2$1 = si$12 + 1; si2$1 < seqIndices$1.length; si2$1++)if (charTypes[seqIndices$1[si2$1]] & (NEUTRAL_ISOLATE_TYPES | BN_LIKE_TYPES)) niRunEnd = si2$1;
-                            else {
-                                nextType$1 = charTypes[seqIndices$1[si2$1]] & R_TYPES_FOR_N_STEPS ? TYPE_R : TYPE_L;
-                                break;
-                            }
-                            for(var sj$7 = niRunStart; sj$7 <= niRunEnd; sj$7++)charTypes[seqIndices$1[sj$7]] = prevType$2 === nextType$1 ? prevType$2 : embedDirection;
-                            si$12 = niRunEnd;
-                        }
-                    }
-                }
-                // === 3.3.6 Resolving Implicit Levels ===
-                for(var i$17 = paragraph.start; i$17 <= paragraph.end; i$17++){
-                    var level$3 = embedLevels[i$17];
-                    var type$1 = charTypes[i$17];
-                    // I2. For all characters with an odd (right-to-left) embedding level, those of type L, EN or AN go up one level.
-                    if (level$3 & 1) {
-                        if (type$1 & (TYPE_L | TYPE_EN | TYPE_AN)) embedLevels[i$17]++;
-                    } else {
-                        if (type$1 & TYPE_R) embedLevels[i$17]++;
-                        else if (type$1 & (TYPE_AN | TYPE_EN)) embedLevels[i$17] += 2;
-                    }
-                    // 5.2: Resolve any LRE, RLE, LRO, RLO, PDF, or BN to the level of the preceding character if there is one,
-                    // and otherwise to the base level.
-                    if (type$1 & BN_LIKE_TYPES) embedLevels[i$17] = i$17 === 0 ? paragraph.level : embedLevels[i$17 - 1];
-                    // 3.4 L1.1-4: Reset the embedding level of segment/paragraph separators, and any sequence of whitespace or
-                    // isolate formatting characters preceding them or the end of the paragraph, to the paragraph level.
-                    // NOTE: this will also need to be applied to each individual line ending after line wrapping occurs.
-                    if (i$17 === paragraph.end || getBidiCharType(string[i$17]) & (TYPE_S | TYPE_B)) for(var j$1 = i$17; j$1 >= 0 && getBidiCharType(string[j$1]) & TRAILING_TYPES; j$1--)embedLevels[j$1] = paragraph.level;
-                }
-            }
-            // DONE! The resolved levels can then be used, after line wrapping, to flip runs of characters
-            // according to section 3.4 Reordering Resolved Levels
-            return {
-                levels: embedLevels,
-                paragraphs: paragraphs
-            };
-            function determineAutoEmbedLevel(start, isFSI) {
-                // 3.3.1 P2 - P3
-                for(var i = start; i < string.length; i++){
-                    var charType = charTypes[i];
-                    if (charType & (TYPE_R | TYPE_AL)) return 1;
-                    if (charType & (TYPE_B | TYPE_L) || isFSI && charType === TYPE_PDI) return 0;
-                    if (charType & ISOLATE_INIT_TYPES) {
-                        var pdi = indexOfMatchingPDI(i);
-                        i = pdi === -1 ? string.length : pdi;
-                    }
-                }
-                return 0;
-            }
-            function indexOfMatchingPDI(isolateStart) {
-                // 3.1.2 BD9
-                var isolationLevel = 1;
-                for(var i = isolateStart + 1; i < string.length; i++){
-                    var charType = charTypes[i];
-                    if (charType & TYPE_B) break;
-                    if (charType & TYPE_PDI) {
-                        if (--isolationLevel === 0) return i;
-                    } else if (charType & ISOLATE_INIT_TYPES) isolationLevel++;
-                }
-                return -1;
-            }
-        }
-        // Bidi mirrored chars data, auto generated
-        var data = "14>1,j>2,t>2,u>2,1a>g,2v3>1,1>1,1ge>1,1wd>1,b>1,1j>1,f>1,ai>3,-2>3,+1,8>1k0,-1jq>1y7,-1y6>1hf,-1he>1h6,-1h5>1ha,-1h8>1qi,-1pu>1,6>3u,-3s>7,6>1,1>1,f>1,1>1,+2,3>1,1>1,+13,4>1,1>1,6>1eo,-1ee>1,3>1mg,-1me>1mk,-1mj>1mi,-1mg>1mi,-1md>1,1>1,+2,1>10k,-103>1,1>1,4>1,5>1,1>1,+10,3>1,1>8,-7>8,+1,-6>7,+1,a>1,1>1,u>1,u6>1,1>1,+5,26>1,1>1,2>1,2>2,8>1,7>1,4>1,1>1,+5,b8>1,1>1,+3,1>3,-2>1,2>1,1>1,+2,c>1,3>1,1>1,+2,h>1,3>1,a>1,1>1,2>1,3>1,1>1,d>1,f>1,3>1,1a>1,1>1,6>1,7>1,13>1,k>1,1>1,+19,4>1,1>1,+2,2>1,1>1,+18,m>1,a>1,1>1,lk>1,1>1,4>1,2>1,f>1,3>1,1>1,+3,db>1,1>1,+3,3>1,1>1,+2,14qm>1,1>1,+1,6>1,4j>1,j>2,t>2,u>2,2>1,+1";
-        var mirrorMap;
-        function parse() {
-            if (!mirrorMap) {
-                //const start = performance.now()
-                var ref = parseCharacterMap(data, true);
-                var map = ref.map;
-                var reverseMap = ref.reverseMap;
-                // Combine both maps into one
-                reverseMap.forEach(function(value, key) {
-                    map.set(key, value);
-                });
-                mirrorMap = map;
-            //console.log(`mirrored chars parsed in ${performance.now() - start}ms`)
-            }
-        }
-        function getMirroredCharacter(char) {
-            parse();
-            return mirrorMap.get(char) || null;
-        }
-        /**
-   * Given a string and its resolved embedding levels, build a map of indices to replacement chars
-   * for any characters in right-to-left segments that have defined mirrored characters.
-   * @param string
-   * @param embeddingLevels
-   * @param [start]
-   * @param [end]
-   * @return {Map<number, string>}
-   */ function getMirroredCharactersMap(string, embeddingLevels, start, end) {
-            var strLen = string.length;
-            start = Math.max(0, start == null ? 0 : +start);
-            end = Math.min(strLen - 1, end == null ? strLen - 1 : +end);
-            var map = new Map();
-            for(var i = start; i <= end; i++)if (embeddingLevels[i] & 1) {
-                var mirror = getMirroredCharacter(string[i]);
-                if (mirror !== null) map.set(i, mirror);
-            }
-            return map;
-        }
-        /**
-   * Given a start and end denoting a single line within a string, and a set of precalculated
-   * bidi embedding levels, produce a list of segments whose ordering should be flipped, in sequence.
-   * @param {string} string - the full input string
-   * @param {GetEmbeddingLevelsResult} embeddingLevelsResult - the result object from getEmbeddingLevels
-   * @param {number} [start] - first character in a subset of the full string
-   * @param {number} [end] - last character in a subset of the full string
-   * @return {number[][]} - the list of start/end segments that should be flipped, in order.
-   */ function getReorderSegments(string, embeddingLevelsResult, start, end) {
-            var strLen = string.length;
-            start = Math.max(0, start == null ? 0 : +start);
-            end = Math.min(strLen - 1, end == null ? strLen - 1 : +end);
-            var segments = [];
-            embeddingLevelsResult.paragraphs.forEach(function(paragraph) {
-                var lineStart = Math.max(start, paragraph.start);
-                var lineEnd = Math.min(end, paragraph.end);
-                if (lineStart < lineEnd) {
-                    // Local slice for mutation
-                    var lineLevels = embeddingLevelsResult.levels.slice(lineStart, lineEnd + 1);
-                    // 3.4 L1.4: Reset any sequence of whitespace characters and/or isolate formatting characters at the
-                    // end of the line to the paragraph level.
-                    for(var i = lineEnd; i >= lineStart && getBidiCharType(string[i]) & TRAILING_TYPES; i--)lineLevels[i] = paragraph.level;
-                    // L2. From the highest level found in the text to the lowest odd level on each line, including intermediate levels
-                    // not actually present in the text, reverse any contiguous sequence of characters that are at that level or higher.
-                    var maxLevel = paragraph.level;
-                    var minOddLevel = Infinity;
-                    for(var i$1 = 0; i$1 < lineLevels.length; i$1++){
-                        var level = lineLevels[i$1];
-                        if (level > maxLevel) maxLevel = level;
-                        if (level < minOddLevel) minOddLevel = level | 1;
-                    }
-                    for(var lvl = maxLevel; lvl >= minOddLevel; lvl--){
-                        for(var i$2 = 0; i$2 < lineLevels.length; i$2++)if (lineLevels[i$2] >= lvl) {
-                            var segStart = i$2;
-                            while(i$2 + 1 < lineLevels.length && lineLevels[i$2 + 1] >= lvl)i$2++;
-                            if (i$2 > segStart) segments.push([
-                                segStart + lineStart,
-                                i$2 + lineStart
-                            ]);
-                        }
-                    }
-                }
-            });
-            return segments;
-        }
-        /**
-   * @param {string} string
-   * @param {GetEmbeddingLevelsResult} embedLevelsResult
-   * @param {number} [start]
-   * @param {number} [end]
-   * @return {string} the new string with bidi segments reordered
-   */ function getReorderedString(string, embedLevelsResult, start, end) {
-            var indices = getReorderedIndices(string, embedLevelsResult, start, end);
-            var chars = [].concat(string);
-            indices.forEach(function(charIndex, i) {
-                chars[i] = (embedLevelsResult.levels[charIndex] & 1 ? getMirroredCharacter(string[charIndex]) : null) || string[charIndex];
-            });
-            return chars.join("");
-        }
-        /**
-   * @param {string} string
-   * @param {GetEmbeddingLevelsResult} embedLevelsResult
-   * @param {number} [start]
-   * @param {number} [end]
-   * @return {number[]} an array with character indices in their new bidi order
-   */ function getReorderedIndices(string, embedLevelsResult, start, end) {
-            var segments = getReorderSegments(string, embedLevelsResult, start, end);
-            // Fill an array with indices
-            var indices = [];
-            for(var i = 0; i < string.length; i++)indices[i] = i;
-            // Reverse each segment in order
-            segments.forEach(function(ref) {
-                var start = ref[0];
-                var end = ref[1];
-                var slice = indices.slice(start, end + 1);
-                for(var i = slice.length; i--;)indices[end - i] = slice[i];
-            });
-            return indices;
-        }
-        exports.closingToOpeningBracket = closingToOpeningBracket;
-        exports.getBidiCharType = getBidiCharType;
-        exports.getBidiCharTypeName = getBidiCharTypeName;
-        exports.getCanonicalBracket = getCanonicalBracket;
-        exports.getEmbeddingLevels = getEmbeddingLevels;
-        exports.getMirroredCharacter = getMirroredCharacter;
-        exports.getMirroredCharactersMap = getMirroredCharactersMap;
-        exports.getReorderSegments = getReorderSegments;
-        exports.getReorderedIndices = getReorderedIndices;
-        exports.getReorderedString = getReorderedString;
-        exports.openingToClosingBracket = openingToClosingBracket;
-        Object.defineProperty(exports, "__esModule", {
-            value: true
-        });
-        return exports;
-    }({});
-    return bidi;
-}
-exports.default = bidiFactory;
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1jmjW":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "BezierMesh", ()=>BezierMesh);
-parcelHelpers.export(exports, "createDerivedMaterial", ()=>createDerivedMaterial);
-parcelHelpers.export(exports, "expandShaderIncludes", ()=>expandShaderIncludes);
-parcelHelpers.export(exports, "getShaderUniformTypes", ()=>getShaderUniformTypes);
-parcelHelpers.export(exports, "getShadersForMaterial", ()=>getShadersForMaterial);
-parcelHelpers.export(exports, "invertMatrix4", ()=>invertMatrix4);
-parcelHelpers.export(exports, "voidMainRegExp", ()=>voidMainRegExp);
-var _three = require("three");
-/**
- * Regular expression for matching the `void main() {` opener line in GLSL.
- * @type {RegExp}
- */ const voidMainRegExp = /\bvoid\s+main\s*\(\s*\)\s*{/g;
-/**
- * Recursively expands all `#include <xyz>` statements within string of shader code.
- * Copied from three's WebGLProgram#parseIncludes for external use.
- *
- * @param {string} source - The GLSL source code to evaluate
- * @return {string} The GLSL code with all includes expanded
- */ function expandShaderIncludes(source) {
-    const pattern = /^[ \t]*#include +<([\w\d./]+)>/gm;
-    function replace(match, include) {
-        let chunk = (0, _three.ShaderChunk)[include];
-        return chunk ? expandShaderIncludes(chunk) : match;
-    }
-    return source.replace(pattern, replace);
-}
-/*
- * This is a direct copy of MathUtils.generateUUID from Three.js, to preserve compatibility with three
- * versions before 0.113.0 as it was changed from Math to MathUtils in that version.
- * https://github.com/mrdoob/three.js/blob/dd8b5aa3b270c17096b90945cd2d6d1b13aaec53/src/math/MathUtils.js#L16
- */ const _lut = [];
-for(let i = 0; i < 256; i++)_lut[i] = (i < 16 ? "0" : "") + i.toString(16);
-function generateUUID() {
-    // http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/21963136#21963136
-    const d0 = Math.random() * 0xffffffff | 0;
-    const d1 = Math.random() * 0xffffffff | 0;
-    const d2 = Math.random() * 0xffffffff | 0;
-    const d3 = Math.random() * 0xffffffff | 0;
-    const uuid = _lut[d0 & 0xff] + _lut[d0 >> 8 & 0xff] + _lut[d0 >> 16 & 0xff] + _lut[d0 >> 24 & 0xff] + "-" + _lut[d1 & 0xff] + _lut[d1 >> 8 & 0xff] + "-" + _lut[d1 >> 16 & 0x0f | 0x40] + _lut[d1 >> 24 & 0xff] + "-" + _lut[d2 & 0x3f | 0x80] + _lut[d2 >> 8 & 0xff] + "-" + _lut[d2 >> 16 & 0xff] + _lut[d2 >> 24 & 0xff] + _lut[d3 & 0xff] + _lut[d3 >> 8 & 0xff] + _lut[d3 >> 16 & 0xff] + _lut[d3 >> 24 & 0xff];
-    // .toUpperCase() here flattens concatenated strings to save heap memory space.
-    return uuid.toUpperCase();
-}
-// Local assign polyfill to avoid importing troika-core
-const assign = Object.assign || function() {
-    let target = arguments[0];
-    for(let i = 1, len = arguments.length; i < len; i++){
-        let source = arguments[i];
-        if (source) {
-            for(let prop in source)if (Object.prototype.hasOwnProperty.call(source, prop)) target[prop] = source[prop];
-        }
-    }
-    return target;
-};
-const epoch = Date.now();
-const CONSTRUCTOR_CACHE = new WeakMap();
-const SHADER_UPGRADE_CACHE = new Map();
-// Material ids must be integers, but we can't access the increment from Three's `Material` module,
-// so let's choose a sufficiently large starting value that should theoretically never collide.
-let materialInstanceId = 1e10;
-/**
- * A utility for creating a custom shader material derived from another material's
- * shaders. This allows you to inject custom shader logic and transforms into the
- * builtin ThreeJS materials without having to recreate them from scratch.
- *
- * @param {THREE.Material} baseMaterial - the original material to derive from
- *
- * @param {Object} options - How the base material should be modified.
- * @param {Object} options.defines - Custom `defines` for the material
- * @param {Object} options.extensions - Custom `extensions` for the material, e.g. `{derivatives: true}`
- * @param {Object} options.uniforms - Custom `uniforms` for use in the modified shader. These can
- *        be accessed and manipulated via the resulting material's `uniforms` property, just like
- *        in a ShaderMaterial. You do not need to repeat the base material's own uniforms here.
- * @param {String} options.timeUniform - If specified, a uniform of this name will be injected into
- *        both shaders, and it will automatically be updated on each render frame with a number of
- *        elapsed milliseconds. The "zero" epoch time is not significant so don't rely on this as a
- *        true calendar time.
- * @param {String} options.vertexDefs - Custom GLSL code to inject into the vertex shader's top-level
- *        definitions, above the `void main()` function.
- * @param {String} options.vertexMainIntro - Custom GLSL code to inject at the top of the vertex
- *        shader's `void main` function.
- * @param {String} options.vertexMainOutro - Custom GLSL code to inject at the end of the vertex
- *        shader's `void main` function.
- * @param {String} options.vertexTransform - Custom GLSL code to manipulate the `position`, `normal`,
- *        and/or `uv` vertex attributes. This code will be wrapped within a standalone function with
- *        those attributes exposed by their normal names as read/write values.
- * @param {String} options.fragmentDefs - Custom GLSL code to inject into the fragment shader's top-level
- *        definitions, above the `void main()` function.
- * @param {String} options.fragmentMainIntro - Custom GLSL code to inject at the top of the fragment
- *        shader's `void main` function.
- * @param {String} options.fragmentMainOutro - Custom GLSL code to inject at the end of the fragment
- *        shader's `void main` function. You can manipulate `gl_FragColor` here but keep in mind it goes
- *        after any of ThreeJS's color postprocessing shader chunks (tonemapping, fog, etc.), so if you
- *        want those to apply to your changes use `fragmentColorTransform` instead.
- * @param {String} options.fragmentColorTransform - Custom GLSL code to manipulate the `gl_FragColor`
- *        output value. Will be injected near the end of the `void main` function, but before any
- *        of ThreeJS's color postprocessing shader chunks (tonemapping, fog, etc.), and before the
- *        `fragmentMainOutro`.
- * @param {function<{vertexShader,fragmentShader}>:{vertexShader,fragmentShader}} options.customRewriter - A function
- *        for performing custom rewrites of the full shader code. Useful if you need to do something
- *        special that's not covered by the other builtin options. This function will be executed before
- *        any other transforms are applied.
- * @param {boolean} options.chained - Set to `true` to prototype-chain the derived material to the base
- *        material, rather than the default behavior of copying it. This allows the derived material to
- *        automatically pick up changes made to the base material and its properties. This can be useful
- *        where the derived material is hidden from the user as an implementation detail, allowing them
- *        to work with the original material like normal. But it can result in unexpected behavior if not
- *        handled carefully.
- *
- * @return {THREE.Material}
- *
- * The returned material will also have two new methods, `getDepthMaterial()` and `getDistanceMaterial()`,
- * which can be called to get a variant of the derived material for use in shadow casting. If the
- * target mesh is expected to cast shadows, then you can assign these to the mesh's `customDepthMaterial`
- * (for directional and spot lights) and/or `customDistanceMaterial` (for point lights) properties to
- * allow the cast shadow to honor your derived shader's vertex transforms and discarded fragments. These
- * will also set a custom `#define IS_DEPTH_MATERIAL` or `#define IS_DISTANCE_MATERIAL` that you can look
- * for in your derived shaders with `#ifdef` to customize their behavior for the depth or distance
- * scenarios, e.g. skipping antialiasing or expensive shader logic.
- */ function createDerivedMaterial(baseMaterial, options) {
-    // Generate a key that is unique to the content of these `options`. We'll use this
-    // throughout for caching and for generating the upgraded shader code. This increases
-    // the likelihood that the resulting shaders will line up across multiple calls so
-    // their GL programs can be shared and cached.
-    const optionsKey = getKeyForOptions(options);
-    // First check to see if we've already derived from this baseMaterial using this
-    // unique set of options, and if so reuse the constructor to avoid some allocations.
-    let ctorsByDerivation = CONSTRUCTOR_CACHE.get(baseMaterial);
-    if (!ctorsByDerivation) CONSTRUCTOR_CACHE.set(baseMaterial, ctorsByDerivation = Object.create(null));
-    if (ctorsByDerivation[optionsKey]) return new ctorsByDerivation[optionsKey]();
-    const privateBeforeCompileProp = `_onBeforeCompile${optionsKey}`;
-    // Private onBeforeCompile handler that injects the modified shaders and uniforms when
-    // the renderer switches to this material's program
-    const onBeforeCompile = function(shaderInfo, renderer) {
-        baseMaterial.onBeforeCompile.call(this, shaderInfo, renderer);
-        // Upgrade the shaders, caching the result by incoming source code
-        const cacheKey = this.customProgramCacheKey() + "|" + shaderInfo.vertexShader + "|" + shaderInfo.fragmentShader;
-        let upgradedShaders = SHADER_UPGRADE_CACHE[cacheKey];
-        if (!upgradedShaders) {
-            const upgraded = upgradeShaders(this, shaderInfo, options, optionsKey);
-            upgradedShaders = SHADER_UPGRADE_CACHE[cacheKey] = upgraded;
-        }
-        // Inject upgraded shaders and uniforms into the program
-        shaderInfo.vertexShader = upgradedShaders.vertexShader;
-        shaderInfo.fragmentShader = upgradedShaders.fragmentShader;
-        assign(shaderInfo.uniforms, this.uniforms);
-        // Inject auto-updating time uniform if requested
-        if (options.timeUniform) shaderInfo.uniforms[options.timeUniform] = {
-            get value () {
-                return Date.now() - epoch;
-            }
-        };
-        // Users can still add their own handlers on top of ours
-        if (this[privateBeforeCompileProp]) this[privateBeforeCompileProp](shaderInfo);
-    };
-    const DerivedMaterial = function DerivedMaterial() {
-        return derive(options.chained ? baseMaterial : baseMaterial.clone());
-    };
-    const derive = function(base) {
-        // Prototype chain to the base material
-        const derived = Object.create(base, descriptor);
-        // Store the baseMaterial for reference; this is always the original even when cloning
-        Object.defineProperty(derived, "baseMaterial", {
-            value: baseMaterial
-        });
-        // Needs its own ids
-        Object.defineProperty(derived, "id", {
-            value: materialInstanceId++
-        });
-        derived.uuid = generateUUID();
-        // Merge uniforms, defines, and extensions
-        derived.uniforms = assign({}, base.uniforms, options.uniforms);
-        derived.defines = assign({}, base.defines, options.defines);
-        derived.defines[`TROIKA_DERIVED_MATERIAL_${optionsKey}`] = ""; //force a program change from the base material
-        derived.extensions = assign({}, base.extensions, options.extensions);
-        // Don't inherit EventDispatcher listeners
-        derived._listeners = undefined;
-        return derived;
-    };
-    const descriptor = {
-        constructor: {
-            value: DerivedMaterial
-        },
-        isDerivedMaterial: {
-            value: true
-        },
-        customProgramCacheKey: {
-            writable: true,
-            configurable: true,
-            value: function() {
-                return baseMaterial.customProgramCacheKey() + "|" + optionsKey;
-            }
-        },
-        onBeforeCompile: {
-            get () {
-                return onBeforeCompile;
-            },
-            set (fn) {
-                this[privateBeforeCompileProp] = fn;
-            }
-        },
-        copy: {
-            writable: true,
-            configurable: true,
-            value: function(source) {
-                baseMaterial.copy.call(this, source);
-                if (!baseMaterial.isShaderMaterial && !baseMaterial.isDerivedMaterial) {
-                    assign(this.extensions, source.extensions);
-                    assign(this.defines, source.defines);
-                    assign(this.uniforms, (0, _three.UniformsUtils).clone(source.uniforms));
-                }
-                return this;
-            }
-        },
-        clone: {
-            writable: true,
-            configurable: true,
-            value: function() {
-                const newBase = new baseMaterial.constructor();
-                return derive(newBase).copy(this);
-            }
-        },
-        /**
-     * Utility to get a MeshDepthMaterial that will honor this derived material's vertex
-     * transformations and discarded fragments.
-     */ getDepthMaterial: {
-            writable: true,
-            configurable: true,
-            value: function() {
-                let depthMaterial = this._depthMaterial;
-                if (!depthMaterial) {
-                    depthMaterial = this._depthMaterial = createDerivedMaterial(baseMaterial.isDerivedMaterial ? baseMaterial.getDepthMaterial() : new (0, _three.MeshDepthMaterial)({
-                        depthPacking: (0, _three.RGBADepthPacking)
-                    }), options);
-                    depthMaterial.defines.IS_DEPTH_MATERIAL = "";
-                    depthMaterial.uniforms = this.uniforms; //automatically recieve same uniform values
-                }
-                return depthMaterial;
-            }
-        },
-        /**
-     * Utility to get a MeshDistanceMaterial that will honor this derived material's vertex
-     * transformations and discarded fragments.
-     */ getDistanceMaterial: {
-            writable: true,
-            configurable: true,
-            value: function() {
-                let distanceMaterial = this._distanceMaterial;
-                if (!distanceMaterial) {
-                    distanceMaterial = this._distanceMaterial = createDerivedMaterial(baseMaterial.isDerivedMaterial ? baseMaterial.getDistanceMaterial() : new (0, _three.MeshDistanceMaterial)(), options);
-                    distanceMaterial.defines.IS_DISTANCE_MATERIAL = "";
-                    distanceMaterial.uniforms = this.uniforms; //automatically recieve same uniform values
-                }
-                return distanceMaterial;
-            }
-        },
-        dispose: {
-            writable: true,
-            configurable: true,
-            value () {
-                const { _depthMaterial, _distanceMaterial } = this;
-                if (_depthMaterial) _depthMaterial.dispose();
-                if (_distanceMaterial) _distanceMaterial.dispose();
-                baseMaterial.dispose.call(this);
-            }
-        }
-    };
-    ctorsByDerivation[optionsKey] = DerivedMaterial;
-    return new DerivedMaterial();
-}
-function upgradeShaders(material, { vertexShader, fragmentShader }, options, key) {
-    let { vertexDefs, vertexMainIntro, vertexMainOutro, vertexTransform, fragmentDefs, fragmentMainIntro, fragmentMainOutro, fragmentColorTransform, customRewriter, timeUniform } = options;
-    vertexDefs = vertexDefs || "";
-    vertexMainIntro = vertexMainIntro || "";
-    vertexMainOutro = vertexMainOutro || "";
-    fragmentDefs = fragmentDefs || "";
-    fragmentMainIntro = fragmentMainIntro || "";
-    fragmentMainOutro = fragmentMainOutro || "";
-    // Expand includes if needed
-    if (vertexTransform || customRewriter) vertexShader = expandShaderIncludes(vertexShader);
-    if (fragmentColorTransform || customRewriter) {
-        // We need to be able to find postprocessing chunks after include expansion in order to
-        // put them after the fragmentColorTransform, so mark them with comments first. Even if
-        // this particular derivation doesn't have a fragmentColorTransform, other derivations may,
-        // so we still mark them.
-        fragmentShader = fragmentShader.replace(/^[ \t]*#include <((?:tonemapping|encodings|fog|premultiplied_alpha|dithering)_fragment)>/gm, "\n//!BEGIN_POST_CHUNK $1\n$&\n//!END_POST_CHUNK\n");
-        fragmentShader = expandShaderIncludes(fragmentShader);
-    }
-    // Apply custom rewriter function
-    if (customRewriter) {
-        let res = customRewriter({
-            vertexShader,
-            fragmentShader
-        });
-        vertexShader = res.vertexShader;
-        fragmentShader = res.fragmentShader;
-    }
-    // The fragmentColorTransform needs to go before any postprocessing chunks, so extract
-    // those and re-insert them into the outro in the correct place:
-    if (fragmentColorTransform) {
-        let postChunks = [];
-        fragmentShader = fragmentShader.replace(/^\/\/!BEGIN_POST_CHUNK[^]+?^\/\/!END_POST_CHUNK/gm, (match)=>{
-            postChunks.push(match);
-            return "";
-        });
-        fragmentMainOutro = `${fragmentColorTransform}\n${postChunks.join("\n")}\n${fragmentMainOutro}`;
-    }
-    // Inject auto-updating time uniform if requested
-    if (timeUniform) {
-        const code = `\nuniform float ${timeUniform};\n`;
-        vertexDefs = code + vertexDefs;
-        fragmentDefs = code + fragmentDefs;
-    }
-    // Inject a function for the vertexTransform and rename all usages of position/normal/uv
-    if (vertexTransform) {
-        // Hoist these defs to the very top so they work in other function defs
-        vertexShader = `vec3 troika_position_${key};
-vec3 troika_normal_${key};
-vec2 troika_uv_${key};
-${vertexShader}
-`;
-        vertexDefs = `${vertexDefs}
-void troikaVertexTransform${key}(inout vec3 position, inout vec3 normal, inout vec2 uv) {
-  ${vertexTransform}
-}
-`;
-        vertexMainIntro = `
-troika_position_${key} = vec3(position);
-troika_normal_${key} = vec3(normal);
-troika_uv_${key} = vec2(uv);
-troikaVertexTransform${key}(troika_position_${key}, troika_normal_${key}, troika_uv_${key});
-${vertexMainIntro}
-`;
-        vertexShader = vertexShader.replace(/\b(position|normal|uv)\b/g, (match, match1, index, fullStr)=>{
-            return /\battribute\s+vec[23]\s+$/.test(fullStr.substr(0, index)) ? match1 : `troika_${match1}_${key}`;
-        });
-        // Three r152 introduced the MAP_UV token, replace it too if it's pointing to the main 'uv'
-        // Perhaps the other textures too going forward?
-        if (!(material.map && material.map.channel > 0)) vertexShader = vertexShader.replace(/\bMAP_UV\b/g, `troika_uv_${key}`);
-    }
-    // Inject defs and intro/outro snippets
-    vertexShader = injectIntoShaderCode(vertexShader, key, vertexDefs, vertexMainIntro, vertexMainOutro);
-    fragmentShader = injectIntoShaderCode(fragmentShader, key, fragmentDefs, fragmentMainIntro, fragmentMainOutro);
-    return {
-        vertexShader,
-        fragmentShader
-    };
-}
-function injectIntoShaderCode(shaderCode, id, defs, intro, outro) {
-    if (intro || outro || defs) {
-        shaderCode = shaderCode.replace(voidMainRegExp, `
-${defs}
-void troikaOrigMain${id}() {`);
-        shaderCode += `
-void main() {
-  ${intro}
-  troikaOrigMain${id}();
-  ${outro}
-}`;
-    }
-    return shaderCode;
-}
-function optionsJsonReplacer(key, value) {
-    return key === "uniforms" ? undefined : typeof value === "function" ? value.toString() : value;
-}
-let _idCtr = 0;
-const optionsHashesToIds = new Map();
-function getKeyForOptions(options) {
-    const optionsHash = JSON.stringify(options, optionsJsonReplacer);
-    let id = optionsHashesToIds.get(optionsHash);
-    if (id == null) optionsHashesToIds.set(optionsHash, id = ++_idCtr);
-    return id;
-}
-// Copied from threejs WebGLPrograms.js so we can resolve builtin materials to their shaders
-// TODO how can we keep this from getting stale?
-const MATERIAL_TYPES_TO_SHADERS = {
-    MeshDepthMaterial: "depth",
-    MeshDistanceMaterial: "distanceRGBA",
-    MeshNormalMaterial: "normal",
-    MeshBasicMaterial: "basic",
-    MeshLambertMaterial: "lambert",
-    MeshPhongMaterial: "phong",
-    MeshToonMaterial: "toon",
-    MeshStandardMaterial: "physical",
-    MeshPhysicalMaterial: "physical",
-    MeshMatcapMaterial: "matcap",
-    LineBasicMaterial: "basic",
-    LineDashedMaterial: "dashed",
-    PointsMaterial: "points",
-    ShadowMaterial: "shadow",
-    SpriteMaterial: "sprite"
-};
-/**
- * Given a Three.js `Material` instance, find the shaders/uniforms that will be
- * used to render that material.
- *
- * @param material - the Material instance
- * @return {object} - the material's shader info: `{uniforms:{}, fragmentShader:'', vertexShader:''}`
- */ function getShadersForMaterial(material) {
-    let builtinType = MATERIAL_TYPES_TO_SHADERS[material.type];
-    return builtinType ? (0, _three.ShaderLib)[builtinType] : material //TODO fallback for unknown type?
-    ;
-}
-/**
- * Find all uniforms and their types within a shader code string.
- *
- * @param {string} shader - The shader code to parse
- * @return {object} mapping of uniform names to their glsl type
- */ function getShaderUniformTypes(shader) {
-    let uniformRE = /\buniform\s+(int|float|vec[234]|mat[34])\s+([A-Za-z_][\w]*)/g;
-    let uniforms = Object.create(null);
-    let match;
-    while((match = uniformRE.exec(shader)) !== null)uniforms[match[2]] = match[1];
-    return uniforms;
-}
-/**
- * Helper for smoothing out the `m.getInverse(x)` --> `m.copy(x).invert()` conversion
- * that happened in ThreeJS r123.
- * @param {Matrix4} srcMatrix
- * @param {Matrix4} [tgtMatrix]
- */ function invertMatrix4(srcMatrix, tgtMatrix = new (0, _three.Matrix4)()) {
-    if (typeof tgtMatrix.invert === "function") tgtMatrix.copy(srcMatrix).invert();
-    else tgtMatrix.getInverse(srcMatrix);
-    return tgtMatrix;
-}
-/*
-Input geometry is a cylinder with r=1, height in y dimension from 0 to 1,
-divided into a reasonable number of height segments.
-*/ const vertexDefs = `
-uniform vec3 pointA;
-uniform vec3 controlA;
-uniform vec3 controlB;
-uniform vec3 pointB;
-uniform float radius;
-varying float bezierT;
-
-vec3 cubicBezier(vec3 p1, vec3 c1, vec3 c2, vec3 p2, float t) {
-  float t2 = 1.0 - t;
-  float b0 = t2 * t2 * t2;
-  float b1 = 3.0 * t * t2 * t2;
-  float b2 = 3.0 * t * t * t2;
-  float b3 = t * t * t;
-  return b0 * p1 + b1 * c1 + b2 * c2 + b3 * p2;
-}
-
-vec3 cubicBezierDerivative(vec3 p1, vec3 c1, vec3 c2, vec3 p2, float t) {
-  float t2 = 1.0 - t;
-  return -3.0 * p1 * t2 * t2 +
-    c1 * (3.0 * t2 * t2 - 6.0 * t2 * t) +
-    c2 * (6.0 * t2 * t - 3.0 * t * t) +
-    3.0 * p2 * t * t;
-}
-`;
-const vertexTransform = `
-float t = position.y;
-bezierT = t;
-vec3 bezierCenterPos = cubicBezier(pointA, controlA, controlB, pointB, t);
-vec3 bezierDir = normalize(cubicBezierDerivative(pointA, controlA, controlB, pointB, t));
-
-// Make "sideways" always perpendicular to the camera ray; this ensures that any twists
-// in the cylinder occur where you won't see them: 
-vec3 viewDirection = normalMatrix * vec3(0.0, 0.0, 1.0);
-if (bezierDir == viewDirection) {
-  bezierDir = normalize(cubicBezierDerivative(pointA, controlA, controlB, pointB, t == 1.0 ? t - 0.0001 : t + 0.0001));
-}
-vec3 sideways = normalize(cross(bezierDir, viewDirection));
-vec3 upish = normalize(cross(sideways, bezierDir));
-
-// Build a matrix for transforming this disc in the cylinder:
-mat4 discTx;
-discTx[0].xyz = sideways * radius;
-discTx[1].xyz = bezierDir * radius;
-discTx[2].xyz = upish * radius;
-discTx[3].xyz = bezierCenterPos;
-discTx[3][3] = 1.0;
-
-// Apply transform, ignoring original y
-position = (discTx * vec4(position.x, 0.0, position.z, 1.0)).xyz;
-normal = normalize(mat3(discTx) * normal);
-`;
-const fragmentDefs = `
-uniform vec3 dashing;
-varying float bezierT;
-`;
-const fragmentMainIntro = `
-if (dashing.x + dashing.y > 0.0) {
-  float dashFrac = mod(bezierT - dashing.z, dashing.x + dashing.y);
-  if (dashFrac > dashing.x) {
-    discard;
-  }
-}
-`;
-// Debugging: separate color for each of the 6 sides:
-// const fragmentColorTransform = `
-// float sideNum = floor(vUV.x * 6.0);
-// vec3 mixColor = sideNum < 1.0 ? vec3(1.0, 0.0, 0.0) :
-//   sideNum < 2.0 ? vec3(0.0, 1.0, 1.0) :
-//   sideNum < 3.0 ? vec3(1.0, 1.0, 0.0) :
-//   sideNum < 4.0 ? vec3(0.0, 0.0, 1.0) :
-//   sideNum < 5.0 ? vec3(0.0, 1.0, 0.0) :
-//   vec3(1.0, 0.0, 1.0);
-// gl_FragColor.xyz = mix(gl_FragColor.xyz, mixColor, 0.5);
-// `
-function createBezierMeshMaterial(baseMaterial) {
-    return createDerivedMaterial(baseMaterial, {
-        chained: true,
-        uniforms: {
-            pointA: {
-                value: new (0, _three.Vector3)()
-            },
-            controlA: {
-                value: new (0, _three.Vector3)()
-            },
-            controlB: {
-                value: new (0, _three.Vector3)()
-            },
-            pointB: {
-                value: new (0, _three.Vector3)()
-            },
-            radius: {
-                value: 0.01
-            },
-            dashing: {
-                value: new (0, _three.Vector3)()
-            } //on, off, offset
-        },
-        vertexDefs,
-        vertexTransform,
-        fragmentDefs,
-        fragmentMainIntro
-    });
-}
-let geometry = null;
-const defaultBaseMaterial = /*#__PURE__*/ new (0, _three.MeshStandardMaterial)({
-    color: 0xffffff,
-    side: (0, _three.DoubleSide)
-});
-/**
- * A ThreeJS `Mesh` that bends a tube shape along a 3D cubic bezier path. The bending is done
- * by deforming a straight cylindrical geometry in the vertex shader based on a set of four
- * control point uniforms. It patches the necessary GLSL into the mesh's assigned `material`
- * automatically.
- *
- * The cubiz bezier path is determined by its four `Vector3` properties:
- * - `pointA`
- * - `controlA`
- * - `controlB`
- * - `pointB`
- *
- * The tube's radius is controlled by its `radius` property, which defaults to `0.01`.
- *
- * You can also give the tube a dashed appearance with two properties:
- *
- * - `dashArray` - an array of two numbers, defining the length of "on" and "off" parts of
- *   the dash. Each is a 0-1 ratio of the entire path's length. (Actually this is the `t` length
- *   used as input to the cubic bezier function, not its visible length.)
- * - `dashOffset` - offset of where the dash starts. You can animate this to make the dashes move.
- *
- * Note that the dashes will appear like a hollow tube, not solid. This will be more apparent on
- * thicker tubes.
- *
- * TODO: proper geometry bounding sphere and raycasting
- * TODO: allow control of the geometry's segment counts
- */ class BezierMesh extends (0, _three.Mesh) {
-    static getGeometry() {
-        return geometry || (geometry = new (0, _three.CylinderGeometry)(1, 1, 1, 6, 64).translate(0, 0.5, 0));
-    }
-    constructor(){
-        super(BezierMesh.getGeometry(), defaultBaseMaterial);
-        this.pointA = new (0, _three.Vector3)();
-        this.controlA = new (0, _three.Vector3)();
-        this.controlB = new (0, _three.Vector3)();
-        this.pointB = new (0, _three.Vector3)();
-        this.radius = 0.01;
-        this.dashArray = new (0, _three.Vector2)();
-        this.dashOffset = 0;
-        // TODO - disabling frustum culling until I figure out how to customize the
-        //  geometry's bounding sphere that gets used
-        this.frustumCulled = false;
-    }
-    // Handler for automatically wrapping the base material with our upgrades. We do the wrapping
-    // lazily on _read_ rather than write to avoid unnecessary wrapping on transient values.
-    get material() {
-        let derivedMaterial = this._derivedMaterial;
-        const baseMaterial = this._baseMaterial || this._defaultMaterial || (this._defaultMaterial = defaultBaseMaterial.clone());
-        if (!derivedMaterial || derivedMaterial.baseMaterial !== baseMaterial) {
-            derivedMaterial = this._derivedMaterial = createBezierMeshMaterial(baseMaterial);
-            // dispose the derived material when its base material is disposed:
-            baseMaterial.addEventListener("dispose", function onDispose() {
-                baseMaterial.removeEventListener("dispose", onDispose);
-                derivedMaterial.dispose();
-            });
-        }
-        return derivedMaterial;
-    }
-    set material(baseMaterial) {
-        this._baseMaterial = baseMaterial;
-    }
-    // Create and update material for shadows upon request:
-    get customDepthMaterial() {
-        return this.material.getDepthMaterial();
-    }
-    get customDistanceMaterial() {
-        return this.material.getDistanceMaterial();
-    }
-    onBeforeRender() {
-        const { uniforms } = this.material;
-        const { pointA, controlA, controlB, pointB, radius, dashArray, dashOffset } = this;
-        uniforms.pointA.value.copy(pointA);
-        uniforms.controlA.value.copy(controlA);
-        uniforms.controlB.value.copy(controlB);
-        uniforms.pointB.value.copy(pointB);
-        uniforms.radius.value = radius;
-        uniforms.dashing.value.set(dashArray.x, dashArray.y, dashOffset || 0);
-    }
-    raycast() {
-    // TODO - just fail for now
-    }
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"5MQQY":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
-	Класс, производящий инициализацию сцены, хранящий её состояние и имеющий методы для манипуляции над сценой.
-*/ parcelHelpers.export(exports, "Stage", ()=>Stage);
-var _three = require("three");
-var _orbitControlsJs = require("three/examples/jsm/controls/OrbitControls.js");
-var _pointerLockControlsJs = require("three/examples/jsm/controls/PointerLockControls.js");
-var _guiManagerJs = require("./GuiManager.js");
-var _utilsJs = require("./utils.js");
-class Stage {
-    /**
-		Инициализация объекта сцены в конструкторе с помощью методов этого класса.
-	*/ constructor(controller, canvas){
-        this.controller = controller;
-        this.canvas = canvas;
-        this.renderer = this.setupRenderer(this.canvas);
-        this.scene = this.setupScene();
-        this.height = 1.8;
-        this.crouchHeight = 0.8;
-        this.camera;
-        this.camera3P = this.setup3PCamera();
-        this.cameraOrtho = this.setupOrthoCamera();
-        this.camera1P = this.setup1PCamera();
-        this.controls;
-        this.controls3P = this.setupOrbitControls(this.camera3P, this.renderer, false);
-        this.controlsOrtho = this.setupOrbitControls(this.cameraOrtho, this.renderer, true);
-        this.controls1P = this.setupPointerLockControls(this.camera1P);
-        this.lights = this.setupLights(this.scene);
-        this.raycaster = this.setupRaycaster();
-        // инициализация массивов, хранящих перемещаемые модели (группы моделей) и модели с коллизией
-        this.movableObjects = [];
-        this.objectsWithCollision = [];
-        // включается рендер сцены
-        this.animateOrtho();
-        this.guiManager = new (0, _guiManagerJs.GuiManager)(this);
-        this.selectedObject = null;
-        this.addStartingObjects();
-        this.addEventListeners();
-    }
-    /**
-		Инициализурет камеру, из которой пользователь наблюдает за сценой.
-	*/ setup3PCamera() {
-        const camera = new _three.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 3, 3);
-        camera.name = "3P";
-        return camera;
-    }
-    setupOrthoCamera() {
-        let SCREEN_WIDTH = window.innerWidth;
-        let SCREEN_HEIGHT = window.innerHeight;
-        let aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
-        this.frustumSize = 5;
-        const camera = new _three.OrthographicCamera(this.frustumSize * aspect / -2, this.frustumSize * aspect / 2, this.frustumSize / 2, this.frustumSize / -2, 0.1, 1000);
-        camera.position.set(0, 10, 0);
-        camera.rotation.set(0, 0, 0);
-        camera.lookAt(0, 0, 0);
-        let cameraOrthoHelper = new _three.CameraHelper(camera);
-        camera.name = "Ortho";
-        return camera;
-    }
-    setup1PCamera() {
-        let camera = new _three.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.y = this.height;
-        camera.name = "1P";
-        return camera;
-    }
-    setupPointerLockControls(camera) {
-        const controls = new (0, _pointerLockControlsJs.PointerLockControls)(camera, document.body);
-        this.raycaster1P = new _three.Raycaster(new _three.Vector3(), new _three.Vector3(0, -1, 0), 0, 10);
-        this.moveForward = false;
-        this.moveBackward = false;
-        this.moveLeft = false;
-        this.moveRight = false;
-        this.canJump = false;
-        this.crouching = false;
-        this.prevTime = performance.now();
-        this.velocity = new _three.Vector3();
-        this.direction = new _three.Vector3();
-        this.scene.add(controls.getObject());
-        return controls;
-    }
-    animate1P() {
-        this.camera = this.camera1P;
-        this.controls = this.controls1P;
-        this.renderer.setAnimationLoop(()=>{
-            const time = performance.now();
-            let height;
-            if (this.crouching) height = this.crouchHeight;
-            else height = this.height;
-            if (this.controls1P.isLocked === true) {
-                this.raycaster1P.ray.origin.copy(this.controls1P.getObject().position);
-                this.raycaster1P.ray.origin.y -= height;
-                const intersections = this.raycaster1P.intersectObjects(this.movableObjects, false);
-                const onObject = intersections.length > 0;
-                const delta = (time - this.prevTime) / 1000;
-                this.velocity.x -= this.velocity.x * 10.0 * delta;
-                this.velocity.z -= this.velocity.z * 10.0 * delta;
-                this.velocity.y -= 9.8 * delta;
-                this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
-                this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
-                this.direction.normalize();
-                if (this.moveForward || this.moveBackward) this.velocity.z -= this.direction.z * 40.0 * delta;
-                if (this.moveLeft || this.moveRight) this.velocity.x -= this.direction.x * 40.0 * delta;
-                if (onObject) {
-                    this.velocity.y = Math.max(0, this.velocity.y);
-                    this.canJump = true;
-                }
-                this.controls1P.moveRight(-this.velocity.x * delta);
-                this.controls1P.moveForward(-this.velocity.z * delta);
-                this.controls1P.getObject().position.y += this.velocity.y * delta;
-                if (this.controls1P.getObject().position.y < height) {
-                    this.velocity.y = 0;
-                    this.controls1P.getObject().position.y = height;
-                    this.canJump = true;
-                }
-            }
-            this.prevTime = time;
-            this.renderer.render(this.scene, this.camera1P);
-        });
-    }
-    animate3P() {
-        this.camera = this.camera3P;
-        this.controls = this.controls3P;
-        this.renderer.setAnimationLoop(()=>{
-            this.renderer.render(this.scene, this.camera3P);
-        });
-    }
-    animateOrtho() {
-        this.camera = this.cameraOrtho;
-        this.controls = this.controlsOrtho;
-        // эксперименты с поворотом размеров в камеру. Так себе получилось.
-        // let self = this;
-        // function fixOritentation(mesh) {
-        // const quaternion = self.camera.quaternion;
-        // mesh.setRotationFromQuaternion(quaternion);
-        // mesh.updateMatrix();
-        // }
-        // for(let o of this.movableObjects) {
-        // if (o.name === 'container') {
-        // for(let c of o.children){
-        // if (c.userData.isText) {
-        // fixOritentation(c);
-        // }
-        // }
-        // }
-        // }
-        this.renderer.setAnimationLoop(()=>{
-            this.renderer.render(this.scene, this.cameraOrtho);
-        });
-    }
-    /**
-		Инициализация THREE.WebGLRenderer, объект из библиотеки, отвечающий за отрисовку всей графики на элементе canvas.
-	*/ setupRenderer() {
-        let renderer;
-        if (this.canvas) renderer = new _three.WebGLRenderer({
-            antialias: true,
-            canvas: this.canvas
-        });
-        else {
-            renderer = new _three.WebGLRenderer({
-                antialias: true
-            });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
-        }
-        renderer.setClearColor(0x333333);
-        renderer.shadowMap.enabled = true;
-        renderer.sortObjects = false;
-        return renderer;
-    }
-    /**
-		Инициализация объекта THREE.Scene, что содержит в себе все объекты на сцене.
-	*/ setupScene() {
-        return new _three.Scene();
-    }
-    /**
-		Инициализирует объект класса OrbitControls из библиотеки, позволяет пользователю управлять камерой с помощью мыши и клавиатуры. 
-	*/ setupOrbitControls(camera, renderer, restrictRotation) {
-        const controls = new (0, _orbitControlsJs.OrbitControls)(camera, renderer.domElement);
-        controls.enableRotate = !restrictRotation;
-        controls.maxPolarAngle = Math.PI / 2;
-        controls.update();
-        return controls;
-    }
-    /**
-		Устанавливает освещение для сцены.
-	*/ setupLights(scene) {
-        const ambientLight = new _three.AmbientLight(0xFFFFFF, 1);
-        scene.add(ambientLight);
-        const directionalLight = new _three.DirectionalLight(0xFFFFFF, 4);
-        scene.add(directionalLight);
-        directionalLight.position.set(0, 3, 0);
-        directionalLight.castShadow = true;
-        return [
-            directionalLight
-        ];
-    }
-    /**
-		Инициализирует объект класса THREE.Raycaster, который предназначен для помощи в рейкастинге. Raycasting используется, среди прочего, для выбора мышью (определения того, над какими объектами в трехмерном пространстве находится мышь).
-		^ перевод гуглтранслитом из документации Three.js
-	*/ setupRaycaster() {
-        return new _three.Raycaster();
-    }
-    /**
-		Скрывает текущую сцену, отсоединяя канвас рендера от документа.
-		Так же скрывается интерфейс dat.GUI
-	*/ hideScene() {
-        this.renderer.domElement.remove();
-        this.guiManager.hide();
-    }
-    /**
-		Показывает текущую сцену, присоединяя канвас рендера к документу.
-		Так же показывается интерфейс dat.GUI
-	*/ showScene() {
-        document.body.appendChild(this.renderer.domElement);
-        if (this.selectedObject) this.guiManager.show();
-    }
-    /**
-		Определить обеъкты, которыу будут добавлены после инициализации сцены.
-	*/ addStartingObjects() {
-        // для переопределения
-        const gridHelper = new _three.GridHelper(16, 64);
-        this.scene.add(gridHelper);
-        this.constraintBox = new _three.Box3(new _three.Vector3(-1.5, 0, -2), new _three.Vector3(1.5, 1.5, 2));
-        const helperbox = new _three.Box3Helper(this.constraintBox, "orange");
-        this.scene.add(helperbox);
-        const box = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial());
-        // box.position.y -= box.geometry.boundingBox.min.y;
-        box.position.x -= 1;
-        this.addObject(box, true, true, true);
-        const box2 = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial(), this.constraintBox);
-        // box2.position.y -= box.geometry.boundingBox.min.y;
-        box2.position.x += 1;
-        this.addObject(box2, true, true, true);
-        this.setRestraint(box, this.constraintBox);
-        this.setRestraint(box2, this.constraintBox);
-    }
-    /**
-		Добавляет слушатели событий, необходимые для работы этого класса
-	*/ addEventListeners() {
-        let self = this;
-        // Обновляет размер холста при изменении размеров окна браузера.
-        window.addEventListener("resize", function() {
-            let aspect = window.innerWidth / window.innerHeight;
-            self.camera.aspect = aspect;
-            self.camera.updateProjectionMatrix();
-            self.renderer.setSize(window.innerWidth, window.innerHeight);
-            self.camera1P.aspect = aspect;
-            self.camera1P.updateProjectionMatrix();
-            self.cameraOrtho.left = self.frustumSize * aspect / -2;
-            self.cameraOrtho.right = self.frustumSize * aspect / 2;
-            self.cameraOrtho.updateProjectionMatrix();
-        });
-        // управление для первого лица, потом вынести в кб контролз, наверное
-        const onKeyDown = function(event) {
-            switch(event.code){
-                case "KeyB":
-                    self.crouching = true;
-                    self.velocity.y -= 6;
-                    break;
-                case "Digit1":
-                    self.switchTo1PCamera();
-                    break;
-                case "Digit2":
-                    self.switchTo3PCamera();
-                    break;
-                case "Digit3":
-                    self.switchToOrthoCamera();
-                    break;
-                case "KeyW":
-                    self.moveForward = true;
-                    break;
-                case "KeyA":
-                    self.moveLeft = true;
-                    break;
-                case "KeyD":
-                    self.moveRight = true;
-                    break;
-                case "KeyS":
-                    self.moveBackward = true;
-                    break;
-                case "Space":
-                    if (self.canJump === true) self.velocity.y += 3.5;
-                    self.canJump = false;
-                    break;
-            }
-        };
-        const onKeyUp = function(event) {
-            switch(event.code){
-                case "KeyB":
-                    self.crouching = false;
-                    break;
-                case "KeyW":
-                    self.moveForward = false;
-                    break;
-                case "KeyA":
-                    self.moveLeft = false;
-                    break;
-                case "KeyD":
-                    self.moveRight = false;
-                    break;
-                case "KeyS":
-                    self.moveBackward = false;
-                    break;
-            }
-        };
-        document.addEventListener("keydown", onKeyDown);
-        document.addEventListener("keyup", onKeyUp);
-    }
-    switchToOrthoCamera() {
-        this.controls1P.unlock();
-        this.velocity.set(0, 0, 0);
-        this.animateOrtho();
-        this.currentCamera = "Ortho";
-    }
-    switchTo3PCamera() {
-        this.controls1P.unlock();
-        this.velocity.set(0, 0, 0);
-        this.animate3P();
-        this.currentCamera = "3P";
-    }
-    switchTo1PCamera() {
-        this.controls1P.lock();
-        this.velocity.set(0, 0, 0);
-        this.animate1P();
-        this.currentCamera = "1P";
-    }
-    /**
-		Добавляет модель или группу моделей на сцену.
-	*/ addObject(obj, isMovable, hasCollision, hasDimensions) {
-        if (isMovable) this.movableObjects.push(obj);
-        if (hasCollision) // this.objectsWithCollision.push(obj);
-        _utilsJs.applyToMeshes(obj, (o)=>{
-            this.objectsWithCollision.push(o);
-        });
-        obj.userData.isMovable = isMovable;
-        obj.userData.hasCollision = hasCollision;
-        if (hasDimensions) this.controller.addLabelToObject(obj);
-        this.scene.add(obj);
-    // this.objectsWithCollision.push(obj);
-    // obj.position.set(0,0,0);
-    // const box = new THREE.BoxHelper( obj, 0xffff00 );
-    // this.scene.add( box );
-    // this.placeObjectOnPlane(obj);
-    }
-    /**
-		Не используется. 
-		Назначение - установить позицию модели по высоте на значение "0 + высота", чтобы модель встала "на пол".
-	*/ placeObjectOnPlane(obj) {
-        const box3 = new _three.Box3().setFromObject(obj);
-        let halfHeight = (box3.max.y - box3.min.y) / 2;
-        obj.position.y = halfHeight;
-    }
-    /**
-		Изменить размер модели
-	*/ setScale(obj, x, y, z) {
-        if (!obj) return;
-        this.controller.removeLabelFromObject(obj);
-        for (let grp of obj.children)if (grp.name === "models") {
-            grp.scale.set(x, y, z);
-            if (obj.userData.isRestrained) this.adjustRestraintForScale(obj);
-        }
-        this.controller.addLabelToObject(obj);
-        this.onObjectUpdate();
-    }
-    scaleObjectAxisScalar(obj, axis, amount) {
-        if (!obj) return;
-        for (let grp of obj.children)if (grp.name === "models") {
-            const scale = grp.scale;
-            scale[axis] += amount;
-            this.setScale(obj, scale.x, scale.y, scale.z);
-        }
-    }
-    /**
-		Установить поворт модели*
-	*/ setRotation(obj, x, y, z) {
-        if (!obj) return;
-        obj.rotation.set(x, y, z);
-        this.onObjectUpdate();
-    }
-    /**
-		Установить цвет модели
-	*/ setMeshColor(obj, val) {
-        if (!obj) return;
-        _utilsJs.applyToMeshes(obj, (o, args)=>{
-            _utilsJs.applyToArrayOrValue(o.material, (o, a)=>{
-                o.color.set(a[0]);
-            }, args);
-        }, [
-            val
-        ]);
-        this.onObjectUpdate();
-    }
-    moveObject(obj, axis, amount) {
-        obj.position[axis] += amount;
-        this.onObjectUpdate();
-    }
-    getSelectedObject() {
-        return this.selectedObject;
-    }
-    /**
-		Уставновить модель как выбранную.
-	*/ setSelectedObject(obj) {
-        if (this.selectedObject) this.removeSelectionColor(this.selectedObject);
-        this.selectedObject = obj;
-        this.applySelectionColor(this.selectedObject);
-        this.guiManager.show();
-        this.guiManager.updateGui();
-    }
-    /**
-		Отменить выделение модели
-	*/ unsetSelectedObject() {
-        if (this.selectedObject) this.removeSelectionColor(this.selectedObject);
-        this.guiManager.hide();
-        this.selectedObject = null;
-    }
-    /**
-		Убрать оранжевую подсветку у модели.
-	*/ removeSelectionColor(obj) {
-        if (!obj) return;
-        _utilsJs.applyToMeshes(obj, (o)=>{
-            _utilsJs.applyToArrayOrValue(o.material, (m)=>{
-                m.emissive.set(0);
-            });
-        });
-    }
-    /**
-		Включить оранжевую подсветку у модели
-	*/ applySelectionColor(obj) {
-        _utilsJs.applyToMeshes(obj, (o)=>{
-            _utilsJs.applyToArrayOrValue(o.material, (m)=>{
-                m.emissive.set(0x9c8e30);
-            });
-        });
-    }
-    /**
-		Убрать объект со сцены
-	*/ removeObject(obj) {
-        this.scene.remove(obj);
-        this.movableObjects = this.movableObjects.filter((o)=>{
-            return o !== obj;
-        });
-        this.objectsWithCollision = this.objectsWithCollision.filter((o)=>{
-            return o !== obj;
-        });
-    }
-    /**
-		Отчистить сцену от всех movable объектов.
-	*/ clearScene() {
-        for (let obj of this.movableObjects)this.scene.remove(obj);
-        this.movableObjects = [];
-        this.objectsWithCollision = [];
-    }
-    /**
-		Обновить размеры ограничительного куба в зависимости от размера модели.
-	*/ adjustRestraintForScale(obj) {
-        if (!obj.userData.baserestraint) return;
-        let dragbbox = new _three.Box3().setFromObject(obj);
-        let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
-        let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
-        let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
-        obj.userData.restraint = new _three.Box3(new _three.Vector3(obj.userData.baserestraint.min.x + halfLength, obj.userData.baserestraint.min.y + halfHeight, obj.userData.baserestraint.min.z + halfWidth), new _three.Vector3(obj.userData.baserestraint.max.x - halfLength, obj.userData.baserestraint.max.y - halfHeight, obj.userData.baserestraint.max.z - halfWidth));
-    }
-    /**
-		Установить ограничение для модели.
-	*/ setRestraint(obj, restraint) {
-        obj.userData.baserestraint = restraint;
-        obj.userData.isRestrained = true;
-        this.adjustRestraintForScale(obj);
-    }
-    onObjectUpdate(obj) {
-        this.guiManager.updateGui();
-    }
-    getRaycaster() {
-        return this.raycaster;
-    }
-}
-
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","three/examples/jsm/controls/PointerLockControls.js":"fjBcw","./GuiManager.js":"eEqGm","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"7mqRv":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "OrbitControls", ()=>OrbitControls);
-var _three = require("three");
-// OrbitControls performs orbiting, dollying (zooming), and panning.
-// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
-//
-//    Orbit - left mouse / touch: one-finger move
-//    Zoom - middle mouse, or mousewheel / touch: two-finger spread or squish
-//    Pan - right mouse, or left mouse + ctrl/meta/shiftKey, or arrow keys / touch: two-finger move
-const _changeEvent = {
-    type: "change"
-};
-const _startEvent = {
-    type: "start"
-};
-const _endEvent = {
-    type: "end"
-};
-const _ray = new (0, _three.Ray)();
-const _plane = new (0, _three.Plane)();
-const TILT_LIMIT = Math.cos(70 * (0, _three.MathUtils).DEG2RAD);
-class OrbitControls extends (0, _three.EventDispatcher) {
-    constructor(object, domElement){
-        super();
-        this.object = object;
-        this.domElement = domElement;
-        this.domElement.style.touchAction = "none"; // disable touch scroll
-        // Set to false to disable this control
-        this.enabled = true;
-        // "target" sets the location of focus, where the object orbits around
-        this.target = new (0, _three.Vector3)();
-        // Sets the 3D cursor (similar to Blender), from which the maxTargetRadius takes effect
-        this.cursor = new (0, _three.Vector3)();
-        // How far you can dolly in and out ( PerspectiveCamera only )
-        this.minDistance = 0;
-        this.maxDistance = Infinity;
-        // How far you can zoom in and out ( OrthographicCamera only )
-        this.minZoom = 0;
-        this.maxZoom = Infinity;
-        // Limit camera target within a spherical area around the cursor
-        this.minTargetRadius = 0;
-        this.maxTargetRadius = Infinity;
-        // How far you can orbit vertically, upper and lower limits.
-        // Range is 0 to Math.PI radians.
-        this.minPolarAngle = 0; // radians
-        this.maxPolarAngle = Math.PI; // radians
-        // How far you can orbit horizontally, upper and lower limits.
-        // If set, the interval [ min, max ] must be a sub-interval of [ - 2 PI, 2 PI ], with ( max - min < 2 PI )
-        this.minAzimuthAngle = -Infinity; // radians
-        this.maxAzimuthAngle = Infinity; // radians
-        // Set to true to enable damping (inertia)
-        // If damping is enabled, you must call controls.update() in your animation loop
-        this.enableDamping = false;
-        this.dampingFactor = 0.05;
-        // This option actually enables dollying in and out; left as "zoom" for backwards compatibility.
-        // Set to false to disable zooming
-        this.enableZoom = true;
-        this.zoomSpeed = 1.0;
-        // Set to false to disable rotating
-        this.enableRotate = true;
-        this.rotateSpeed = 1.0;
-        // Set to false to disable panning
-        this.enablePan = true;
-        this.panSpeed = 1.0;
-        this.screenSpacePanning = true; // if false, pan orthogonal to world-space direction camera.up
-        this.keyPanSpeed = 7.0; // pixels moved per arrow key push
-        this.zoomToCursor = false;
-        // Set to true to automatically rotate around the target
-        // If auto-rotate is enabled, you must call controls.update() in your animation loop
-        this.autoRotate = false;
-        this.autoRotateSpeed = 2.0; // 30 seconds per orbit when fps is 60
-        // The four arrow keys
-        this.keys = {
-            LEFT: "ArrowLeft",
-            UP: "ArrowUp",
-            RIGHT: "ArrowRight",
-            BOTTOM: "ArrowDown"
-        };
-        // Mouse buttons
-        this.mouseButtons = {
-            LEFT: (0, _three.MOUSE).ROTATE,
-            MIDDLE: (0, _three.MOUSE).DOLLY,
-            RIGHT: (0, _three.MOUSE).PAN
-        };
-        // Touch fingers
-        this.touches = {
-            ONE: (0, _three.TOUCH).ROTATE,
-            TWO: (0, _three.TOUCH).DOLLY_PAN
-        };
-        // for reset
-        this.target0 = this.target.clone();
-        this.position0 = this.object.position.clone();
-        this.zoom0 = this.object.zoom;
-        // the target DOM element for key events
-        this._domElementKeyEvents = null;
-        //
-        // public methods
-        //
-        this.getPolarAngle = function() {
-            return spherical.phi;
-        };
-        this.getAzimuthalAngle = function() {
-            return spherical.theta;
-        };
-        this.getDistance = function() {
-            return this.object.position.distanceTo(this.target);
-        };
-        this.listenToKeyEvents = function(domElement) {
-            domElement.addEventListener("keydown", onKeyDown);
-            this._domElementKeyEvents = domElement;
-        };
-        this.stopListenToKeyEvents = function() {
-            this._domElementKeyEvents.removeEventListener("keydown", onKeyDown);
-            this._domElementKeyEvents = null;
-        };
-        this.saveState = function() {
-            scope.target0.copy(scope.target);
-            scope.position0.copy(scope.object.position);
-            scope.zoom0 = scope.object.zoom;
-        };
-        this.reset = function() {
-            scope.target.copy(scope.target0);
-            scope.object.position.copy(scope.position0);
-            scope.object.zoom = scope.zoom0;
-            scope.object.updateProjectionMatrix();
-            scope.dispatchEvent(_changeEvent);
-            scope.update();
-            state = STATE.NONE;
-        };
-        // this method is exposed, but perhaps it would be better if we can make it private...
-        this.update = function() {
-            const offset = new (0, _three.Vector3)();
-            // so camera.up is the orbit axis
-            const quat = new (0, _three.Quaternion)().setFromUnitVectors(object.up, new (0, _three.Vector3)(0, 1, 0));
-            const quatInverse = quat.clone().invert();
-            const lastPosition = new (0, _three.Vector3)();
-            const lastQuaternion = new (0, _three.Quaternion)();
-            const lastTargetPosition = new (0, _three.Vector3)();
-            const twoPI = 2 * Math.PI;
-            return function update(deltaTime = null) {
-                const position = scope.object.position;
-                offset.copy(position).sub(scope.target);
-                // rotate offset to "y-axis-is-up" space
-                offset.applyQuaternion(quat);
-                // angle from z-axis around y-axis
-                spherical.setFromVector3(offset);
-                if (scope.autoRotate && state === STATE.NONE) rotateLeft(getAutoRotationAngle(deltaTime));
-                if (scope.enableDamping) {
-                    spherical.theta += sphericalDelta.theta * scope.dampingFactor;
-                    spherical.phi += sphericalDelta.phi * scope.dampingFactor;
-                } else {
-                    spherical.theta += sphericalDelta.theta;
-                    spherical.phi += sphericalDelta.phi;
-                }
-                // restrict theta to be between desired limits
-                let min = scope.minAzimuthAngle;
-                let max = scope.maxAzimuthAngle;
-                if (isFinite(min) && isFinite(max)) {
-                    if (min < -Math.PI) min += twoPI;
-                    else if (min > Math.PI) min -= twoPI;
-                    if (max < -Math.PI) max += twoPI;
-                    else if (max > Math.PI) max -= twoPI;
-                    if (min <= max) spherical.theta = Math.max(min, Math.min(max, spherical.theta));
-                    else spherical.theta = spherical.theta > (min + max) / 2 ? Math.max(min, spherical.theta) : Math.min(max, spherical.theta);
-                }
-                // restrict phi to be between desired limits
-                spherical.phi = Math.max(scope.minPolarAngle, Math.min(scope.maxPolarAngle, spherical.phi));
-                spherical.makeSafe();
-                // move target to panned location
-                if (scope.enableDamping === true) scope.target.addScaledVector(panOffset, scope.dampingFactor);
-                else scope.target.add(panOffset);
-                // Limit the target distance from the cursor to create a sphere around the center of interest
-                scope.target.sub(scope.cursor);
-                scope.target.clampLength(scope.minTargetRadius, scope.maxTargetRadius);
-                scope.target.add(scope.cursor);
-                let zoomChanged = false;
-                // adjust the camera position based on zoom only if we're not zooming to the cursor or if it's an ortho camera
-                // we adjust zoom later in these cases
-                if (scope.zoomToCursor && performCursorZoom || scope.object.isOrthographicCamera) spherical.radius = clampDistance(spherical.radius);
-                else {
-                    const prevRadius = spherical.radius;
-                    spherical.radius = clampDistance(spherical.radius * scale);
-                    zoomChanged = prevRadius != spherical.radius;
-                }
-                offset.setFromSpherical(spherical);
-                // rotate offset back to "camera-up-vector-is-up" space
-                offset.applyQuaternion(quatInverse);
-                position.copy(scope.target).add(offset);
-                scope.object.lookAt(scope.target);
-                if (scope.enableDamping === true) {
-                    sphericalDelta.theta *= 1 - scope.dampingFactor;
-                    sphericalDelta.phi *= 1 - scope.dampingFactor;
-                    panOffset.multiplyScalar(1 - scope.dampingFactor);
-                } else {
-                    sphericalDelta.set(0, 0, 0);
-                    panOffset.set(0, 0, 0);
-                }
-                // adjust camera position
-                if (scope.zoomToCursor && performCursorZoom) {
-                    let newRadius = null;
-                    if (scope.object.isPerspectiveCamera) {
-                        // move the camera down the pointer ray
-                        // this method avoids floating point error
-                        const prevRadius = offset.length();
-                        newRadius = clampDistance(prevRadius * scale);
-                        const radiusDelta = prevRadius - newRadius;
-                        scope.object.position.addScaledVector(dollyDirection, radiusDelta);
-                        scope.object.updateMatrixWorld();
-                        zoomChanged = !!radiusDelta;
-                    } else if (scope.object.isOrthographicCamera) {
-                        // adjust the ortho camera position based on zoom changes
-                        const mouseBefore = new (0, _three.Vector3)(mouse.x, mouse.y, 0);
-                        mouseBefore.unproject(scope.object);
-                        const prevZoom = scope.object.zoom;
-                        scope.object.zoom = Math.max(scope.minZoom, Math.min(scope.maxZoom, scope.object.zoom / scale));
-                        scope.object.updateProjectionMatrix();
-                        zoomChanged = prevZoom !== scope.object.zoom;
-                        const mouseAfter = new (0, _three.Vector3)(mouse.x, mouse.y, 0);
-                        mouseAfter.unproject(scope.object);
-                        scope.object.position.sub(mouseAfter).add(mouseBefore);
-                        scope.object.updateMatrixWorld();
-                        newRadius = offset.length();
-                    } else {
-                        console.warn("WARNING: OrbitControls.js encountered an unknown camera type - zoom to cursor disabled.");
-                        scope.zoomToCursor = false;
-                    }
-                    // handle the placement of the target
-                    if (newRadius !== null) {
-                        if (this.screenSpacePanning) // position the orbit target in front of the new camera position
-                        scope.target.set(0, 0, -1).transformDirection(scope.object.matrix).multiplyScalar(newRadius).add(scope.object.position);
-                        else {
-                            // get the ray and translation plane to compute target
-                            _ray.origin.copy(scope.object.position);
-                            _ray.direction.set(0, 0, -1).transformDirection(scope.object.matrix);
-                            // if the camera is 20 degrees above the horizon then don't adjust the focus target to avoid
-                            // extremely large values
-                            if (Math.abs(scope.object.up.dot(_ray.direction)) < TILT_LIMIT) object.lookAt(scope.target);
-                            else {
-                                _plane.setFromNormalAndCoplanarPoint(scope.object.up, scope.target);
-                                _ray.intersectPlane(_plane, scope.target);
-                            }
-                        }
-                    }
-                } else if (scope.object.isOrthographicCamera) {
-                    const prevZoom = scope.object.zoom;
-                    scope.object.zoom = Math.max(scope.minZoom, Math.min(scope.maxZoom, scope.object.zoom / scale));
-                    if (prevZoom !== scope.object.zoom) {
-                        scope.object.updateProjectionMatrix();
-                        zoomChanged = true;
-                    }
-                }
-                scale = 1;
-                performCursorZoom = false;
-                // update condition is:
-                // min(camera displacement, camera rotation in radians)^2 > EPS
-                // using small-angle approximation cos(x/2) = 1 - x^2 / 8
-                if (zoomChanged || lastPosition.distanceToSquared(scope.object.position) > EPS || 8 * (1 - lastQuaternion.dot(scope.object.quaternion)) > EPS || lastTargetPosition.distanceToSquared(scope.target) > EPS) {
-                    scope.dispatchEvent(_changeEvent);
-                    lastPosition.copy(scope.object.position);
-                    lastQuaternion.copy(scope.object.quaternion);
-                    lastTargetPosition.copy(scope.target);
-                    return true;
-                }
-                return false;
-            };
-        }();
-        this.dispose = function() {
-            scope.domElement.removeEventListener("contextmenu", onContextMenu);
-            scope.domElement.removeEventListener("pointerdown", onPointerDown);
-            scope.domElement.removeEventListener("pointercancel", onPointerUp);
-            scope.domElement.removeEventListener("wheel", onMouseWheel);
-            scope.domElement.removeEventListener("pointermove", onPointerMove);
-            scope.domElement.removeEventListener("pointerup", onPointerUp);
-            const document = scope.domElement.getRootNode(); // offscreen canvas compatibility
-            document.removeEventListener("keydown", interceptControlDown, {
-                capture: true
-            });
-            if (scope._domElementKeyEvents !== null) {
-                scope._domElementKeyEvents.removeEventListener("keydown", onKeyDown);
-                scope._domElementKeyEvents = null;
-            }
-        //scope.dispatchEvent( { type: 'dispose' } ); // should this be added here?
-        };
-        //
-        // internals
-        //
-        const scope = this;
-        const STATE = {
-            NONE: -1,
-            ROTATE: 0,
-            DOLLY: 1,
-            PAN: 2,
-            TOUCH_ROTATE: 3,
-            TOUCH_PAN: 4,
-            TOUCH_DOLLY_PAN: 5,
-            TOUCH_DOLLY_ROTATE: 6
-        };
-        let state = STATE.NONE;
-        const EPS = 0.000001;
-        // current position in spherical coordinates
-        const spherical = new (0, _three.Spherical)();
-        const sphericalDelta = new (0, _three.Spherical)();
-        let scale = 1;
-        const panOffset = new (0, _three.Vector3)();
-        const rotateStart = new (0, _three.Vector2)();
-        const rotateEnd = new (0, _three.Vector2)();
-        const rotateDelta = new (0, _three.Vector2)();
-        const panStart = new (0, _three.Vector2)();
-        const panEnd = new (0, _three.Vector2)();
-        const panDelta = new (0, _three.Vector2)();
-        const dollyStart = new (0, _three.Vector2)();
-        const dollyEnd = new (0, _three.Vector2)();
-        const dollyDelta = new (0, _three.Vector2)();
-        const dollyDirection = new (0, _three.Vector3)();
-        const mouse = new (0, _three.Vector2)();
-        let performCursorZoom = false;
-        const pointers = [];
-        const pointerPositions = {};
-        let controlActive = false;
-        function getAutoRotationAngle(deltaTime) {
-            if (deltaTime !== null) return 2 * Math.PI / 60 * scope.autoRotateSpeed * deltaTime;
-            else return 2 * Math.PI / 60 / 60 * scope.autoRotateSpeed;
-        }
-        function getZoomScale(delta) {
-            const normalizedDelta = Math.abs(delta * 0.01);
-            return Math.pow(0.95, scope.zoomSpeed * normalizedDelta);
-        }
-        function rotateLeft(angle) {
-            sphericalDelta.theta -= angle;
-        }
-        function rotateUp(angle) {
-            sphericalDelta.phi -= angle;
-        }
-        const panLeft = function() {
-            const v = new (0, _three.Vector3)();
-            return function panLeft(distance, objectMatrix) {
-                v.setFromMatrixColumn(objectMatrix, 0); // get X column of objectMatrix
-                v.multiplyScalar(-distance);
-                panOffset.add(v);
-            };
-        }();
-        const panUp = function() {
-            const v = new (0, _three.Vector3)();
-            return function panUp(distance, objectMatrix) {
-                if (scope.screenSpacePanning === true) v.setFromMatrixColumn(objectMatrix, 1);
-                else {
-                    v.setFromMatrixColumn(objectMatrix, 0);
-                    v.crossVectors(scope.object.up, v);
-                }
-                v.multiplyScalar(distance);
-                panOffset.add(v);
-            };
-        }();
-        // deltaX and deltaY are in pixels; right and down are positive
-        const pan = function() {
-            const offset = new (0, _three.Vector3)();
-            return function pan(deltaX, deltaY) {
-                const element = scope.domElement;
-                if (scope.object.isPerspectiveCamera) {
-                    // perspective
-                    const position = scope.object.position;
-                    offset.copy(position).sub(scope.target);
-                    let targetDistance = offset.length();
-                    // half of the fov is center to top of screen
-                    targetDistance *= Math.tan(scope.object.fov / 2 * Math.PI / 180.0);
-                    // we use only clientHeight here so aspect ratio does not distort speed
-                    panLeft(2 * deltaX * targetDistance / element.clientHeight, scope.object.matrix);
-                    panUp(2 * deltaY * targetDistance / element.clientHeight, scope.object.matrix);
-                } else if (scope.object.isOrthographicCamera) {
-                    // orthographic
-                    panLeft(deltaX * (scope.object.right - scope.object.left) / scope.object.zoom / element.clientWidth, scope.object.matrix);
-                    panUp(deltaY * (scope.object.top - scope.object.bottom) / scope.object.zoom / element.clientHeight, scope.object.matrix);
-                } else {
-                    // camera neither orthographic nor perspective
-                    console.warn("WARNING: OrbitControls.js encountered an unknown camera type - pan disabled.");
-                    scope.enablePan = false;
-                }
-            };
-        }();
-        function dollyOut(dollyScale) {
-            if (scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera) scale /= dollyScale;
-            else {
-                console.warn("WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.");
-                scope.enableZoom = false;
-            }
-        }
-        function dollyIn(dollyScale) {
-            if (scope.object.isPerspectiveCamera || scope.object.isOrthographicCamera) scale *= dollyScale;
-            else {
-                console.warn("WARNING: OrbitControls.js encountered an unknown camera type - dolly/zoom disabled.");
-                scope.enableZoom = false;
-            }
-        }
-        function updateZoomParameters(x, y) {
-            if (!scope.zoomToCursor) return;
-            performCursorZoom = true;
-            const rect = scope.domElement.getBoundingClientRect();
-            const dx = x - rect.left;
-            const dy = y - rect.top;
-            const w = rect.width;
-            const h = rect.height;
-            mouse.x = dx / w * 2 - 1;
-            mouse.y = -(dy / h) * 2 + 1;
-            dollyDirection.set(mouse.x, mouse.y, 1).unproject(scope.object).sub(scope.object.position).normalize();
-        }
-        function clampDistance(dist) {
-            return Math.max(scope.minDistance, Math.min(scope.maxDistance, dist));
-        }
-        //
-        // event callbacks - update the object state
-        //
-        function handleMouseDownRotate(event) {
-            rotateStart.set(event.clientX, event.clientY);
-        }
-        function handleMouseDownDolly(event) {
-            updateZoomParameters(event.clientX, event.clientX);
-            dollyStart.set(event.clientX, event.clientY);
-        }
-        function handleMouseDownPan(event) {
-            panStart.set(event.clientX, event.clientY);
-        }
-        function handleMouseMoveRotate(event) {
-            rotateEnd.set(event.clientX, event.clientY);
-            rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(scope.rotateSpeed);
-            const element = scope.domElement;
-            rotateLeft(2 * Math.PI * rotateDelta.x / element.clientHeight); // yes, height
-            rotateUp(2 * Math.PI * rotateDelta.y / element.clientHeight);
-            rotateStart.copy(rotateEnd);
-            scope.update();
-        }
-        function handleMouseMoveDolly(event) {
-            dollyEnd.set(event.clientX, event.clientY);
-            dollyDelta.subVectors(dollyEnd, dollyStart);
-            if (dollyDelta.y > 0) dollyOut(getZoomScale(dollyDelta.y));
-            else if (dollyDelta.y < 0) dollyIn(getZoomScale(dollyDelta.y));
-            dollyStart.copy(dollyEnd);
-            scope.update();
-        }
-        function handleMouseMovePan(event) {
-            panEnd.set(event.clientX, event.clientY);
-            panDelta.subVectors(panEnd, panStart).multiplyScalar(scope.panSpeed);
-            pan(panDelta.x, panDelta.y);
-            panStart.copy(panEnd);
-            scope.update();
-        }
-        function handleMouseWheel(event) {
-            updateZoomParameters(event.clientX, event.clientY);
-            if (event.deltaY < 0) dollyIn(getZoomScale(event.deltaY));
-            else if (event.deltaY > 0) dollyOut(getZoomScale(event.deltaY));
-            scope.update();
-        }
-        function handleKeyDown(event) {
-            let needsUpdate = false;
-            switch(event.code){
-                case scope.keys.UP:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) rotateUp(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                    else pan(0, scope.keyPanSpeed);
-                    needsUpdate = true;
-                    break;
-                case scope.keys.BOTTOM:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) rotateUp(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                    else pan(0, -scope.keyPanSpeed);
-                    needsUpdate = true;
-                    break;
-                case scope.keys.LEFT:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) rotateLeft(2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                    else pan(scope.keyPanSpeed, 0);
-                    needsUpdate = true;
-                    break;
-                case scope.keys.RIGHT:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) rotateLeft(-2 * Math.PI * scope.rotateSpeed / scope.domElement.clientHeight);
-                    else pan(-scope.keyPanSpeed, 0);
-                    needsUpdate = true;
-                    break;
-            }
-            if (needsUpdate) {
-                // prevent the browser from scrolling on cursor keys
-                event.preventDefault();
-                scope.update();
-            }
-        }
-        function handleTouchStartRotate(event) {
-            if (pointers.length === 1) rotateStart.set(event.pageX, event.pageY);
-            else {
-                const position = getSecondPointerPosition(event);
-                const x = 0.5 * (event.pageX + position.x);
-                const y = 0.5 * (event.pageY + position.y);
-                rotateStart.set(x, y);
-            }
-        }
-        function handleTouchStartPan(event) {
-            if (pointers.length === 1) panStart.set(event.pageX, event.pageY);
-            else {
-                const position = getSecondPointerPosition(event);
-                const x = 0.5 * (event.pageX + position.x);
-                const y = 0.5 * (event.pageY + position.y);
-                panStart.set(x, y);
-            }
-        }
-        function handleTouchStartDolly(event) {
-            const position = getSecondPointerPosition(event);
-            const dx = event.pageX - position.x;
-            const dy = event.pageY - position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            dollyStart.set(0, distance);
-        }
-        function handleTouchStartDollyPan(event) {
-            if (scope.enableZoom) handleTouchStartDolly(event);
-            if (scope.enablePan) handleTouchStartPan(event);
-        }
-        function handleTouchStartDollyRotate(event) {
-            if (scope.enableZoom) handleTouchStartDolly(event);
-            if (scope.enableRotate) handleTouchStartRotate(event);
-        }
-        function handleTouchMoveRotate(event) {
-            if (pointers.length == 1) rotateEnd.set(event.pageX, event.pageY);
-            else {
-                const position = getSecondPointerPosition(event);
-                const x = 0.5 * (event.pageX + position.x);
-                const y = 0.5 * (event.pageY + position.y);
-                rotateEnd.set(x, y);
-            }
-            rotateDelta.subVectors(rotateEnd, rotateStart).multiplyScalar(scope.rotateSpeed);
-            const element = scope.domElement;
-            rotateLeft(2 * Math.PI * rotateDelta.x / element.clientHeight); // yes, height
-            rotateUp(2 * Math.PI * rotateDelta.y / element.clientHeight);
-            rotateStart.copy(rotateEnd);
-        }
-        function handleTouchMovePan(event) {
-            if (pointers.length === 1) panEnd.set(event.pageX, event.pageY);
-            else {
-                const position = getSecondPointerPosition(event);
-                const x = 0.5 * (event.pageX + position.x);
-                const y = 0.5 * (event.pageY + position.y);
-                panEnd.set(x, y);
-            }
-            panDelta.subVectors(panEnd, panStart).multiplyScalar(scope.panSpeed);
-            pan(panDelta.x, panDelta.y);
-            panStart.copy(panEnd);
-        }
-        function handleTouchMoveDolly(event) {
-            const position = getSecondPointerPosition(event);
-            const dx = event.pageX - position.x;
-            const dy = event.pageY - position.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            dollyEnd.set(0, distance);
-            dollyDelta.set(0, Math.pow(dollyEnd.y / dollyStart.y, scope.zoomSpeed));
-            dollyOut(dollyDelta.y);
-            dollyStart.copy(dollyEnd);
-            const centerX = (event.pageX + position.x) * 0.5;
-            const centerY = (event.pageY + position.y) * 0.5;
-            updateZoomParameters(centerX, centerY);
-        }
-        function handleTouchMoveDollyPan(event) {
-            if (scope.enableZoom) handleTouchMoveDolly(event);
-            if (scope.enablePan) handleTouchMovePan(event);
-        }
-        function handleTouchMoveDollyRotate(event) {
-            if (scope.enableZoom) handleTouchMoveDolly(event);
-            if (scope.enableRotate) handleTouchMoveRotate(event);
-        }
-        //
-        // event handlers - FSM: listen for events and reset state
-        //
-        function onPointerDown(event) {
-            if (scope.enabled === false) return;
-            if (pointers.length === 0) {
-                scope.domElement.setPointerCapture(event.pointerId);
-                scope.domElement.addEventListener("pointermove", onPointerMove);
-                scope.domElement.addEventListener("pointerup", onPointerUp);
-            }
-            //
-            if (isTrackingPointer(event)) return;
-            //
-            addPointer(event);
-            if (event.pointerType === "touch") onTouchStart(event);
-            else onMouseDown(event);
-        }
-        function onPointerMove(event) {
-            if (scope.enabled === false) return;
-            if (event.pointerType === "touch") onTouchMove(event);
-            else onMouseMove(event);
-        }
-        function onPointerUp(event) {
-            removePointer(event);
-            switch(pointers.length){
-                case 0:
-                    scope.domElement.releasePointerCapture(event.pointerId);
-                    scope.domElement.removeEventListener("pointermove", onPointerMove);
-                    scope.domElement.removeEventListener("pointerup", onPointerUp);
-                    scope.dispatchEvent(_endEvent);
-                    state = STATE.NONE;
-                    break;
-                case 1:
-                    const pointerId = pointers[0];
-                    const position = pointerPositions[pointerId];
-                    // minimal placeholder event - allows state correction on pointer-up
-                    onTouchStart({
-                        pointerId: pointerId,
-                        pageX: position.x,
-                        pageY: position.y
-                    });
-                    break;
-            }
-        }
-        function onMouseDown(event) {
-            let mouseAction;
-            switch(event.button){
-                case 0:
-                    mouseAction = scope.mouseButtons.LEFT;
-                    break;
-                case 1:
-                    mouseAction = scope.mouseButtons.MIDDLE;
-                    break;
-                case 2:
-                    mouseAction = scope.mouseButtons.RIGHT;
-                    break;
-                default:
-                    mouseAction = -1;
-            }
-            switch(mouseAction){
-                case (0, _three.MOUSE).DOLLY:
-                    if (scope.enableZoom === false) return;
-                    handleMouseDownDolly(event);
-                    state = STATE.DOLLY;
-                    break;
-                case (0, _three.MOUSE).ROTATE:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                        if (scope.enablePan === false) return;
-                        handleMouseDownPan(event);
-                        state = STATE.PAN;
-                    } else {
-                        if (scope.enableRotate === false) return;
-                        handleMouseDownRotate(event);
-                        state = STATE.ROTATE;
-                    }
-                    break;
-                case (0, _three.MOUSE).PAN:
-                    if (event.ctrlKey || event.metaKey || event.shiftKey) {
-                        if (scope.enableRotate === false) return;
-                        handleMouseDownRotate(event);
-                        state = STATE.ROTATE;
-                    } else {
-                        if (scope.enablePan === false) return;
-                        handleMouseDownPan(event);
-                        state = STATE.PAN;
-                    }
-                    break;
-                default:
-                    state = STATE.NONE;
-            }
-            if (state !== STATE.NONE) scope.dispatchEvent(_startEvent);
-        }
-        function onMouseMove(event) {
-            switch(state){
-                case STATE.ROTATE:
-                    if (scope.enableRotate === false) return;
-                    handleMouseMoveRotate(event);
-                    break;
-                case STATE.DOLLY:
-                    if (scope.enableZoom === false) return;
-                    handleMouseMoveDolly(event);
-                    break;
-                case STATE.PAN:
-                    if (scope.enablePan === false) return;
-                    handleMouseMovePan(event);
-                    break;
-            }
-        }
-        function onMouseWheel(event) {
-            if (scope.enabled === false || scope.enableZoom === false || state !== STATE.NONE) return;
-            event.preventDefault();
-            scope.dispatchEvent(_startEvent);
-            handleMouseWheel(customWheelEvent(event));
-            scope.dispatchEvent(_endEvent);
-        }
-        function customWheelEvent(event) {
-            const mode = event.deltaMode;
-            // minimal wheel event altered to meet delta-zoom demand
-            const newEvent = {
-                clientX: event.clientX,
-                clientY: event.clientY,
-                deltaY: event.deltaY
-            };
-            switch(mode){
-                case 1:
-                    newEvent.deltaY *= 16;
-                    break;
-                case 2:
-                    newEvent.deltaY *= 100;
-                    break;
-            }
-            // detect if event was triggered by pinching
-            if (event.ctrlKey && !controlActive) newEvent.deltaY *= 10;
-            return newEvent;
-        }
-        function interceptControlDown(event) {
-            if (event.key === "Control") {
-                controlActive = true;
-                const document = scope.domElement.getRootNode(); // offscreen canvas compatibility
-                document.addEventListener("keyup", interceptControlUp, {
-                    passive: true,
-                    capture: true
-                });
-            }
-        }
-        function interceptControlUp(event) {
-            if (event.key === "Control") {
-                controlActive = false;
-                const document = scope.domElement.getRootNode(); // offscreen canvas compatibility
-                document.removeEventListener("keyup", interceptControlUp, {
-                    passive: true,
-                    capture: true
-                });
-            }
-        }
-        function onKeyDown(event) {
-            if (scope.enabled === false || scope.enablePan === false) return;
-            handleKeyDown(event);
-        }
-        function onTouchStart(event) {
-            trackPointer(event);
-            switch(pointers.length){
-                case 1:
-                    switch(scope.touches.ONE){
-                        case (0, _three.TOUCH).ROTATE:
-                            if (scope.enableRotate === false) return;
-                            handleTouchStartRotate(event);
-                            state = STATE.TOUCH_ROTATE;
-                            break;
-                        case (0, _three.TOUCH).PAN:
-                            if (scope.enablePan === false) return;
-                            handleTouchStartPan(event);
-                            state = STATE.TOUCH_PAN;
-                            break;
-                        default:
-                            state = STATE.NONE;
-                    }
-                    break;
-                case 2:
-                    switch(scope.touches.TWO){
-                        case (0, _three.TOUCH).DOLLY_PAN:
-                            if (scope.enableZoom === false && scope.enablePan === false) return;
-                            handleTouchStartDollyPan(event);
-                            state = STATE.TOUCH_DOLLY_PAN;
-                            break;
-                        case (0, _three.TOUCH).DOLLY_ROTATE:
-                            if (scope.enableZoom === false && scope.enableRotate === false) return;
-                            handleTouchStartDollyRotate(event);
-                            state = STATE.TOUCH_DOLLY_ROTATE;
-                            break;
-                        default:
-                            state = STATE.NONE;
-                    }
-                    break;
-                default:
-                    state = STATE.NONE;
-            }
-            if (state !== STATE.NONE) scope.dispatchEvent(_startEvent);
-        }
-        function onTouchMove(event) {
-            trackPointer(event);
-            switch(state){
-                case STATE.TOUCH_ROTATE:
-                    if (scope.enableRotate === false) return;
-                    handleTouchMoveRotate(event);
-                    scope.update();
-                    break;
-                case STATE.TOUCH_PAN:
-                    if (scope.enablePan === false) return;
-                    handleTouchMovePan(event);
-                    scope.update();
-                    break;
-                case STATE.TOUCH_DOLLY_PAN:
-                    if (scope.enableZoom === false && scope.enablePan === false) return;
-                    handleTouchMoveDollyPan(event);
-                    scope.update();
-                    break;
-                case STATE.TOUCH_DOLLY_ROTATE:
-                    if (scope.enableZoom === false && scope.enableRotate === false) return;
-                    handleTouchMoveDollyRotate(event);
-                    scope.update();
-                    break;
-                default:
-                    state = STATE.NONE;
-            }
-        }
-        function onContextMenu(event) {
-            if (scope.enabled === false) return;
-            event.preventDefault();
-        }
-        function addPointer(event) {
-            pointers.push(event.pointerId);
-        }
-        function removePointer(event) {
-            delete pointerPositions[event.pointerId];
-            for(let i = 0; i < pointers.length; i++)if (pointers[i] == event.pointerId) {
-                pointers.splice(i, 1);
-                return;
-            }
-        }
-        function isTrackingPointer(event) {
-            for(let i = 0; i < pointers.length; i++){
-                if (pointers[i] == event.pointerId) return true;
-            }
-            return false;
-        }
-        function trackPointer(event) {
-            let position = pointerPositions[event.pointerId];
-            if (position === undefined) {
-                position = new (0, _three.Vector2)();
-                pointerPositions[event.pointerId] = position;
-            }
-            position.set(event.pageX, event.pageY);
-        }
-        function getSecondPointerPosition(event) {
-            const pointerId = event.pointerId === pointers[0] ? pointers[1] : pointers[0];
-            return pointerPositions[pointerId];
-        }
-        //
-        scope.domElement.addEventListener("contextmenu", onContextMenu);
-        scope.domElement.addEventListener("pointerdown", onPointerDown);
-        scope.domElement.addEventListener("pointercancel", onPointerUp);
-        scope.domElement.addEventListener("wheel", onMouseWheel, {
-            passive: false
-        });
-        const document = scope.domElement.getRootNode(); // offscreen canvas compatibility
-        document.addEventListener("keydown", interceptControlDown, {
-            passive: true,
-            capture: true
-        });
-        // force an update at start
-        this.update();
-    }
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"fjBcw":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "PointerLockControls", ()=>PointerLockControls);
-var _three = require("three");
-const _euler = new (0, _three.Euler)(0, 0, 0, "YXZ");
-const _vector = new (0, _three.Vector3)();
-const _changeEvent = {
-    type: "change"
-};
-const _lockEvent = {
-    type: "lock"
-};
-const _unlockEvent = {
-    type: "unlock"
-};
-const _PI_2 = Math.PI / 2;
-class PointerLockControls extends (0, _three.EventDispatcher) {
-    constructor(camera, domElement){
-        super();
-        this.camera = camera;
-        this.domElement = domElement;
-        this.isLocked = false;
-        // Set to constrain the pitch of the camera
-        // Range is 0 to Math.PI radians
-        this.minPolarAngle = 0; // radians
-        this.maxPolarAngle = Math.PI; // radians
-        this.pointerSpeed = 1.0;
-        this._onMouseMove = onMouseMove.bind(this);
-        this._onPointerlockChange = onPointerlockChange.bind(this);
-        this._onPointerlockError = onPointerlockError.bind(this);
-        this.connect();
-    }
-    connect() {
-        this.domElement.ownerDocument.addEventListener("mousemove", this._onMouseMove);
-        this.domElement.ownerDocument.addEventListener("pointerlockchange", this._onPointerlockChange);
-        this.domElement.ownerDocument.addEventListener("pointerlockerror", this._onPointerlockError);
-    }
-    disconnect() {
-        this.domElement.ownerDocument.removeEventListener("mousemove", this._onMouseMove);
-        this.domElement.ownerDocument.removeEventListener("pointerlockchange", this._onPointerlockChange);
-        this.domElement.ownerDocument.removeEventListener("pointerlockerror", this._onPointerlockError);
-    }
-    dispose() {
-        this.disconnect();
-    }
-    getObject() {
-        return this.camera;
-    }
-    getDirection(v) {
-        return v.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
-    }
-    moveForward(distance) {
-        // move forward parallel to the xz-plane
-        // assumes camera.up is y-up
-        const camera = this.camera;
-        _vector.setFromMatrixColumn(camera.matrix, 0);
-        _vector.crossVectors(camera.up, _vector);
-        camera.position.addScaledVector(_vector, distance);
-    }
-    moveRight(distance) {
-        const camera = this.camera;
-        _vector.setFromMatrixColumn(camera.matrix, 0);
-        camera.position.addScaledVector(_vector, distance);
-    }
-    lock() {
-        this.domElement.requestPointerLock();
-    }
-    unlock() {
-        this.domElement.ownerDocument.exitPointerLock();
-    }
-}
-// event listeners
-function onMouseMove(event) {
-    if (this.isLocked === false) return;
-    const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-    const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-    const camera = this.camera;
-    _euler.setFromQuaternion(camera.quaternion);
-    _euler.y -= movementX * 0.002 * this.pointerSpeed;
-    _euler.x -= movementY * 0.002 * this.pointerSpeed;
-    _euler.x = Math.max(_PI_2 - this.maxPolarAngle, Math.min(_PI_2 - this.minPolarAngle, _euler.x));
-    camera.quaternion.setFromEuler(_euler);
-    this.dispatchEvent(_changeEvent);
-}
-function onPointerlockChange() {
-    if (this.domElement.ownerDocument.pointerLockElement === this.domElement) {
-        this.dispatchEvent(_lockEvent);
-        this.isLocked = true;
-    } else {
-        this.dispatchEvent(_unlockEvent);
-        this.isLocked = false;
-    }
-}
-function onPointerlockError() {
-    console.error("THREE.PointerLockControls: Unable to use Pointer Lock API");
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eEqGm":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
-	Класс для более удобной работы с объектом dat.GUI из сторонней библиотеки. dat.GUI добавляет интерфейс, используемый для манипуляций над моделями в сцене: изменение размеров, поворот, цвет.
-*/ parcelHelpers.export(exports, "GuiManager", ()=>GuiManager);
-var _datGui = require("dat.gui");
-var _stageJs = require("./Stage.js");
-var _utilsJs = require("./utils.js");
-class GuiManager {
-    /**
-		Конструктор, определяет зависимость этого класса - объект класса Stage
-	*/ constructor(stage){
-        this.stage = stage;
-        this.gui = new _datGui.GUI({
-            autoplace: true
-        });
-        // this.gui.domElement = document.querySelector('#controls');
-        this.listeners = [];
-        this.setupOptions();
-    }
-    /**
-		Обновляет значения на панели интерфейса для отражения актуального состояния объекта.
-	*/ updateGui() {
-        for (let l of this.listeners)l();
-        this.gui.updateDisplay();
-    }
-    /**
-		Инициализация объекта интерфейа, определение параметров, которые можно менять через интерфейс.
-		Для добавления новых параметров необходимо:
-			1. Добавить новое поле в options
-			2. Добавить опцию к объекту dat.gui
-			3. Опционально - Добавить функцию, которая будет обновлять значения на интерфейсе в зависимости от реального состояния объекта.
-	*/ setupOptions() {
-        const options = {
-            "\u0434\u043B\u0438\u043D\u0430": 1,
-            "\u0432\u044B\u0441\u043E\u0442\u0430": 1,
-            "\u0448\u0438\u0440\u0438\u043D\u0430": 1,
-            "\u043F\u043E\u0432\u043E\u0440\u043E\u0442X": 0,
-            "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y": 0,
-            "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z": 0,
-            "\u0446\u0432\u0435\u0442": 0xFFFFFF,
-            "\u0440\u0430\u0437\u043C\u0435\u0440\u044B": true
-        };
-        this.options = options;
-        let self = this;
-        this.gui.add(options, "\u0434\u043B\u0438\u043D\u0430", 0.1, 10, 0.1).onChange((e)=>{
-            self.stage.setScale(self.stage.selectedObject, options["\u0434\u043B\u0438\u043D\u0430"], options["\u0432\u044B\u0441\u043E\u0442\u0430"], options["\u0448\u0438\u0440\u0438\u043D\u0430"]);
-        });
-        this.gui.add(options, "\u0448\u0438\u0440\u0438\u043D\u0430", 0.1, 10, 0.1).onChange((e)=>{
-            self.stage.setScale(self.stage.selectedObject, options["\u0434\u043B\u0438\u043D\u0430"], options["\u0432\u044B\u0441\u043E\u0442\u0430"], options["\u0448\u0438\u0440\u0438\u043D\u0430"]);
-        });
-        this.gui.add(options, "\u0432\u044B\u0441\u043E\u0442\u0430", 0.1, 10, 0.1).onChange((e)=>{
-            self.stage.setScale(self.stage.selectedObject, options["\u0434\u043B\u0438\u043D\u0430"], options["\u0432\u044B\u0441\u043E\u0442\u0430"], options["\u0448\u0438\u0440\u0438\u043D\u0430"]);
-        });
-        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442X", 0, Math.PI * 2, Math.PI / 16).onChange((e)=>{
-            self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
-        });
-        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y", 0, Math.PI * 2, Math.PI / 16).onChange((e)=>{
-            self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
-        });
-        this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z", 0, Math.PI * 2, Math.PI / 16).onChange((e)=>{
-            self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
-        });
-        this.gui.add(options, "\u0440\u0430\u0437\u043C\u0435\u0440\u044B").onChange((e)=>{
-            for (let o of self.stage.movableObjects)if (o.name === "container") {
-                for (let c of o.children)if (c.isLine || c.userData.isText) c.visible = e;
-            }
-        });
-        this.gui.addColor(options, "\u0446\u0432\u0435\u0442").onChange((e)=>{
-            self.stage.setMeshColor(self.stage.selectedObject, e);
-        });
-        this.listeners.push(()=>{
-            if (!self.stage.selectedObject || self.stage.selectedObject.name !== "container") return;
-            let models = self.stage.selectedObject.children.filter((c)=>{
-                return c.name === "models";
-            });
-            self.options["\u0434\u043B\u0438\u043D\u0430"] = models[0].scale.x;
-            self.options["\u0432\u044B\u0441\u043E\u0442\u0430"] = models[0].scale.y;
-            self.options["\u0448\u0438\u0440\u0438\u043D\u0430"] = models[0].scale.z;
-            self.options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"] = self.stage.selectedObject.rotation.x;
-            self.options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"] = self.stage.selectedObject.rotation.y;
-            self.options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"] = self.stage.selectedObject.rotation.z;
-            if (self.stage.selectedObject.isMesh) self.options["\u0446\u0432\u0435\u0442"] = self.stage.selectedObject.material.color.getHex();
-            else _utilsJs.applyToMeshes(self.stage.selectedObject, (o)=>{
-                _utilsJs.applyToArrayOrValue(o.material, (m)=>{
-                    self.options["\u0446\u0432\u0435\u0442"] = m.color.getHex();
-                });
-            });
-        });
-    }
-    /**
-		Скрыть dat.GUI Элемент
-	*/ hide() {
-        this.gui.hide();
-    }
-    /**
-		Отобразить dat.GUI Элемент.
-	*/ show() {
-        this.gui.show();
-    }
-}
-
-},{"dat.gui":"k3xQk","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"72Dku":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "applyToArrayOrValue", ()=>applyToArrayOrValue);
-/**
-	Применить функцию cb с аргументами args ко всем потомкам-моделям объекта obj.
-*/ parcelHelpers.export(exports, "applyToMeshes", ()=>applyToMeshes);
-parcelHelpers.export(exports, "snapPoint", ()=>snapPoint);
-parcelHelpers.export(exports, "angleBetweenSegmentsXZ", ()=>angleBetweenSegmentsXZ);
-parcelHelpers.export(exports, "arePointsNearXZ", ()=>arePointsNearXZ);
-parcelHelpers.export(exports, "pointsHaveSameCoordinatesXZ", ()=>pointsHaveSameCoordinatesXZ);
-/**
-	Создать модель, используя данные о её геометрии и материале. Созданные модели имеют структуру
-	group(container) -> group(model) -> mesh
-*/ parcelHelpers.export(exports, "createMesh", ()=>createMesh);
-/**
-	Создать дубликат какого-то объекта - либо модели, либо группы моделей. Материалы у объектов клонируются.
-*/ parcelHelpers.export(exports, "cloneObject", ()=>cloneObject);
-/**
-	Получает координаты всех 8 точек, определяющих box3 в пространстве
-*/ parcelHelpers.export(exports, "getBox3Points", ()=>getBox3Points) /*
-
-function makeParallelLine(point,point1,offset) {
-	let x1 = point1.x;
-	let x2 = point.x;
-	let z1 = point1.z;
-	let z2 = point.z;
-	
-	const y1 = point.y;
-	const y2 = point1.y;
-	point.y = 0; point1.y = 0;
-	const dist = point.distanceTo(point1);
-	point.y = y1; point1.y = y2;
-	
-	const x1p = x1 + offset * (z2-z1) / dist;
-	const x2p = x2 + offset * (z2-z1) / dist;
-	const z1p = z1 + offset * (x1-x2) / dist;
-	const z2p = z2 + offset * (x1-x2) / dist;
-	
-	const geometry2 = new THREE.BufferGeometry().setFromPoints([
-		new THREE.Vector3(x1p,1,z1p),
-		new THREE.Vector3(x2p,1,z2p)]);
-	
-	return new THREE.Line(geometry2, material);
-}
-
-
-*/ ;
-var _three = require("three");
-function applyToArrayOrValue(maybeArray, cb, args) {
-    if (Array.isArray(maybeArray)) for (let m of maybeArray)cb(m, args);
-    else cb(maybeArray, args);
-}
-function applyToMeshes(obj, cb, args) {
-    if (obj.isMesh && !obj.userData.isText && !obj.userData.isLine) cb(obj, args);
-    else if (obj.children.length > 0) for (let o of obj.children)this.applyToMeshes(o, cb, args);
-}
-function snapPoint(p) {
-    function roundToNearestQuarter(num) {
-        const integerPart = Math.floor(num);
-        const fractionalPart = num - integerPart;
-        let roundedFraction;
-        if (fractionalPart < 0.125) roundedFraction = 0.0;
-        else if (fractionalPart < 0.375) roundedFraction = 0.25;
-        else if (fractionalPart < 0.625) roundedFraction = 0.5;
-        else if (fractionalPart < 0.875) roundedFraction = 0.75;
-        else roundedFraction = 1.0;
-        return integerPart + roundedFraction;
-    }
-    p.x = roundToNearestQuarter(p.x);
-    p.z = roundToNearestQuarter(p.z);
-}
-function angleBetweenSegmentsXZ(A, O, B) {
-    // Координаты точек
-    const [x1, y1] = [
-        A.x,
-        A.z
-    ];
-    const [x0, y0] = [
-        O.x,
-        O.z
-    ];
-    const [x2, y2] = [
-        B.x,
-        B.z
-    ];
-    // Вектор OA
-    const vectorOA = [
-        x1 - x0,
-        y1 - y0
-    ];
-    const vectorOB = [
-        x2 - x0,
-        y2 - y0
-    ];
-    // Скалярное произведение векторов
-    const dotProduct = vectorOA[0] * vectorOB[0] + vectorOA[1] * vectorOB[1];
-    // Длины векторов
-    const magnitudeOA = Math.sqrt(vectorOA[0] * vectorOA[0] + vectorOA[1] * vectorOA[1]);
-    const magnitudeOB = Math.sqrt(vectorOB[0] * vectorOB[0] + vectorOB[1] * vectorOB[1]);
-    // Вычисляем косинус угла
-    const cosTheta = dotProduct / (magnitudeOA * magnitudeOB);
-    // Вычисляем угол в радианах
-    const theta = Math.acos(cosTheta);
-    // Преобразуем радианы в градусы
-    const degrees = theta * (180 / Math.PI);
-    return degrees;
-}
-function arePointsNearXZ(p1, p2) {
-    const NEAR_DIST = 0.4;
-    const y1 = p1.y;
-    const y2 = p2.y;
-    p1.y = 0;
-    p2.y = 0;
-    const dist = p1.distanceTo(p2);
-    const areNear = dist < NEAR_DIST;
-    p1.y = y1;
-    p2.y = y2;
-    return areNear;
-}
-function pointsHaveSameCoordinatesXZ(p1, p2) {
-    return p1.x === p2.x && p1.z === p2.z;
-}
-function createMesh(geometry, material) {
-    let mesh = new _three.Mesh(geometry, material);
-    mesh.geometry.computeBoundingBox();
-    let modelGroup = new _three.Group();
-    let containerGroup = new _three.Group();
-    modelGroup.name = "models";
-    modelGroup.add(mesh);
-    containerGroup.name = "container";
-    containerGroup.add(modelGroup);
-    return containerGroup;
-}
-function cloneObject(obj) {
-    let newobj = obj.clone();
-    this.applyToMeshes(newobj, (o)=>{
-        if (Array.isArray(o.material)) o.material = Array.from(o.material, (x)=>x);
-        else o.material = o.material.clone();
-    });
-    return newobj;
-}
-function getBox3Points(box3) {
-    let points = [];
-    points.push(new _three.Vector3(box3.max.x, box3.max.y, box3.max.z));
-    points.push(new _three.Vector3(box3.min.x, box3.max.y, box3.max.z));
-    points.push(new _three.Vector3(box3.min.x, box3.max.y, box3.min.z));
-    points.push(new _three.Vector3(box3.max.x, box3.max.y, box3.min.z));
-    points.push(new _three.Vector3(box3.max.x, box3.min.y, box3.max.z));
-    points.push(new _three.Vector3(box3.min.x, box3.min.y, box3.max.z));
-    points.push(new _three.Vector3(box3.min.x, box3.min.y, box3.min.z));
-    points.push(new _three.Vector3(box3.max.x, box3.min.y, box3.min.z));
-    return points;
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","three":"ktPTu"}],"ivRbE":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
-	Потомок класса Stage, отличается набором моделей, присутствующих на сцене после инициализации.
-*/ parcelHelpers.export(exports, "FloorPlannerStage", ()=>FloorPlannerStage);
-var _three = require("three");
-var _stageJs = require("./Stage.js");
-var _utilsJs = require("./utils.js");
-class FloorPlannerStage extends (0, _stageJs.Stage) {
-    setCanvas() {
-    // this.canvas = document.querySelector('#floorPlanner');
-    }
-    addStartingObjects() {
-        const gridHelper = new _three.GridHelper(16, 64);
-        this.addObject(gridHelper);
-        const plane = _utilsJs.createMesh(new _three.PlaneGeometry(4, 4), new _three.MeshStandardMaterial({
-            color: 0x999999,
-            side: _three.DoubleSide
-        }));
-        plane.rotation.x = -0.5 * Math.PI;
-        plane.receiveShadow = true;
-        const wallColor = 0xf8c471;
-        const textureLoader = new _three.TextureLoader();
-        const wallGeometry = new _three.PlaneGeometry(4, 4);
-        const walltexture = textureLoader.load("./assets/textures/wallpaper2.jpg");
-        walltexture.wrapS = _three.RepeatWrapping;
-        walltexture.wrapT = _three.RepeatWrapping;
-        walltexture.repeat.set(4, 4);
-        const wallMaterial = ()=>{
-            return new _three.MeshStandardMaterial({
-                map: walltexture
-            });
-        };
-        const wall1 = _utilsJs.createMesh(wallGeometry, wallMaterial());
-        const wall2 = _utilsJs.createMesh(wallGeometry, wallMaterial());
-        const wall3 = _utilsJs.createMesh(wallGeometry, wallMaterial());
-        const wall4 = _utilsJs.createMesh(wallGeometry, wallMaterial());
-        wall1.rotation.y = 0.5 * Math.PI;
-        wall1.rotation.z = -0.5 * Math.PI;
-        wall1.position.set(-2, 0.75, 0);
-        wall2.position.set(0, 0.75, -2);
-        wall2.rotation.z = 0.5 * Math.PI;
-        wall3.position.set(2, 0.75, 0);
-        wall3.rotation.x = 0.5 * Math.PI;
-        wall3.rotation.y = -0.5 * Math.PI;
-        wall4.position.set(0, 0.75, 2);
-        wall4.rotation.y = -1 * Math.PI;
-        wall4.rotation.z = 0.5 * Math.PI;
-        wall1.castShadow = true;
-        wall1.receiveShadow = true;
-        wall1.userData.isSelectable = true;
-        wall2.userData.isSelectable = true;
-        wall3.userData.isSelectable = true;
-        wall4.userData.isSelectable = true;
-        plane.userData.isSelectable = true;
-        this.addObject(wall1, false, true);
-        this.addObject(wall2, false, true);
-        this.addObject(wall3, false, true);
-        this.addObject(wall4, false, true);
-        this.addObject(plane, false, false);
-        this.constraintBox = new _three.Box3(new _three.Vector3(-2, 0, -2), new _three.Vector3(2, 1.5, 2));
-    }
-}
-
-},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"kmFdU":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
-	Класс, добавляющий управление моделями с помощью мыши, и так же просчитывающий коллизии между моделями и ограничителями
-	
-	Этот класс надо поделить на коллизии, выбор мышью, перемещение мышью
-	
-	Ещё он дёргает напрямую объекты из stage, хотя должен получать их от контроллера. Наверное.
-*/ parcelHelpers.export(exports, "DragEnginePlane", ()=>DragEnginePlane);
-var _three = require("three");
-var _stageJs = require("./Stage.js");
-class DragEnginePlane {
-    /**
-		Инициализация необходимых переменных.
-		Так же этому классу требуется объект класса Stage для работы, но он передаётся не в конструкторе, а с помощью отдельного метода.
-	*/ constructor(){
-        this.mousePosition = new _three.Vector2();
-        this.planeIntersect = new _three.Vector3();
-        this.dragObject;
-        this.pIntersect = new _three.Vector3();
-        this.shift = new _three.Vector3();
-        this.pNormalHorizontal = new _three.Vector3(0, 1, 0);
-        this.pNormalVertical = new _three.Vector3(0, 0, 1);
-        this.pNormal = this.pNormalHorizontal;
-        this.planeDrag = new _three.Plane(new _three.Vector3(0, 0, 0));
-        this.lockX = false;
-        this.lockY = false;
-        this.lockZ = false;
-        this.collision = false;
-        this.dragging = true;
-    }
-    setDragging(bool) {
-        this.dragging = bool;
-    }
-    /**
-		Добавляет отслеживание мыши на сцене, чтобы пользователь мог перемещать модели с помощью мыши.
-	*/ addEventListenersToStage() {
-        let self = this;
-        // Движение мыши: перемещение выбранный предмет
-        this.stage.renderer.domElement.addEventListener("pointermove", function(e) {
-            self.calculateRayToPointer(e.offsetX, e.offsetY);
-            if (self.dragObject && self.dragging) self.drag();
-        });
-        // Нажатие любой кнопки мыши: выбрать модель, если курсор находится на ней
-        this.stage.renderer.domElement.addEventListener("pointerdown", function() {
-            if (self.dragging) self.tryPickup();
-        });
-        // Нажатие любой кнопки мыши: если мышь выбрала какую-то модель, то информируем объект сцены об этом.
-        // Этот слушатель переедет в другое место, скорее всего, в контроллер.
-        this.stage.renderer.domElement.addEventListener("pointerdown", function() {
-            if (self.dragObject) self.stage.setSelectedObject(self.dragObject);
-            else {
-                // по сути два раза смотрим пересечения с объектами. Нот грейт.
-                let obj = self.selectObject(self.stage.scene.children);
-                if (obj) self.stage.setSelectedObject(obj);
-            }
-        });
-        // Отпускание кнопки мыши: прекратить перемещение объекта
-        this.stage.renderer.domElement.addEventListener("pointerup", function() {
-            self.drop();
-        });
-    }
-    setCollision(bool) {
-        this.collision = bool;
-    }
-    isCollisionEnabled() {
-        return this.collision;
-    }
-    /**
-		Убирает блокировку оси перемещения.
-	*/ resetLocks() {
-        this.lockX = false;
-        this.lockY = false;
-        this.lockZ = false;
-        this.pNormal = this.pNormalHorizontal;
-    }
-    lockAxis(axis) {
-        this.resetLocks();
-        switch(axis){
-            case "x":
-                this.lockX = true;
-                break;
-            case "z":
-                this.lockZ = true;
-                break;
-            case "y":
-                this.lockY = true;
-                this.pNormal = this.pNormalVertical;
-                break;
-        }
-        this.tryPickup();
-    }
-    /**
-		Проверяет, находится ли курсор на какой-то модели, которую можно выбрать, и вызывает this.pickup(), если это так.
-	*/ tryPickup() {
-        let intersects = this.stage.raycaster.intersectObjects(this.stage.movableObjects);
-        if (intersects.length > 0) {
-            let index = 0;
-            while(!intersects[index].object.isMesh){
-                index++;
-                if (index >= intersects.length) return;
-            }
-            let obj = this.getRootParentGroup(intersects[index].object);
-            let point = intersects[index].point;
-            this.pickup(point, obj);
-        // console.log(obj);
-        }
-    }
-    /**
-		То же самое, что и верхняя tryPickup(), но тот работает только на movableObjects, а этот на тот список, что передан в массиве. Это говно и надо переделать. 
-	*/ selectObject(objectlist) {
-        let intersects = this.stage.raycaster.intersectObjects(objectlist);
-        if (intersects.length > 0 && intersects[0].object.userData.isSelectable) return this.getRootParentGroup(intersects[0].object);
-        else return null;
-    }
-    /**
-		Начать перемещение модели
-	*/ pickup(intersectionPoint, obj) {
-        this.stage.controls.enabled = false;
-        this.dragObject = obj;
-        this.pIntersect.copy(intersectionPoint);
-        this.planeDrag.setFromNormalAndCoplanarPoint(this.pNormal, this.pIntersect);
-        this.shift.subVectors(obj.position, intersectionPoint);
-    }
-    /**
-		Прекратить перемещение модели
-	*/ drop() {
-        this.dragObject = null;
-        this.stage.controls.enabled = true;
-    }
-    /**
-		Перемещать выбранную модель к курсору мыши с учётом блокировки по осям, ограничений и коллизий.
-	*/ drag() {
-        this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
-        this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
-        const oldpos = this.dragObject.position.clone();
-        let x = this.dragObject.position.x;
-        let y = this.dragObject.position.y;
-        let z = this.dragObject.position.z;
-        this.dragObject.position.addVectors(this.planeIntersect, this.shift);
-        this.applyAxisLock(x, y, z);
-        this.applyRestraint(this.dragObject);
-        this.applyCollision(this.dragObject);
-        if (this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
-    }
-    /**
-		Ограничить перемещение модели в случае, если включена блокировка какой-то из осей.
-	*/ applyAxisLock(x, y, z) {
-        if (this.lockX) {
-            this.dragObject.position.y = y;
-            this.dragObject.position.z = z;
-        } else if (this.lockY) {
-            this.dragObject.position.x = x;
-            this.dragObject.position.z = z;
-        } else if (this.lockZ) {
-            this.dragObject.position.y = y;
-            this.dragObject.position.x = x;
-        }
-    }
-    /**
-		Применить ограничение на перемещение модели, в случае если коллизии активированы и в объекте модели эти коллизии прописаны.
-		Если какая-то из сторон куба вышла за пределы ограничителя, то позиция корректируется так, чтобы вернуть модель обратно внутрь ограничителя.
-	*/ applyRestraint(obj) {
-        if (!this.collision) return;
-        let restraint = obj.userData.restraint;
-        if (restraint) obj.position.clamp(restraint.min, restraint.max);
-    }
-    /*
-		Применить коллизию: если перемещаемая модель столкнулась с другой моделью, у которой есть коллизия, то пересчитываем позицию перемещаемой модели так, чтобы коллизионные коробки двух моделей не пересекались.
-	**/ applyCollision(obj) {
-        if (!this.collision) return;
-        // вынимаем линии из потомков объекта, чтобы они не учавствовали в коллизии
-        let tempchild1 = [];
-        let chiCopy1 = [
-            ...obj.children
-        ];
-        for (let c of chiCopy1)if (c.isLine || c.userData.isText) {
-            tempchild1.push(c);
-            obj.remove(c);
-        }
-        for (let colobj of this.stage.objectsWithCollision){
-            if (obj === colobj) continue;
-            if (obj === this.getRootParentGroup(colobj)) continue;
-            let tempchild2 = [];
-            let chiCopy2 = [
-                ...colobj.children
-            ];
-            for (let c of chiCopy2)if (c.isLine || c.userData.isText) {
-                tempchild2.push(c);
-                colobj.remove(c);
-            }
-            if (this.hasIntersection(obj, colobj)) {
-                let prevpos = obj.position.clone();
-                let colbbox = colobj.isBox3 ? colobj : new _three.Box3().setFromObject(colobj);
-                obj.position.clamp(colbbox.min, colbbox.max);
-                // let con_help1 = new THREE.Box3Helper(colbbox, "blue");
-                // this.stage.scene.add(con_help1);
-                /*	
-					после применения dragObject.position.clamp, центр таскаемого объекта встаёт 
-					на одну из граней того объекта, с котором приозошла коллизия (коллизионный объект).
-					"код" ниже выталкивает таскаемый объект за пределы коллизионного объекта
-				
-					Схема: линии это границы таскаемого объекта, единицы - границы коллизионного.
-					После клемпа			После портянки ниже
-						11111111					11111111
-					|---1---|  1			|-------1	   1
-					|	1   |  1     =>		|		1	   1
-					|___11111111			|_______11111111
-				*/ let dragbbox = new _three.Box3().setFromObject(obj);
-                let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
-                let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
-                let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
-                let dragpos = obj.position;
-                if (prevpos.x < dragpos.x) dragpos.x -= halfLength;
-                else if (prevpos.x > dragpos.x) dragpos.x += halfLength;
-                if (prevpos.z < dragpos.z) dragpos.z -= halfWidth;
-                else if (prevpos.z > dragpos.z) dragpos.z += halfWidth;
-                if (prevpos.y < dragpos.y) dragpos.y -= halfHeight;
-                else if (prevpos.y > dragpos.y) dragpos.y += halfHeight;
-            }
-            for (let c of tempchild2)colobj.add(c);
-        }
-        for (let c of tempchild1)obj.add(c);
-    }
-    /**
-		Рассчитывает нормализованное положение мыши в сцене.
-		В окне браузера положение мышии выражается в количестве пикселей от левого верхнего угла страницы с поправкой на прокрутку окна.
-		Например, если окно состоит из 1920 x 600 пикселей, то курсор, установленный в центре будет иметь координаты 
-		(960, 300)
-		
-		В сцене рендера же для определения положения курсора используются нормализованные координаты: центр экрана считается за точку (0,0), левый верхний угол (-1,-1) и правый нижний (1,1).
-
-		Рассчитывать нужно, чтобы определить, на какую модель в сцене указывает курсор.
-	*/ calculateRayToPointer(pointerX, pointerY) {
-        let canvas = this.stage.renderer.domElement;
-        this.mousePosition.x = pointerX / canvas.clientWidth * 2 - 1;
-        this.mousePosition.y = -(pointerY / canvas.clientHeight) * 2 + 1;
-        this.stage.raycaster.setFromCamera(this.mousePosition, this.stage.camera);
-    }
-    /**
-		Проверяет, пересекаются ли два объекта или нет. Используется при определении коллизии.
-	*/ hasIntersection(obj1, obj2) {
-        let colbox1 = new _three.Box3();
-        let colbox2 = new _three.Box3();
-        colbox1 = obj1.isBox3 ? obj1 : colbox1.setFromObject(obj1);
-        colbox2 = obj2.isBox3 ? obj2 : colbox2.setFromObject(obj2);
-        return colbox1.intersectsBox(colbox2);
-    }
-    /**
-		Выбирает самого верхнего предка модели, не являющегося сценой.
-		Возможно, этот метод переедет в контроллер.
-	*/ getRootParentGroup(obj) {
-        let objParent = obj;
-        while(objParent.parent && !objParent.parent.isScene)objParent = objParent.parent;
-        return objParent;
-    }
-    /**
-		Устанавливает сцену, на которой будут перемещаться модели.
-	*/ setStage(stage) {
-        this.stage = stage;
-    }
-    getDraggingPlane() {
-        return this.planeDrag;
-    }
-}
-
-},{"three":"ktPTu","./Stage.js":"5MQQY","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4SNlt":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
-	Класс, хранящий в себе материалы для моделей (объекты класса THREE.*Material) и содержащий методы для изменения материалов объектов
-*/ parcelHelpers.export(exports, "MaterialManager", ()=>MaterialManager);
-var _three = require("three");
-var _utilsJs = require("./utils.js");
-class MaterialManager {
-    /**
-		Конструктор принимает THREE.TextureLoader() в качестве зависимости.
-		Так же во время инициализации устанавливается список материалов и переменная, хранящая путь до папки с текстурами.
-	*/ constructor(textureLoader){
-        this.textureLoader = textureLoader;
-        this.textureFolderPath = "./assets/textures/";
-        this.loadedTextures = new Map();
-        let self = this;
-        this.materials = {
-            none: ()=>{
-                return new _three.MeshStandardMaterial();
-            },
-            light_brick: ()=>{
-                return self.createStandardTexturedMaterial("light_brick.jpg");
-            },
-            hardwood: ()=>{
-                return self.createStandardTexturedMaterial("hardwood.png");
-            },
-            tile1: ()=>{
-                return self.createStandardTexturedMaterial("tile-01.jpg");
-            },
-            tile2: ()=>{
-                return self.createStandardTexturedMaterial("tile-02.jpg");
-            },
-            marbletiles: ()=>{
-                return self.createStandardTexturedMaterial("marbletiles.jpg");
-            },
-            wallpaperTwo: ()=>{
-                return self.createWallTexturedMaterial("wallpaper2.jpg");
-            },
-            redLine: ()=>{
-                return new _three.LineBasicMaterial({
-                    color: 0xEC7063
-                });
-            },
-            greenLine: ()=>{
-                return new _three.LineBasicMaterial({
-                    color: 0x52BE80
-                });
-            }
-        };
-    }
-    #loadTexture(filename) {
-        let texture;
-        if (this.loadedTextures.has(filename)) texture = this.loadedTextures.get(filename);
-        else {
-            texture = this.textureLoader.load(this.textureFolderPath + filename);
-            this.loadedTextures.set(filename, texture);
-        }
-        return texture;
-    }
-    /**
-		Возвращает объект THREE.MeshStandardMaterial с текстурой filename
-	*/ createStandardTexturedMaterial(filename) {
-        const texture = this.#loadTexture(filename);
-        return new _three.MeshStandardMaterial({
-            map: texture
-        });
-    }
-    createWallTexturedMaterial(filename) {
-        const texturedMaterial = this.createStandardTexturedMaterial(filename);
-        const nonTexturedMaterial = new _three.MeshStandardMaterial({
-            color: "gray",
-            side: _three.DoubleSide
-        });
-        const multiMaterial = [
-            texturedMaterial,
-            texturedMaterial,
-            nonTexturedMaterial,
-            nonTexturedMaterial,
-            nonTexturedMaterial,
-            nonTexturedMaterial
-        ];
-        return multiMaterial;
-    }
-    /**
-		Устанавливает материал для модели
-	*/ setMeshMaterial(mesh, materialKey) {
-        try {
-            mesh.material = this.materials[materialKey]();
-        } catch (e) {
-            console.error(e);
-        }
-    }
-    /**
-		Устанавливает текстуру для модели.
-	*/ setMeshTexture(mesh, materialKey) {
-        try {
-            let map = this.materials[materialKey]().map;
-            _utilsJs.applyToMeshes(mesh, (o)=>{
-                _utilsJs.applyToArrayOrValue(o.material, (m)=>{
-                    m.map = map;
-                    m.needsUpdate = true;
-                });
-            });
-        } catch (e) {
-            console.error(e);
-        }
-    }
-    getAvailableMaterials() {
-        return Object.keys(this.materials);
-    }
-    getMaterial(key) {
-        return this.materials[key]();
-    }
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"cHEjt":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
-	Класс - контроллер для управления сценами.
-	Хранит в своих полях: все зарегестрированные сцены, DragEngine, ExportManager, MaterialManager.
-	(В теории, по крайней мере. Сейчас это больше похоже на массив с глобальными переменными. Для превращения этого класса в контролер надо определить методы, которые будут взаимодействовать с объектами в полях. Когда-нибудь я этим займусь...)
-*/ parcelHelpers.export(exports, "MainController", ()=>MainController);
-var _dragEnginePlaneJs = require("./DragEnginePlane.js");
-class MainController {
-    /**
-		Инициализация класса.
-	*/ constructor(dragEngine, drawEngine, exportManager, materialManager, labelManager){
-        this.stages = new Map();
-        this.currentStage;
-        this.dragEngine = dragEngine;
-        this.drawEngine = drawEngine;
-        this.exportManager = exportManager;
-        this.materialManager = materialManager;
-        this.labelManager = labelManager;
-    }
-    /**
-		Зарегестрировать сцену и добавить к ней слушатели событий от DragEngine
-	*/ registerStage(key, stage) {
-        this.stages.set(key, stage);
-        this.dragEngine.setStage(stage);
-        this.dragEngine.addEventListenersToStage();
-        this.drawEngine.setStage(stage);
-        this.drawEngine.addEventListenersToStage();
-    }
-    /**
-		Получить какую-то сцену по ключу
-	*/ getStage(key) {
-        let stage = this.stages.get(key);
-        if (!stage) throw key + " stage is not defined";
-        return stage;
-    }
-    /*
-		Скрыть текущую сцену и dat.GUI, прилепленный к ней
-	**/ hideCurrentStage() {
-        if (this.currentStage) this.currentStage.hideScene();
-    }
-    getCurrentStage() {
-        return this.currentStage;
-    }
-    /**
-		Скрыть все зарегистрированные сцены
-	*/ hideAllStages() {
-        for (let st of this.stages.values())st.hideScene();
-    }
-    /**
-		Показать текущую сцену.
-	*/ showCurrentStage() {
-        if (this.currentStage) this.currentStage.showScene();
-    }
-    /**
-		Установить определённую сцену из зарегестрированных текущей.
-	*/ setCurrentStage(key) {
-        this.hideAllStages();
-        this.currentStage = this.getStage(key);
-        this.dragEngine.setStage(this.currentStage);
-        this.drawEngine.setStage(this.currentStage);
-        this.showCurrentStage();
-    }
-    /**
-		Пока не используется.
-	*/ addListeners() {
-        let self = this;
-    }
-    addObjectToCurrentStage(obj, isMovable, hasCollision, hasDimensions) {
-        this.currentStage.addObject(obj, isMovable, hasCollision, hasDimensions);
-    }
-    removeObjectFromCurrentStage(obj) {
-        this.currentStage.removeObject(obj);
-    }
-    addLabelToObject(obj) {
-        this.labelManager.addDimensionLines(obj);
-    }
-    removeLabelFromObject(obj) {
-        this.labelManager.removeLabel(obj);
-    }
-    clearCurrentStage() {
-        this.currentStage.clearScene();
-        this.drawEngine.clearWalls();
-    }
-    disableDraggingLocks() {
-        this.dragEngine.resetLocks();
-    }
-    lockDraggingAxis(axis) {
-        this.dragEngine.lockAxis(axis);
-    }
-    switchCollision() {
-        const collision = this.dragEngine.isCollisionEnabled();
-        this.dragEngine.setCollision(!collision);
-    }
-    getSelectedObject() {
-        return this.currentStage.getSelectedObject();
-    }
-    moveObject(obj, axis, amount) {
-        this.currentStage.moveObject(obj, axis, amount);
-        this.applyCollisionAndRestraint(obj);
-    }
-    scaleObject(obj, axis, amount) {
-        this.currentStage.scaleObjectAxisScalar(obj, axis, amount);
-        this.applyCollisionAndRestraint(obj);
-    }
-    applyCollisionAndRestraint(obj) {
-        this.dragEngine.applyRestraint(obj);
-        this.dragEngine.applyCollision(obj);
-    }
-    unsetSelection() {
-        this.currentStage.unsetSelectedObject();
-    }
-    removeSelectionColor(obj) {
-        this.currentStage.removeSelectionColor(obj);
-    }
-    applySelectionColor(obj) {
-        this.currentStage.applySelectionColor(obj);
-    }
-    #doExporting(objects, cb, args) {
-        this.unsetSelection();
-        for (let o of objects)this.removeLabelFromObject(o);
-        cb(args);
-        for (let o of objects)this.addLabelToObject(o);
-    }
-    exportObjectsToStage(objects, stageTo) {
-        this.#doExporting(objects, ()=>{
-            this.exportManager.exportToStage(objects, stageTo);
-        });
-    }
-    downloadStageToUserPc(stage) {
-        let exportable = stage.scene.children.filter((o)=>{
-            if (o.userData.isMovable || o.userData.isSelectable || o.isGroup) return o;
-        });
-        // а нахуя вот это всё усложнять? пиздец...
-        this.#doExporting(exportable, ()=>{
-            this.exportManager.downloadScene(exportable);
-        }, this, stage);
-    }
-    setObjectTexture(obj, textureKey) {
-        this.materialManager.setMeshTexture(obj, textureKey);
-    }
-    uploadUserFileToStage(file, stage) {
-        this.exportManager.loadBlobToStage(file, stage);
-    }
-    getRaycaster() {
-        return this.currentStage.raycaster;
-    }
-    getDraggingPlane() {
-        return this.dragEngine.planeDrag;
-    }
-}
-
-},{"./DragEnginePlane.js":"kmFdU","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8hs9t":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
-	Класс, управляющий загрузкой моделей из сцены и на сцену, а так же перемещением моделей между сценами.
-*/ parcelHelpers.export(exports, "ExportManager", ()=>ExportManager);
-var _three = require("three");
-var _gltfloaderJs = require("three/examples/jsm/loaders/GLTFLoader.js");
-var _gltfexporterJs = require("three/examples/jsm/exporters/GLTFExporter.js");
-var _utilsJs = require("./utils.js");
-class ExportManager {
-    /**
-		Конструктор класса
-		exporter - GLTFExporter
-		assetLoader - GLTFLoader
-	*/ constructor(exporter, assetLoader){
-        this.exporter = exporter;
-        this.assetLoader = assetLoader;
-        this.link = document.createElement("a");
-        document.body.appendChild(this.link);
-    }
-    /**
-		Возвращает Blob объект из результата работы 
-		GLTFExporter.parse().
-		Blob объект содержит в себе данные о сцене и позволяет отправить сцену на компьютер пользователя или в другую сцену.
-	*/ createBlobFromBuffer(buffer) {
-        return new Blob([
-            buffer
-        ], {
-            type: "application/octet-stream"
-        });
-    }
-    /**
-		Скачивает Blob объект на устройство пользователя.
-	*/ saveToUserDevice(blob, filename) {
-        this.link.href = URL.createObjectURL(blob);
-        this.link.download = filename;
-        this.link.click();
-    }
-    /**
-		Скачивает модели на устройство пользователя.
-	*/ downloadScene(objects) {
-        let self = this;
-        this.exporter.parse(objects, function(result) {
-            let blob = self.createBlobFromBuffer(result);
-            self.saveToUserDevice(blob, Math.floor(Math.random() * 9999) + ".glb");
-        }, function(error) {
-            console.log("An error occured when downloading file! : " + error);
-        }, {
-            binary: true
-        });
-    }
-    /**
-		Загружает модели из blob объекта на сцену
-	*/ loadBlobToStage(blob, stage) {
-        this.link.href = URL.createObjectURL(blob);
-        this.assetLoader.load(this.link.href, (gltf)=>{
-            const model = gltf.scene;
-            _utilsJs.applyToMeshes(model, (o)=>{
-                o.castShadow = true;
-                o.receiveShadow = true;
-            });
-            // Определить, какие модельки находятся рядом и сгруппировать их вместе
-            let groups = [];
-            for (let o of model.children){
-                groups.push([
-                    o
-                ]);
-                let index = groups.length - 1;
-                for (let c of model.children){
-                    if (o === c) continue;
-                    let oB = new _three.Box3().setFromObject(o);
-                    let cB = new _three.Box3().setFromObject(c);
-                    let distances = [];
-                    let p1 = _utilsJs.getBox3Points(oB);
-                    let p2 = _utilsJs.getBox3Points(cB);
-                    for (let p of p1)distances.push(cB.distanceToPoint(p));
-                    for (let p of p2)distances.push(oB.distanceToPoint(p));
-                    let shortest = 99;
-                    for (let d of distances)if (d < shortest) shortest = d;
-                    if (shortest < 0.1) groups[index].push(c);
-                }
-            }
-            // объединить разные группы, если они содержат общих потомков (union) - типа [1,2,3] и [3,4,5] объединится в [1,2,3,4,5]
-            for(let i = 0; i < groups.length; i++){
-                if (!groups[i]) continue;
-                for(let j = 0; j < groups.length; j++){
-                    if (!groups[j] || groups[i] === groups[j]) continue;
-                    let intersection = groups[i].filter((x)=>groups[j].includes(x));
-                    if (intersection.length > 0) {
-                        let union = [
-                            ...new Set([
-                                ...groups[i],
-                                ...groups[j]
-                            ])
-                        ];
-                        groups[i] = union;
-                        groups[j] = null;
-                    }
-                }
-            }
-            // добавить модельки в сцену. Сделать поправку на их положение в текущей сцене.
-            for (let g of groups){
-                if (!g) continue;
-                let group = new _three.Group();
-                for (let m of g)group.add(m);
-                let pos = new _three.Vector3();
-                new _three.Box3().setFromObject(group).getCenter(pos);
-                for (let m of group.children){
-                    m.position.x -= pos.x;
-                    m.position.y -= pos.y;
-                    m.position.z -= pos.z;
-                }
-                let container = new _three.Group();
-                container.name = "container";
-                group.name = "models";
-                container.add(group);
-                stage.addObject(container, true, true, true);
-                container.position.copy(pos);
-            }
-        });
-    }
-    /**
-		Загружает модели на сцену
-	*/ exportToStage(objects, stage) {
-        let self = this;
-        this.exporter.parse(objects, function(result) {
-            let blob = self.createBlobFromBuffer(result);
-            self.loadBlobToStage(blob, stage);
-        }, function(error) {
-            console.log("An error occured when exporting! : " + error);
-        }, {
-            binary: true
-        });
-    }
-}
-
-},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"aEsVy":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
-	Класс, который управляет размерными линиями.
-*/ parcelHelpers.export(exports, "LabelManager", ()=>LabelManager);
-var _three = require("three");
-var _fontLoaderJs = require("three/examples/jsm/loaders/FontLoader.js");
-var _textGeometryJs = require("three/examples/jsm/geometries/TextGeometry.js");
-var _troikaThreeText = require("troika-three-text");
-class LabelManager {
-    constructor(){}
-    /**
-		Добавляет размерные линии к объектам
-	*/ addDimensionLines(obj) {
-        // obj.material.wireframe = true;
-        let box3 = new _three.Box3().setFromObject(obj);
-        let size = new _three.Vector3();
-        let size_copy = new _three.Vector3();
-        box3.getSize(size);
-        size_copy.copy(size);
-        size.x /= obj.scale.x;
-        size.y /= obj.scale.y;
-        size.z /= obj.scale.z;
-        let size_halved = new _three.Vector3(size.x / 2, size.y / 2, size.z / 2);
-        let pointsX = this.getPointsForXLine(size_halved);
-        let pointsZ = this.getPointsForZLine(size_halved);
-        let pointsY = this.getPointsForYLine(size_halved);
-        let lineX = this.createLineFromPoints(pointsX);
-        let lineZ = this.createLineFromPoints(pointsZ);
-        let lineY = this.createLineFromPoints(pointsY);
-        let textX = this.createText(Math.floor(size_copy.x * 1000) + "\u043C\u043C", new _three.Vector3(0, // size_halved.y,
-        size_halved.y / 2, size_halved.z + 0.1), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI));
-        let textZ = this.createText(Math.floor(size_copy.z * 1000) + "\u043C\u043C", new _three.Vector3(size_halved.x + 0.1, // size_halved.y,
-        size_halved.y / 2, 0), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI * 1.5));
-        let textY = this.createText(Math.floor(size_copy.y * 1000) + "\u043C\u043C", new _three.Vector3(size_halved.x + 0.1, 0, -size_halved.z - 0.1), new _three.Vector3(0, Math.PI / 4, Math.PI / 2));
-        // obj.add(lineX);
-        // obj.add(lineZ);
-        // obj.add(lineY);
-        // obj.add(textX)
-        obj.add(textZ);
-        // obj.add(textY)
-        // let bx = new THREE.Box3().setFromObject(myText);
-        // let s2 = new THREE.Vector3();
-        // console.log(bx);
-        // bx.getSize(s2);
-        textX.sync();
-        textZ.sync();
-        textY.sync();
-    }
-    /**
-		Убирает отображение размерных линии и размеры с объекта
-	*/ removeLabel(obj) {
-        let temp = [
-            ...obj.children
-        ];
-        for (let c of temp)if (c.userData.isText || c.isLine) {
-            obj.remove(c);
-            if (c.userData.isText) c.dispose();
-        }
-    }
-    /**
-		Создаёт надпись по указанным координатам
-		txt - String - что будет написано
-		position - Vector3 - где будет расположен
-		rotation - Vector3 - как будет повёрнут
-		return: Text
-	*/ createText(txt, position, rotation) {
-        let myText = new (0, _troikaThreeText.Text)();
-        myText.text = txt;
-        // myText.position.set(
-        // position.x, position.y, position.z
-        // );
-        // myText.rotation.set(
-        // rotation.x, rotation.y, rotation.z
-        // );
-        myText.rotation.set(rotation.x, rotation.y, rotation.z);
-        myText.position.set(position.x, position.y, position.z);
-        myText.fontSize = 0.3;
-        myText.color = "white";
-        myText.userData.isText = true;
-        myText.textAlign = "center";
-        myText.anchorX = "50%";
-        return myText;
-    }
-    /**
-		Рассчитывает точки, через которые должна проходить размерная линия, отмечающая размер объекта по оси X (длина)
-		size - THREE.Vector3() - размер объекта, на которого натягиваем линию
-		return : Array:Vector3 - массив с точками
-	*/ getPointsForXLine(size) {
-        let p0 = new _three.Vector3(-size.x, size.y, size.z);
-        let p1 = new _three.Vector3(-size.x, size.y, size.z + 0.1);
-        let p2 = new _three.Vector3(size.x, size.y, size.z + 0.1);
-        let p3 = new _three.Vector3(size.x, size.y, size.z);
-        return [
-            p0,
-            p1,
-            p2,
-            p3
-        ];
-    }
-    getPointsForYLine(size) {
-        let p0 = new _three.Vector3(size.x, size.y, -size.z);
-        let p1 = new _three.Vector3(size.x + 0.1, size.y, -size.z - 0.1);
-        let p2 = new _three.Vector3(size.x + 0.1, -size.y, -size.z - 0.1);
-        let p3 = new _three.Vector3(size.x, -size.y, -size.z);
-        return [
-            p0,
-            p1,
-            p2,
-            p3
-        ];
-    }
-    /**
-		Рассчитывает точки для линии по оси Z
-		size - THREE.Vector3() - размер объекта, на которого натягиваем линию
-		return : Array:Vector3 - массив с точками
-	*/ getPointsForZLine(size) {
-        let p0 = new _three.Vector3(size.x, size.y, size.z);
-        let p1 = new _three.Vector3(size.x + 0.1, size.y, size.z);
-        let p2 = new _three.Vector3(size.x + 0.1, size.y, -size.z);
-        let p3 = new _three.Vector3(size.x, size.y, -size.z);
-        return [
-            p0,
-            p1,
-            p2,
-            p3
-        ];
-    }
-    /**
-		Создаёт линию, проходящую через указанный набор точек.
-		points - Array:Vector3 - набор точек для построения линии
-		return : THREE.Line
-	*/ createLineFromPoints(points) {
-        const material = new _three.LineBasicMaterial({
-            color: "red"
-        });
-        const geometry = new _three.BufferGeometry().setFromPoints(points);
-        let line = new _three.Line(geometry, material);
-        line.userData.isLine = true;
-        return line;
-    }
-}
-
-},{"three":"ktPTu","three/examples/jsm/loaders/FontLoader.js":"h0CPK","three/examples/jsm/geometries/TextGeometry.js":"d5vi9","troika-three-text":"7YS8r","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"h0CPK":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "FontLoader", ()=>FontLoader);
-parcelHelpers.export(exports, "Font", ()=>Font);
-var _three = require("three");
-class FontLoader extends (0, _three.Loader) {
-    constructor(manager){
-        super(manager);
-    }
-    load(url, onLoad, onProgress, onError) {
-        const scope = this;
-        const loader = new (0, _three.FileLoader)(this.manager);
-        loader.setPath(this.path);
-        loader.setRequestHeader(this.requestHeader);
-        loader.setWithCredentials(this.withCredentials);
-        loader.load(url, function(text) {
-            const font = scope.parse(JSON.parse(text));
-            if (onLoad) onLoad(font);
-        }, onProgress, onError);
-    }
-    parse(json) {
-        return new Font(json);
-    }
-}
-//
-class Font {
-    constructor(data){
-        this.isFont = true;
-        this.type = "Font";
-        this.data = data;
-    }
-    generateShapes(text, size = 100) {
-        const shapes = [];
-        const paths = createPaths(text, size, this.data);
-        for(let p = 0, pl = paths.length; p < pl; p++)shapes.push(...paths[p].toShapes());
-        return shapes;
-    }
-}
-function createPaths(text, size, data) {
-    const chars = Array.from(text);
-    const scale = size / data.resolution;
-    const line_height = (data.boundingBox.yMax - data.boundingBox.yMin + data.underlineThickness) * scale;
-    const paths = [];
-    let offsetX = 0, offsetY = 0;
-    for(let i = 0; i < chars.length; i++){
-        const char = chars[i];
-        if (char === "\n") {
-            offsetX = 0;
-            offsetY -= line_height;
-        } else {
-            const ret = createPath(char, scale, offsetX, offsetY, data);
-            offsetX += ret.offsetX;
-            paths.push(ret.path);
-        }
-    }
-    return paths;
-}
-function createPath(char, scale, offsetX, offsetY, data) {
-    const glyph = data.glyphs[char] || data.glyphs["?"];
-    if (!glyph) {
-        console.error('THREE.Font: character "' + char + '" does not exists in font family ' + data.familyName + ".");
-        return;
-    }
-    const path = new (0, _three.ShapePath)();
-    let x, y, cpx, cpy, cpx1, cpy1, cpx2, cpy2;
-    if (glyph.o) {
-        const outline = glyph._cachedOutline || (glyph._cachedOutline = glyph.o.split(" "));
-        for(let i = 0, l = outline.length; i < l;){
-            const action = outline[i++];
-            switch(action){
-                case "m":
-                    x = outline[i++] * scale + offsetX;
-                    y = outline[i++] * scale + offsetY;
-                    path.moveTo(x, y);
-                    break;
-                case "l":
-                    x = outline[i++] * scale + offsetX;
-                    y = outline[i++] * scale + offsetY;
-                    path.lineTo(x, y);
-                    break;
-                case "q":
-                    cpx = outline[i++] * scale + offsetX;
-                    cpy = outline[i++] * scale + offsetY;
-                    cpx1 = outline[i++] * scale + offsetX;
-                    cpy1 = outline[i++] * scale + offsetY;
-                    path.quadraticCurveTo(cpx1, cpy1, cpx, cpy);
-                    break;
-                case "b":
-                    cpx = outline[i++] * scale + offsetX;
-                    cpy = outline[i++] * scale + offsetY;
-                    cpx1 = outline[i++] * scale + offsetX;
-                    cpy1 = outline[i++] * scale + offsetY;
-                    cpx2 = outline[i++] * scale + offsetX;
-                    cpy2 = outline[i++] * scale + offsetY;
-                    path.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, cpx, cpy);
-                    break;
-            }
-        }
-    }
-    return {
-        offsetX: glyph.ha * scale,
-        path: path
-    };
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"d5vi9":[function(require,module,exports) {
-/**
- * Text = 3D Text
- *
- * parameters = {
- *  font: <THREE.Font>, // font
- *
- *  size: <float>, // size of the text
- *  depth: <float>, // thickness to extrude text
- *  curveSegments: <int>, // number of points on the curves
- *
- *  bevelEnabled: <bool>, // turn on bevel
- *  bevelThickness: <float>, // how deep into text bevel goes
- *  bevelSize: <float>, // how far from text outline (including bevelOffset) is bevel
- *  bevelOffset: <float> // how far from text outline does bevel start
- * }
- */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "TextGeometry", ()=>TextGeometry);
-var _three = require("three");
-class TextGeometry extends (0, _three.ExtrudeGeometry) {
-    constructor(text, parameters = {}){
-        const font = parameters.font;
-        if (font === undefined) super(); // generate default extrude geometry
-        else {
-            const shapes = font.generateShapes(text, parameters.size);
-            // translate parameters to ExtrudeGeometry API
-            if (parameters.depth === undefined && parameters.height !== undefined) console.warn("THREE.TextGeometry: .height is now depreciated. Please use .depth instead"); // @deprecated, r163
-            parameters.depth = parameters.depth !== undefined ? parameters.depth : parameters.height !== undefined ? parameters.height : 50;
-            // defaults
-            if (parameters.bevelThickness === undefined) parameters.bevelThickness = 10;
-            if (parameters.bevelSize === undefined) parameters.bevelSize = 8;
-            if (parameters.bevelEnabled === undefined) parameters.bevelEnabled = false;
-            super(shapes, parameters);
-        }
-        this.type = "TextGeometry";
-    }
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eDO5i":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-/**
-	Функция, устанавливающая поведение кнопок управления, определённых в html файле.
-*/ parcelHelpers.export(exports, "addListeners", ()=>addListeners);
-var _three = require("three");
-var _utilsJs = require("./utils.js");
-function addListeners(controller) {
-    const floorPlanner = "floorPlanner";
-    const builder = "builder";
-    // Смена текущей сцены на Планировщик
-    document.querySelector("#floorPlanner").onclick = function() {
-        controller.setCurrentStage(floorPlanner);
-    };
-    // Смена текущей сцены на Сборщик
-    document.querySelector("#builder").onclick = function() {
-        controller.setCurrentStage(builder);
-    };
-    // Перенос объектов из сцены Сборщика в сцену Планировщика
-    document.querySelector("#exportToFloor").onclick = function() {
-        controller.exportObjectsToStage(controller.getStage(builder).movableObjects, controller.getStage(floorPlanner));
-    };
-    // Скачать объекты из текущей сцены на устройство пользователя
-    document.querySelector("#downloadScene").onclick = function() {
-        controller.downloadStageToUserPc(controller.getCurrentStage());
-    };
-    // Добавить куб на текущую сцену. Куб ограничен в пределах сцены.
-    document.querySelector("#addCube").onclick = function() {
-        const box = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
-            side: _three.DoubleSide
-        }));
-        controller.addObjectToCurrentStage(box, true, true, true);
-    };
-    // Добавить стену на текущую сцену. Стена имеет высоту и длину по размеру сцены и ограничена в её пределах.
-    // эта функция будет выпилена позже
-    document.querySelector("#addWall").onclick = function() {
-        let cbox = controller.currentStage.constraintBox;
-        let len = cbox.max.x - cbox.min.x;
-        let hei = cbox.max.y - cbox.min.y;
-        let box = _utilsJs.createMesh(new _three.BoxGeometry(len, hei, 0.1), new _three.MeshStandardMaterial({
-            side: _three.DoubleSide
-        }));
-        box.castShadow = true;
-        controller.addObjectToCurrentStage(box, true, true, true);
-    };
-    // Удалить выбранный объект
-    document.querySelector("#delobj").onclick = function() {
-        controller.removeObjectFromCurrentStage(controller.getSelectedObject());
-    };
-    // Отчистить текущую сцену от объектов
-    document.querySelector("#clear").onclick = function() {
-        controller.clearCurrentStage();
-    };
-    // Клонировать выбранный объект.
-    document.querySelector("#clone").onclick = function() {
-        const selected = controller.getSelectedObject();
-        if (!selected) return;
-        controller.removeSelectionColor(selected);
-        const newObject = _utilsJs.cloneObject(controller.currentStage.selectedObject);
-        controller.addObjectToCurrentStage(newObject, newObject.userData.isMovable, newObject.userData.hasCollision);
-        controller.applySelectionColor(selected);
-    };
-    // Выбор материала для выбранного объекта
-    const materialSelector = document.querySelector("#materials");
-    materialSelector.onchange = function(e) {
-        const selected = controller.getSelectedObject();
-        const texture = materialSelector.value;
-        if (!selected || texture === "reset") return;
-        controller.setObjectTexture(selected, texture);
-        materialSelector.value = "reset";
-    };
-    // загрузка пользовательского файла на сцену
-    document.querySelector("#upload").onclick = function() {
-        document.querySelector("#file").click();
-    };
-    document.querySelector("form").addEventListener("submit", (e)=>{
-        e.preventDefault();
-    });
-    document.querySelector("#file").addEventListener("change", function handleFiles() {
-        const fileList = this.files;
-        controller.uploadUserFileToStage(fileList[0], controller.getCurrentStage());
-    }, false);
-    document.querySelector("#drawing").addEventListener("change", (e)=>{
-        controller.currentStage.switchToOrthoCamera();
-        controller.currentStage.controls.enableRotate = !e.target.checked;
-        controller.drawEngine.setDrawing(e.target.checked);
-        controller.dragEngine.setDragging(!e.target.checked);
-    });
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./utils.js":"72Dku"}],"c6KBJ":[function(require,module,exports) {
-/**
-	Функция, которая добавляет управление приложением с помощью клавиатуры.
-	Управление:
-	xyz - заблокировать перемещение объекта мышью по одной из осей, нажатие любой другой клавиши снимает блокировку.
-	c - отключить коллизии и ограничения на перемещение для объектов
-	46x, 28z, 39y - перемещение объекта по оси x,z,y
-	
-	1x 5y 7z - изменить длину, высоту или ширину
-	+- выбрать, увеличивать или уменьшать размеры объекта при нажатии на 157
-	q убрать выделение объекта
-*/ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "addKeyboardControls", ()=>addKeyboardControls);
-function addKeyboardControls(controller) {
-    let scaleSign = 1;
-    document.addEventListener("keydown", (e)=>{
-        const selected = controller.getSelectedObject();
-        if ([
-            "x",
-            "y",
-            "z"
-        ].includes(e.key)) controller.lockDraggingAxis(e.key);
-        else controller.disableDraggingLocks();
-        switch(e.code){
-            case "KeyC":
-                controller.switchCollision();
-                break;
-            case "Numpad4":
-                controller.moveObject(selected, "x", -0.1);
-                break;
-            case "Numpad6":
-                controller.moveObject(selected, "x", 0.1);
-                break;
-            case "Numpad8":
-                controller.moveObject(selected, "z", -0.1);
-                break;
-            case "Numpad2":
-                controller.moveObject(selected, "z", 0.1);
-                break;
-            case "Numpad3":
-                controller.moveObject(selected, "y", -0.1);
-                break;
-            case "Numpad9":
-                controller.moveObject(selected, "y", 0.1);
-                break;
-            case "Numpad7":
-                controller.scaleObject(selected, "y", scaleSign * 0.1);
-                break;
-            case "Numpad1":
-                controller.scaleObject(selected, "x", scaleSign * 0.1);
-                break;
-            case "Numpad5":
-                controller.scaleObject(selected, "z", scaleSign * 0.1);
-                break;
-            case "NumpadAdd":
-                scaleSign = 1;
-                break;
-            case "NumpadSubtract":
-                scaleSign = -1;
-                break;
-            case "KeyQ":
-                controller.unsetSelection();
-                break;
-        }
-    });
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"KIqcM":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "DrawEngine", ()=>DrawEngine);
-var _wallGraphJs = require("./WallGraph.js");
-var _utilsJs = require("./utils.js");
-var _three = require("three");
-class DrawEngine {
-    #wallpaperMaterialKey = "wallpaperTwo";
-    #notAllowedMaterialKey = "redLine";
-    #allowedMaterialKey = "greenLine";
-    constructor(dragEngine, materialManager){
-        this.dragEngine = dragEngine;
-        this.materialManager = materialManager;
-        this.#initialize();
-        this.drawing = false;
-        this.wallMaterial = this.materialManager.getMaterial(this.#wallpaperMaterialKey);
-        this.lineMaterialBad = this.materialManager.getMaterial(this.#notAllowedMaterialKey);
-        this.lineMaterialGood = this.materialManager.getMaterial(this.#allowedMaterialKey);
-    }
-    #initialize() {
-        this.nodes = [];
-        this.nodesList = [];
-        this.polys = [];
-        this.walls = [];
-        this.anchors = [];
-        this.wallGraph = new (0, _wallGraphJs.WallGraph)();
-        this.inter = new _three.Vector3();
-        this.start;
-        this.end;
-        this.line;
-        this.angleStart;
-        this.angle;
-        this.height = 0.0001;
-    }
-    setDrawing(bool) {
-        this.drawing = bool;
-    }
-    #removeFloor() {
-        for (let p of this.polys)p.removeFromParent();
-        this.polys = [];
-        this.height = 0.0001;
-    }
-    #changeFloor(oldP, newP) {
-        for(let i = 0; i < this.nodesList.length; i++){
-            for(let j = 0; j < this.nodesList[i].length; j++)if (_utilsJs.pointsHaveSameCoordinatesXZ(this.nodesList[i][j], oldP)) this.nodesList[i][j] = newP;
-        }
-    }
-    redrawFloor() {
-        this.#removeFloor();
-        for (let nodes of this.nodesList){
-            const poly = this.createPolygon(nodes);
-            this.stage.addObject(poly);
-            this.polys.push(poly);
-        }
-    }
-    clearWalls() {
-        this.#removeFloor();
-        this.#initialize();
-    }
-    movePoint(p, newPos) {
-        const p_copy = p.clone();
-        p.addVectors(p, newPos);
-        const connectedWalls = this.wallGraph.getWallsByPoint(p_copy);
-        const startPoints = [];
-        const endPoints = [];
-        for (let w of connectedWalls){
-            endPoints.push(p);
-            if (_utilsJs.pointsHaveSameCoordinatesXZ(w.userData.startPoint, p_copy)) startPoints.push(w.userData.endPoint);
-            else startPoints.push(w.userData.startPoint);
-            this.stage.removeObject(w);
-            this.wallGraph.deleteRaw(w);
-        }
-        for(let i = 0; i < startPoints.length; i++){
-            const wall = this.makeWallBetweenTwoPoints(startPoints[i], endPoints[i], this.wallMaterial);
-            const added = this.wallGraph.add(wall);
-            if (added) this.stage.addObject(wall, true, false, false);
-        }
-        this.#changeFloor(p_copy, p);
-        this.redrawFloor();
-    }
-    makeWallBetweenTwoPoints(start, end, material) {
-        const dist = start.distanceTo(end);
-        const boxgeo = new _three.BoxGeometry(0.2, 2, dist);
-        const mat = [];
-        _utilsJs.applyToArrayOrValue(material, (m)=>{
-            mat.push(m.clone());
-        });
-        const mesh = _utilsJs.createMesh(boxgeo, mat);
-        mesh.position.set((start.x + end.x) / 2, 1, (start.z + end.z) / 2);
-        mesh.userData.startPoint = start;
-        mesh.userData.endPoint = end;
-        const self = this;
-        mesh.userData.onMove = (sp, ep)=>{
-            // посчитать, как сдвинулась стена, то есть вектор
-            // от sp до ep
-            const moved = new _three.Vector3().subVectors(ep, sp);
-            // передвинуть startPoint и endPoint в этом же направлении, получив sp2 и ep2
-            const sp2 = new _three.Vector3().addVectors(mesh.userData.startPoint, moved);
-            const ep2 = new _three.Vector3().addVectors(mesh.userData.endPoint, moved);
-            // вызвать movePoint(startPoint, sp2), movePoint(endPoint.ep2)
-            self.movePoint(mesh.userData.startPoint, moved);
-            self.movePoint(mesh.userData.endPoint, moved);
-            // обновить startPoint = sp2 и endPoint = ep2
-            mesh.userData.startPoint = sp2;
-            mesh.userData.endPoint = ep2;
-        };
-        mesh.lookAt(end);
-        return mesh;
-    }
-    makeCylinderAtPoint(point) {
-        const mesh = new _three.Mesh(new _three.CylinderGeometry(0.1, 0.1, 2), new _three.MeshStandardMaterial({
-            color: "gray"
-        }));
-        mesh.position.set(point.x, 1, point.z);
-        return mesh;
-    }
-    createPolygon(points) {
-        if (points.length < 3) return;
-        const shape = new _three.Shape();
-        shape.moveTo(points[0].x, points[0].z);
-        for(let i = 1; i < points.length; i++)shape.lineTo(points[i].x, points[i].z);
-        const geometry = new _three.ShapeGeometry(shape);
-        const material = new _three.MeshBasicMaterial({
-            color: "Beige",
-            side: _three.DoubleSide
-        });
-        const mesh = new _three.Mesh(geometry, material);
-        mesh.rotation.x = 0.5 * Math.PI;
-        mesh.position.y += this.height;
-        this.height += 0.0001;
-        return mesh;
-    }
-    addEventListenersToStage(stage) {
-        const self = this;
-        console.log(this.stage);
-        this.stage.renderer.domElement.addEventListener("click", ()=>{
-            self.#onClick();
-        });
-        this.stage.renderer.domElement.addEventListener("pointermove", ()=>{
-            self.#onPointerMove();
-        });
-    }
-    #onPointerMove() {
-        if (this.line) this.stage.removeObject(this.line);
-        if (!this.drawing) return;
-        this.stage.getRaycaster().ray.intersectPlane(this.dragEngine.getDraggingPlane(), this.inter);
-        this.end = new _three.Vector3(this.inter.x, 1, this.inter.z);
-        _utilsJs.snapPoint(this.end);
-        if (!this.start) return;
-        for (let p of this.anchors)if (_utilsJs.arePointsNearXZ(this.end, p)) {
-            this.end.x = p.x;
-            this.end.z = p.z;
-        }
-        //adhoc
-        var material = this.lineMaterialGood;
-        if (this.angleStart) {
-            this.angle = _utilsJs.angleBetweenSegmentsXZ(this.angleStart, this.start, this.end);
-            if (this.angle < 45) material = this.lineMaterialBad;
-        }
-        const geometry = new _three.BufferGeometry().setFromPoints([
-            this.start,
-            this.end
-        ]);
-        this.line = new _three.Line(geometry, material);
-        this.stage.addObject(this.line);
-    }
-    #onClick() {
-        if (!this.drawing) return;
-        if (!this.start) {
-            for (let p of this.anchors)if (_utilsJs.arePointsNearXZ(this.end, p)) {
-                this.end.x = p.x;
-                this.end.z = p.z;
-            }
-            this.start = this.end;
-            this.anchors.push(this.end);
-        } else {
-            this.angleStart = this.start;
-            //adhoc
-            const wall = this.makeWallBetweenTwoPoints(this.start, this.end, this.wallMaterial);
-            const added = this.wallGraph.add(wall);
-            if (added) this.stage.addObject(wall, true, false, false);
-            this.walls.push(wall);
-            // const cylinder = makeCylinderAtPoint(end)
-            // stage.addObject(cylinder);
-            this.nodes.push(this.start);
-            let closed = false;
-            if (_utilsJs.pointsHaveSameCoordinatesXZ(this.nodes[0], this.end)) closed = true;
-            if (closed) {
-                // nodes.push(end);
-                const poly = this.createPolygon(this.nodes);
-                this.stage.addObject(poly);
-                this.polys.push(poly);
-                this.nodesList.push(this.nodes);
-                for (let w of this.walls)this.anchors.push(w.userData.startPoint);
-                this.start = null;
-                this.walls = [];
-                this.nodes = [];
-            } else this.start = this.end;
-        }
-    }
-    /**
-		Устанавливает сцену, на которой будут перемещаться модели.
-	*/ setStage(stage) {
-        this.stage = stage;
-    }
-}
-
-},{"./WallGraph.js":"fYUTF","./utils.js":"72Dku","three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"fYUTF":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "WallGraph", ()=>WallGraph);
-var _utilsJs = require("./utils.js");
-class WallGraph {
-    constructor(){
-        this.walls = new Set();
-    }
-    add(wall) {
-        if (!this.has(wall)) {
-            this.walls.add(wall);
-            return true;
-        }
-        return false;
-    }
-    deleteRaw(wall) {
-        return this.walls.delete(wall);
-    }
-    delete(wall) {
-        for (let w of this.walls)if (this.wallsAreSame(w, wall)) return this.walls.delete(w);
-        return false;
-    }
-    purge() {
-        this.walls = new Set();
-    }
-    has(wall) {
-        for (let w of this.walls)if (this.wallsAreSame(w, wall)) return true;
-        return false;
-    }
-    wallsAreSame(w1, w2) {
-        return (0, _utilsJs.pointsHaveSameCoordinatesXZ)(w1.userData.startPoint, w2.userData.startPoint) && (0, _utilsJs.pointsHaveSameCoordinatesXZ)(w1.userData.endPoint, w2.userData.endPoint);
-    }
-    pointsAreSame(p1, p2) {
-        return p1.x === p2.x && p1.z === p2.z;
-    }
-    wallIsConnectedToPoint(wall, point) {
-        return (0, _utilsJs.pointsHaveSameCoordinatesXZ)(wall.userData.startPoint, point) || (0, _utilsJs.pointsHaveSameCoordinatesXZ)(wall.userData.endPoint, point);
-    }
-    getWallsByPoint(p) {
-        const walls = [];
-        for (let w of this.walls)if (this.wallIsConnectedToPoint(w, p)) walls.push(w);
-        return walls;
-    }
-}
-
-},{"./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
-
-//# sourceMappingURL=index.64a4978e.js.map
+//# sourceMappingURL=index.01fdfc1f.js.map
