@@ -187,7 +187,7 @@ export class DragEnginePlane {
 			this.applyRestraint(o);
 		});
 			
-
+		// utils.snapPoint(this.dragObject.position);
 		
 		if(this.dragObject && this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
 		

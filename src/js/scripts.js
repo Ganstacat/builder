@@ -60,6 +60,24 @@ addKeyboardControls(controller);
 // TODO: Посмотреть как можно накрутить графон
 // TODO: Посмотреть как динамически менять UV Развёрстку текстур при изменении размеров
 
-// TODO: сделать таскание за ноды, а не только за стены
 // TODO: сделать методы для постройки стены и предоставить их через контроллер
 // TODO: заменить начальные стенки в floorPlaner на те из drawEngine
+
+// function httpGet(theUrl)
+// {
+//     var xmlHttp = new XMLHttpRequest();
+//     xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
+//     xmlHttp.send( null );
+//     return xmlHttp.responseText;
+// }
+
+// const response = httpGet('/index.php');
+// console.log(response)
+// console.log(response);
+// console.log(response);
+
+// const blob = exportManager.createBlobFromBuffer(response);
+exportManager.loadByLinkToStage('http://localhost/index.php', floorStage);
+console.log('adada');
+
+// exportManager.saveToUserDevice(blob, 'haha.glb');
