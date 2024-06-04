@@ -85,7 +85,7 @@ export class LabelManager {
 			new THREE.Vector3(
 				0,
 				// size_halved.y,
-				size_halved.y/2,
+				size_halved.y,
 				size_halved.z+0.1),
 			new THREE.Vector3(Math.PI/2, Math.PI,Math.PI)
 		);
@@ -94,7 +94,7 @@ export class LabelManager {
 			new THREE.Vector3(
 				size_halved.x+0.1,
 				// size_halved.y,
-				size_halved.y/2,
+				size_halved.y,
 				0),
 			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI*1.5)
 		);
@@ -103,16 +103,16 @@ export class LabelManager {
 			new THREE.Vector3(
 				size_halved.x+0.1,
 				0,
-				-size_halved.z-0.1),
-			new THREE.Vector3(0,Math.PI/4,Math.PI/2)
+				size_halved.z+0.1),
+			new THREE.Vector3(0,0,Math.PI/2)
 		);
 		
-		// obj.add(lineX);
-		// obj.add(lineZ);
-		// obj.add(lineY);
-		// obj.add(textX)
+		obj.add(lineX);
+		obj.add(lineZ);
+		obj.add(lineY);
+		obj.add(textX)
 		obj.add(textZ)
-		// obj.add(textY)
+		obj.add(textY)
 		
 		// let bx = new THREE.Box3().setFromObject(myText);
 		// let s2 = new THREE.Vector3();
@@ -165,7 +165,7 @@ export class LabelManager {
 			position.x, position.y, position.z
 		);
 		
-		myText.fontSize = 0.3
+		myText.fontSize = 0.2
 		myText.color = 'white'
 		myText.outlineWidth = '10%'
 		myText.userData.isText = true;
@@ -190,10 +190,10 @@ export class LabelManager {
 		return [p0,p1,p2,p3];
 	}
 	getPointsForYLine(size){
-		let p0 = new THREE.Vector3(size.x,size.y,-size.z);
-		let p1 = new THREE.Vector3(size.x+0.1,size.y,-size.z-0.1);
-		let p2 = new THREE.Vector3(size.x+0.1,-size.y,-size.z-0.1);
-		let p3 = new THREE.Vector3(size.x,-size.y,-size.z);
+		let p0 = new THREE.Vector3(size.x,size.y,size.z);
+		let p1 = new THREE.Vector3(size.x+0.1,size.y,size.z+0.1);
+		let p2 = new THREE.Vector3(size.x+0.1,-size.y,size.z+0.1);
+		let p3 = new THREE.Vector3(size.x,-size.y,size.z);
 		return [p0,p1,p2,p3];
 	}
 	/**

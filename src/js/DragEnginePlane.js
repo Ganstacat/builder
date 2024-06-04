@@ -30,7 +30,7 @@ export class DragEnginePlane {
 		this.lockY = false;
 		this.lockZ = false;
 		
-		this.collision = true;
+		this.collision = false;
 		this.dragging = true;
 	}
 	setDragging(bool){
@@ -186,8 +186,9 @@ export class DragEnginePlane {
 			this.applyAxisLock(o, oldpos);
 			this.applyRestraint(o);
 		});
-			
-		// utils.snapPoint(this.dragObject.position);
+		if(!this.dragging){
+			utils.snapPoint(this.dragObject.position);
+		}	
 		
 		if(this.dragObject && this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
 		

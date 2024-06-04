@@ -63,21 +63,50 @@ addKeyboardControls(controller);
 // TODO: сделать методы для постройки стены и предоставить их через контроллер
 // TODO: заменить начальные стенки в floorPlaner на те из drawEngine
 
-// function httpGet(theUrl)
-// {
-//     var xmlHttp = new XMLHttpRequest();
-//     xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
-//     xmlHttp.send( null );
-//     return xmlHttp.responseText;
-// }
+function httpGet(theUrl)
+{
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
+    xmlHttp.send( null );
+    return xmlHttp.responseText;
+}
 
-// const response = httpGet('/index.php');
-// console.log(response)
-// console.log(response);
-// console.log(response);
+function httpPost(theUrl)
+{
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "POST", theUrl); // false for synchronous request
+    // xmlHttp.setRequestHeader('Content-type', 'application/json');
+    xmlHttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+    xmlHttp.onload = () =>{
+        console.log(xmlHttp.responseText);
+    }
+    xmlHttp.send('fname=Mary');
+    return xmlHttp.responseText;
+}
+function setCookie(cname, cvalue, exdays) {
+    const d = new Date();
+    d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+    let expires = "expires=" + d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+}
+function deleteCookie(cname){
+    document.cookie = `${cname}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
 
-// const blob = exportManager.createBlobFromBuffer(response);
-exportManager.loadByLinkToStage('http://localhost/index.php', floorStage);
-console.log('adada');
+const cook = 'userId';
+const id = utils.generateRamdomId();
+if(!document.cookie){
+    console.log('setting cookie');
+    setCookie(cook, id, 1);
+} else {
+    console.log('Cookie:');
+    console.log(document.cookie);
+    // deleteCookie(cook);
+}
 
-// exportManager.saveToUserDevice(blob, 'haha.glb');
+// console.log(httpGet('/index.php'))
+
+
+
+// exportManager.loadByLinkToStage('/index.php?mode=load', floorStage);
+// exportManager.saveToDatabase(controller.currentStage.movableObjects, '/index.php?mode=load'); 

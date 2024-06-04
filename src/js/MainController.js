@@ -160,6 +160,12 @@ export class MainController {
 		}
 	}
 
+	saveToDatabase(objects, apiUrl){
+		this.#doExporting(objects, ()=>{
+			this.exportManager.saveToDatabase(objects, apiUrl);
+		});
+	}
+
 	exportObjectsToStage(objects, stageTo) {
 		this.#doExporting(objects, ()=>{
 			this.exportManager.exportToStage(objects, stageTo);

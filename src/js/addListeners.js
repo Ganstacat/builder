@@ -103,6 +103,11 @@ export function addListeners(controller) {
 		
 		materialSelector.value = 'reset';
 	}
+	document.querySelector('#saveScene').onclick = ()=>{
+		console.log('saving');
+		controller.saveToDatabase(controller.getStage(floorPlanner).movableObjects, '/index.php?mode=save');
+		// controller.exportManager.saveToDatabase(controller.getStage(floorPlanner).movableObjects, '/index.php?mode=save'); 
+	}
 	
 	// загрузка пользовательского файла на сцену
 	document.querySelector('#upload').onclick = function (){

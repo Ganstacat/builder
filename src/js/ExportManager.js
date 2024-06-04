@@ -62,8 +62,6 @@ export class ExportManager {
 	*/
 	loadBlobToStage(blob, stage) {
 		this.link.href = URL.createObjectURL(blob);
-		console.log('loading blob to stage:');
-		console.log(this.link.href);
 		this.assetLoader.load(this.link.href, (gltf)=>{
 			const model = gltf.scene;
 
@@ -157,6 +155,7 @@ export class ExportManager {
 		})
 	}
 	loadByLinkToStage(link, stage) {
+		console.log(link);
 		this.assetLoader.load(link, (gltf)=>{
 			const model = gltf.scene;
 
@@ -222,7 +221,16 @@ export class ExportManager {
 
 					utils.applyToMeshes(m, (o)=>{
 						const badObb = o.geometry.userData.obb;
-						o.geometry.userData.obb = new OBB(badObb.center, badObb.halfSize, badObb.rotation);
+						console.log(o.geometry);
+						if(badObb){
+							o.geometry.userData.obb = new OBB(badObb.center, badObb.halfSize, badObb.rotation);
+						} else {
+							const b3 = new THREE.Box3().setFromObject(o);
+							const center = new THREE.Vector3();
+							b3.getCenter(center);
+							const size = utils.getBox3Size(b3);
+							o.geometry.userData.obb = new OBB(center, size.multiplyScalar(0.5));
+						}
 						o.userData.obb = new OBB();
 					});
 
@@ -243,9 +251,6 @@ export class ExportManager {
 				
 				stage.addObject(container, true, true, true);
 				container.position.copy(pos);
-				console.log(g);
-				console.log(container);
-				
 			}
 		})
 	}
@@ -270,4 +275,37 @@ export class ExportManager {
 		);
 
 	}
+
+	saveToDatabase(objects, apiUrl) {
+		let self = this;
+		this.exporter.parse(
+			objects,
+			(result)=>{
+				const blob = self.createBlobFromBuffer(result);
+				self.sendBlobWithHttpPost(apiUrl, blob);
+			},
+			(error)=>{
+				console.error(error);
+			},
+			{
+				binary:true
+			}
+		)
+	}
+	sendBlobWithHttpPost(theUrl, blob)
+	{
+		// var xmlHttp = new XMLHttpRequest();
+		// xmlHttp.open("POST", theUrl); 
+		// // xmlHttp.setRequestHeader('Content-type', 'application/octet-stream');
+		// xmlHttp.onload = () => {
+		// 	console.log(xmlHttp.responseText);
+		// }
+		// const form = new FormData();
+		// form.append('fname','biba.glb');
+		// xmlHttp.send(form);
+		// return xmlHttp.responseText;
+		fetch(theUrl, {method:"POST", body:blob})
+			.then(res=>console.log(res.text()))
+	}	
+
 }
