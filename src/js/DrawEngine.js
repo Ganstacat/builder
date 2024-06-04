@@ -8,10 +8,11 @@ export class DrawEngine {
 	#allowedMaterialKey = 'greenLine';
 	#roundCornerMaterialKey = 'wallRoundCorner';
 	
-	constructor(dragEngine, materialManager){
+	constructor(dragEngine, materialManager, labelManager){
 		this.dragEngine = dragEngine;
 		this.materialManager = materialManager;
-		
+		this.labelManager = labelManager;
+	
 		this.#initialize();
 		
 		this.drawing = false;
@@ -210,6 +211,7 @@ export class DrawEngine {
 			
 			self.moveWallPoint(startPoint, moved);
 		}
+		mesh.userData.isCorner = true;	
 		return mesh;
 	}
 	
@@ -266,7 +268,6 @@ export class DrawEngine {
 			}		
 		}
 		
-		//adhoc
 		var material = this.lineMaterialGood;
 		
 		if (this.angleStart){
@@ -276,7 +277,10 @@ export class DrawEngine {
 
 		const geometry = new THREE.BufferGeometry().setFromPoints([this.start, this.end]);
 		this.line = new THREE.Line(geometry, material);
+		const dist = this.start.distanceTo(this.end);
+		this.labelManager.addLineDimension(this.line, this.start, this.end);
 		this.stage.addObject(this.line);
+		
 
 	}
 	#onClick(){
@@ -311,9 +315,9 @@ export class DrawEngine {
 			this.walls.push(wall);
 			
 			const cylinder = this.makeCylinderAtPoint(this.end, this.cylinderMaterial);
-			
 			if (cylinder)
 				this.stage.addObject(cylinder, true);
+			
 			
 
 			this.nodes.push(this.start);

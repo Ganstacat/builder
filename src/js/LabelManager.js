@@ -20,6 +20,7 @@ export class LabelManager {
 		if(obj.userData.isWall) this.addWallDimensions(obj);
 		else this.addObjectDimensions(obj);
 	}
+
 	addWallDimensions(obj) {
 		// obj.material.wireframe = true;
 		let box3 = new THREE.Box3().setFromObject(obj);
@@ -123,6 +124,25 @@ export class LabelManager {
 		textY.sync();
 	}
 	
+	addLineDimension(obj,start, end){
+		// obj.material.wireframe = true;
+		
+		const dist = start.distanceTo(end);	
+		const center = new THREE.Vector3(
+			(start.x+end.x)/2,
+			2,
+			(start.z+end.z)/2
+		);	
+		
+		let textX = this.createText(
+			Math.floor(dist*1000)+'мм',
+			center,
+			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI)
+		);
+		obj.add(textX)
+
+		textX.sync();	
+	}
 
 	/**
 		Убирает отображение размерных линии и размеры с объекта

@@ -33,9 +33,9 @@ const exporter = new GLTFExporter();
 const exportManager = new ExportManager(exporter, assetLoader);
 
 const dragEngine = new DragEnginePlane();
-const drawEngine = new DrawEngine(dragEngine, materialManager);
-
 const labelManager = new LabelManager();
+const drawEngine = new DrawEngine(dragEngine, materialManager, labelManager);
+
 const controller = new MainController(dragEngine, drawEngine, exportManager, materialManager, labelManager);
 
 
@@ -108,5 +108,5 @@ if(!document.cookie){
 
 
 
-// exportManager.loadByLinkToStage('/index.php?mode=load', floorStage);
+exportManager.loadByLinkToStage('/index.php?mode=load', floorStage);
 // exportManager.saveToDatabase(controller.currentStage.movableObjects, '/index.php?mode=load'); 

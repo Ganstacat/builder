@@ -186,7 +186,7 @@ export class DragEnginePlane {
 			this.applyAxisLock(o, oldpos);
 			this.applyRestraint(o);
 		});
-		if(!this.dragging){
+		if(!this.dragging || this.dragObject.userData.isWall || this.dragObject.userData.isCorner){
 			utils.snapPoint(this.dragObject.position);
 		}	
 		
