@@ -120,6 +120,7 @@ export class DrawEngine {
 			this.stage.removeObject(w);
 			this.wallGraph.deleteRaw(w);
 		}
+
 		if(connectedWalls.length < 1){
 
 			console.log(`Faild to move: oldpos: ${oldpos.x}:${oldpos.y}, newpos: ${newpos.x}${newpos.y}`)

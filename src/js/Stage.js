@@ -366,7 +366,7 @@ export class Stage {
 		// box_cop.userData.lockScale = 'x'
 		// box2.userData.lockScale = 'y'
 		// box2_cop.userData.lockScale = 'y'
-		this.addObject(box,true,false,true,false);
+		this.addObject(box,true,true,true,false);
 		this.addObject(box_cop,true,true,true,false);
 		// this.addObject(box2,true,true,true,true);
 		// this.addObject(box2_cop,true,true,true,true);
@@ -693,9 +693,9 @@ export class Stage {
 	removeObject(obj) {
 		this.scene.remove(obj);
 		this.movableObjects = this.movableObjects.filter((o)=>{return o !== obj});
-		this.objectsWithCollision = this.objectsWithCollision.filter((o)=>{return o !== obj});
+		const mesh = utils.getObjectMesh(obj);
+		this.objectsWithCollision = this.objectsWithCollision.filter((o)=>{return o !== mesh});
 	}
-	
 	/**
 		Отчистить сцену от всех movable объектов.
 	*/

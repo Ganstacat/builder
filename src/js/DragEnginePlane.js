@@ -30,7 +30,7 @@ export class DragEnginePlane {
 		this.lockY = false;
 		this.lockZ = false;
 		
-		this.collision = false;
+		this.collision = true;
 		this.dragging = true;
 	}
 	setDragging(bool){
@@ -145,7 +145,6 @@ export class DragEnginePlane {
 		this.stage.controls.enabled = false;
 		this.dragObject = obj;
 
-
 		if(this.dragObject.userData.onPickup) this.dragObject.userData.onPickup(); 
 
 	
@@ -176,9 +175,8 @@ export class DragEnginePlane {
 		this.stage.raycaster.ray.intersectPlane(this.planeDrag, this.planeIntersect);
 		
 		const oldpos = this.dragObject.position.clone();
-		
+
 		this.dragObject.position.addVectors(this.planeIntersect, this.shift);
-		
 
 		
 		utils.doWithoutLabels(this.dragObject, (o)=>{
@@ -229,9 +227,40 @@ export class DragEnginePlane {
 	/*
 		Применить коллизию: если перемещаемая модель столкнулась с другой моделью, у которой есть коллизия, то пересчитываем позицию перемещаемой модели так, чтобы коллизионные коробки двух моделей не пересекались.
 	**/
-	applyCollision(obj, oldpos, noLimit) {
+	applyCollision(obj, oldpos){
+		if(!this.collision || obj.userData.isNotAffectedByCollision) return;
+
+		for(let colobj of this.stage.objectsWithCollision){
+			if (obj === colobj) continue;
+			if (obj === this.getRootParentGroup(colobj)) continue;
+			const colobjObb = colobj.userData.obb;
+			const objObb = utils.getObjectMesh(obj).userData.obb;
+			const objBox3 = new THREE.Box3().setFromObject(obj);
+
+			if (colobjObb.intersectsBox3(objBox3)){
+				if (colobjObb.intersectsOBB(objObb)){
+					obj.position.copy(oldpos); // easy variant
+					
+					// let clampPoint = new THREE.Vector3();
+					// let halfSize = objObb.halfSize;
+
+					// colobjObb.clampPoint(obj.position, clampPoint);
+					// const clampDist = oldpos.distanceTo(clampPoint);
+					// obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
+
+					// const side = new THREE.Vector3().copy(obj.position).addScalar(0.25);
+					// const moved = new THREE.Vector3().subVectors(obj.position, side);
+					// console.log(moved);
+					// // moved.setLength(clampDist);
+					// // obj.position.copy(moved);
+					// obj.position.addVectors(obj.position, moved);
+				}
+			}
+		}
+	}
+	applyCollision_2(obj, oldpos, noLimit) {
 		if (!this.collision || obj.userData.isNotAffectedByCollision) return;
-		
+
 		
 		for(let colobj of this.stage.objectsWithCollision) {
 			if (obj === colobj) continue;
@@ -244,43 +273,47 @@ export class DragEnginePlane {
 			utils.applyToMeshes(objGroup, o=>{
 				objMesh = o;
 			});
-			// utils.applyToMeshes(colobj, o=>{
-			// 	if(o.parent.name === 'models') colObjMesh = o;
-			// });
 			
+			const objBox3 = new THREE.Box3().setFromObject(objGroup);
 			const obb = objMesh.userData.obb;
 			const colObb = colobj.userData.obb;
 	
 			if (this.hasIntersection(obb, colObb)) {
-				let prevpos = obj.position.clone();
-				let clampPoint = new THREE.Vector3();
-				let halfSize = obb.halfSize;
+				console.log('intersect!');
+				// let prevpos = obj.position.clone();
+				// let clampPoint = new THREE.Vector3();
+				// let halfSize = obb.halfSize;
 				
-				colObb.clampPoint(obj.position, clampPoint);
+				// colObb.clampPoint(obj.position, clampPoint);
 				
-				const clampDist = prevpos.distanceTo(clampPoint);
+				// const clampDist = prevpos.distanceTo(clampPoint);
 			
-				if(clampDist > 0.01 && clampDist < halfSize.x+halfSize.z){
-					obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
+				// obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
+
+				// if(clampDist > 0.01 && clampDist < halfSize.x+halfSize.z){
+				// 	obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
 					
 					
-					let dragbbox = new THREE.Box3().setFromObject(obj);
-					let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;
-					let halfHeight = (dragbbox.max.y - dragbbox.min.y)/2;
-					let halfWidth  = (dragbbox.max.z - dragbbox.min.z)/2;
+				// 	let dragbbox = new THREE.Box3().setFromObject(obj);
+				// 	let halfLength = (dragbbox.max.x - dragbbox.min.x)/2;
+				// 	let halfHeight = (dragbbox.max.y - dragbbox.min.y)/2;
+				// 	let halfWidth  = (dragbbox.max.z - dragbbox.min.z)/2;
 					
 					
-					let dragpos = obj.position;
-					if(prevpos.x < dragpos.x) {
-						dragpos.x -= halfLength;
-					} else if (prevpos.x > dragpos.x) {
-						dragpos.x += halfLength;
-					}
-					if(prevpos.z < dragpos.z) {
-						dragpos.z -= halfWidth;
-					} else if (prevpos.z > dragpos.z) {
-						dragpos.z += halfWidth;
-					}
+					// let dragpos = obj.position;
+					// if(prevpos.x < dragpos.x) {
+					// 	dragpos.x -= halfLength;
+					// } else if (prevpos.x > dragpos.x) {
+					// 	dragpos.x += halfLength;
+					// }
+					// if(prevpos.z < dragpos.z) {
+					// 	dragpos.z -= halfWidth;
+					// } else if (prevpos.z > dragpos.z) {
+					// 	dragpos.z += halfWidth;
+					// }
+
+
+
 					// if(prevpos.y < dragpos.y) {
 						// dragpos.y -= halfHeight;
 					// } else if (prevpos.y > dragpos.y) {
@@ -303,7 +336,7 @@ export class DragEnginePlane {
 					// } else if (prevpos.y > dragpos.y) {
 						// dragpos.y += halfSize.y;
 					// }
-				}
+				// }
 			}
 		}
 	}

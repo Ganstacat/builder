@@ -218,22 +218,7 @@ export class ExportManager {
 
 				let group = new THREE.Group();
 				for (let m of g) {
-
-					utils.applyToMeshes(m, (o)=>{
-						const badObb = o.geometry.userData.obb;
-						console.log(o.geometry);
-						if(badObb){
-							o.geometry.userData.obb = new OBB(badObb.center, badObb.halfSize, badObb.rotation);
-						} else {
-							const b3 = new THREE.Box3().setFromObject(o);
-							const center = new THREE.Vector3();
-							b3.getCenter(center);
-							const size = utils.getBox3Size(b3);
-							o.geometry.userData.obb = new OBB(center, size.multiplyScalar(0.5));
-						}
-						o.userData.obb = new OBB();
-					});
-
+					utils.addOBBToObject(m);
 					group.add(m);
 				}
 				let pos = new THREE.Vector3();

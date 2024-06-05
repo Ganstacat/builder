@@ -15,12 +15,17 @@ export class LabelManager {
 		Добавляет размерные линии к объектам
 	*/
 	addLabelToObject(obj){
+		const rotationTemp = obj.rotation.clone();
+
+		obj.rotation.set(0,0,0);
 		if(obj.userData.isWall) this.addWallDimensions(obj);
 		else this.addObjectDimensions(obj);
+
+		obj.rotation.copy(rotationTemp);
+
 	}
 
 	addWallDimensions(obj) {
-		// obj.material.wireframe = true;
 		let box3 = new THREE.Box3().setFromObject(obj);
 		let size = new THREE.Vector3();
 		let size_copy = new THREE.Vector3();
@@ -128,6 +133,7 @@ export class LabelManager {
 		textX.sync();
 		textZ.sync();
 		textY.sync();
+
 	}
 	
 	addLineDimension(obj,start, end){
@@ -148,7 +154,8 @@ export class LabelManager {
 		);
 		obj.add(textX)
 
-		textX.sync();	
+
+		textX.sync();
 	}
 
 	/**
@@ -199,7 +206,7 @@ export class LabelManager {
 		myText.textAlign = 'center';
 		myText.anchorX = '50%';
 		
-		
+		myText.visible = this.dimensionsVisible;	
 		
 		return myText;
 	}
@@ -247,6 +254,12 @@ export class LabelManager {
 
 		let line = new THREE.Line(geometry, material);
 		line.userData.isLine = true;
+		
+		line.visible = this.dimensionsVisible;
+		
 		return line;
+	}
+	setDimensionsVisibility(bool){
+		this.dimensionsVisible = bool;
 	}
 }

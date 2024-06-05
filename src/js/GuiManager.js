@@ -80,6 +80,7 @@ export class GuiManager {
 					}
 				}
 			}
+			this.stage.controller.labelManager.setDimensionsVisibility(e);
 		});
 		this.gui.addColor(options, 'цвет').onChange((e)=>{
 			self.stage.setMeshColor(self.stage.selectedObject, e);

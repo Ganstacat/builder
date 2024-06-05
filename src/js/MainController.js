@@ -133,8 +133,8 @@ export class MainController {
 		// this.applyCollisionAndRestraint(obj, prevpos);
 	}
 	applyCollisionAndRestraint(obj, prevpos){
-		this.dragEngine.applyRestraint(obj);
-		// this.dragEngine.applyCollision(obj, prevpos, true);
+		this.dragEngine.applyRestraint(obj, prevpos);
+		this.dragEngine.applyCollision(obj, prevpos);
 	}
 	
 	unsetSelection(){

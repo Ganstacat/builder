@@ -177,21 +177,32 @@ export function box3sAreSame(box1,box2){
 }
 
 
+export function getObjectMesh(obj){
+	let mesh;
+	this.applyToMeshes(obj, (o)=>{
+		mesh = o;
+	})
+	return mesh;
+}
+export function addOBBToObject(obj){
+	const mesh = this.getObjectMesh(obj);
+
+	const b3 = new THREE.Box3().setFromObject(mesh);
+	const center = new THREE.Vector3();
+	b3.getCenter(center);
+	const size = this.getBox3Size(b3);
+	mesh.geometry.userData.obb = new OBB(center, size.multiplyScalar(0.5));
+	mesh.userData.obb = new OBB();
+}
 /**
 	Создать модель, используя данные о её геометрии и материале. Созданные модели имеют структуру
 	group(container) -> group(model) -> mesh
 */
 export function createMesh(geometry, material) {
-	const size = new THREE.Vector3( geometry.parameters.width, geometry.parameters.height, geometry.parameters.depth );
-	
-	geometry.userData.obb = new OBB();
-	geometry.userData.obb.halfSize.copy(size).multiplyScalar(0.5);
-
 	let mesh = new THREE.Mesh(geometry, material);
 	mesh.geometry.computeBoundingBox();
 	mesh.matrixAutoUpdate = false;
-	mesh.userData.obb = new OBB();
-	
+	this.addOBBToObject(mesh);
 	
 	let modelGroup = new THREE.Group();
 	let containerGroup = new THREE.Group();
