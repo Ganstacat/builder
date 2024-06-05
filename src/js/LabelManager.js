@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import {FontLoader} from 'three/examples/jsm/loaders/FontLoader.js';
-import {TextGeometry} from 'three/examples/jsm/geometries/TextGeometry.js';
 import {Text} from 'troika-three-text';
 import * as utils from './utils.js';
 

@@ -28,27 +28,27 @@ export function addListeners(controller) {
 		controller.downloadStageToUserPc(controller.getCurrentStage());
 	}
 	// Добавить куб на текущую сцену. Куб ограничен в пределах сцены.
-	document.querySelector("#addCube").onclick = function(){
-		const box = utils.createMesh(
-			new THREE.BoxGeometry(0.5,0.5,0.5),
-			new THREE.MeshStandardMaterial({side: THREE.DoubleSide})
-		);
-		controller.addObjectToCurrentStage(box,true,true,true);
-	}
+	// document.querySelector("#addCube").onclick = function(){
+	// 	const box = utils.createMesh(
+	// 		new THREE.BoxGeometry(0.5,0.5,0.5),
+	// 		new THREE.MeshStandardMaterial({side: THREE.DoubleSide})
+	// 	);
+	// 	controller.addObjectToCurrentStage(box,true,true,true);
+	// }
 	// Добавить стену на текущую сцену. Стена имеет высоту и длину по размеру сцены и ограничена в её пределах.
 	// эта функция будет выпилена позже
-	document.querySelector("#addWall").onclick = function(){
-		let cbox = controller.currentStage.constraintBox;
-		let len = cbox.max.x - cbox.min.x;
-		let hei = cbox.max.y - cbox.min.y;
+	// document.querySelector("#addWall").onclick = function(){
+	// 	let cbox = controller.currentStage.constraintBox;
+	// 	let len = cbox.max.x - cbox.min.x;
+	// 	let hei = cbox.max.y - cbox.min.y;
 		
-		let box = utils.createMesh(
-			new THREE.BoxGeometry(len,hei,0.1),
-			new THREE.MeshStandardMaterial({side: THREE.DoubleSide})
-		);
-		box.castShadow = true;
-		controller.addObjectToCurrentStage(box,true,true,true);
-	}
+	// 	let box = utils.createMesh(
+	// 		new THREE.BoxGeometry(len,hei,0.1),
+	// 		new THREE.MeshStandardMaterial({side: THREE.DoubleSide})
+	// 	);
+	// 	box.castShadow = true;
+	// 	controller.addObjectToCurrentStage(box,true,true,true);
+	// }
 	// Удалить выбранный объект
 	document.querySelector("#delobj").onclick = function() {
 		controller.removeObjectFromCurrentStage(controller.getSelectedObject());
@@ -123,5 +123,26 @@ export function addListeners(controller) {
 		if(e.target.checked) controller.currentStage.switchToOrthoCamera();
 		controller.drawEngine.setDrawing(e.target.checked);
 		controller.dragEngine.setDragging(!e.target.checked);
-	})
+	});
+
+	const addElementSelector = document.querySelector('#addElement');
+	addElementSelector.onchange = (e)=>{
+		addElementHandler(addElementSelector.value, controller);
+	}
+}
+function addElementHandler(element, controller){
+	if(!element || element === 'reset') return;
+	
+	let geometry;
+	let material = new THREE.MeshStandardMaterial();
+	switch(element){
+		case 'cube': geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5); break;
+		case 'sphere': geometry = new THREE.SphereGeometry(0.25); break;
+		case 'pyramid': geometry = new THREE.ConeGeometry(0.25, 0.5, 3); break;
+		case 'cone': geometry = new THREE.ConeGeometry(0.25, 0.5, 16); break;
+		case 'cylinder': geometry = new THREE.CylinderGeometry(0.25, 0.25, 0.5); break;
+	}
+
+	const object = utils.createMesh(geometry, material);
+	controller.addObjectToCurrentStage(object, true, true, true);
 }

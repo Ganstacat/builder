@@ -87,8 +87,22 @@
 		<button id="builder">Сборщик</button>
 		<button id="floorPlanner" class="clickme">Планировщик</button>
 		<button id="exportToFloor">Экспорт</button>
-		<button id="addCube">Куб</button>
-		<button id="addWall">Стена</button>
+		<select name="addElement" id="addElement">
+			<option value="reset">Добавить</option>
+			<option value="cube">Куб</option>
+			<option value="sphere">Шар</option>
+			<option value="pyramid">Пирамиду</option>
+			<option value="cone">Конус</option>
+			<option value="cylinder">Цилиндр</option>
+		</select>
+		<select name="materials" id="materials">
+			<option value="reset">Материал:</option>
+			<option value="none">Без материала</option>
+			<option value="light_brick">Кирпич</option>
+			<option value="tile1">Плитка1</option>
+			<option value="tile2">Плитка2</option>
+			<option value="marbletiles">Мрамор</option>
+		</select>
 		<button id="clone">Клонировать</button><br>
 		<button id="delobj">Удалить</button>
 		<button id="clear">Очистить</button>
@@ -98,14 +112,6 @@
 				<span>Рисование</span>
 			</label>
 		</div>
-		<select name="materials" id="materials">
-			<option value="reset">Материал:</option>
-			<option value="none">Без материала</option>
-			<option value="light_brick">Кирпич</option>
-			<option value="tile1">Плитка1</option>
-			<option value="tile2">Плитка2</option>
-			<option value="marbletiles">Мрамор</option>
-		</select>
 		<button id="downloadScene">Скачать</button>
 		<button id="saveScene">Сохранить</button>
 		<form action="/api" method="post" enctype="multipart/form-data">
