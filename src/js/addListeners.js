@@ -127,10 +127,11 @@ export function addListeners(controller) {
 
 	const addElementSelector = document.querySelector('#addElement');
 	addElementSelector.onchange = (e)=>{
-		addElementHandler(addElementSelector.value, controller);
+		elementAdderHandler(addElementSelector.value, controller);
+		addElementSelector.value = 'reset';
 	}
 }
-function addElementHandler(element, controller){
+function elementAdderHandler(element, controller){
 	if(!element || element === 'reset') return;
 	
 	let geometry;
