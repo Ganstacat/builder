@@ -49964,8 +49964,6 @@ parcelHelpers.defineInteropFlag(exports);
 	Класс, который управляет размерными линиями.
 */ parcelHelpers.export(exports, "LabelManager", ()=>LabelManager);
 var _three = require("three");
-var _fontLoaderJs = require("three/examples/jsm/loaders/FontLoader.js");
-var _textGeometryJs = require("three/examples/jsm/geometries/TextGeometry.js");
 var _troikaThreeText = require("troika-three-text");
 var _utilsJs = require("./utils.js");
 class LabelManager {
@@ -50142,152 +50140,7 @@ class LabelManager {
     }
 }
 
-},{"three":"ktPTu","three/examples/jsm/loaders/FontLoader.js":"h0CPK","three/examples/jsm/geometries/TextGeometry.js":"d5vi9","troika-three-text":"7YS8r","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"h0CPK":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "FontLoader", ()=>FontLoader);
-parcelHelpers.export(exports, "Font", ()=>Font);
-var _three = require("three");
-class FontLoader extends (0, _three.Loader) {
-    constructor(manager){
-        super(manager);
-    }
-    load(url, onLoad, onProgress, onError) {
-        const scope = this;
-        const loader = new (0, _three.FileLoader)(this.manager);
-        loader.setPath(this.path);
-        loader.setRequestHeader(this.requestHeader);
-        loader.setWithCredentials(this.withCredentials);
-        loader.load(url, function(text) {
-            const font = scope.parse(JSON.parse(text));
-            if (onLoad) onLoad(font);
-        }, onProgress, onError);
-    }
-    parse(json) {
-        return new Font(json);
-    }
-}
-//
-class Font {
-    constructor(data){
-        this.isFont = true;
-        this.type = "Font";
-        this.data = data;
-    }
-    generateShapes(text, size = 100) {
-        const shapes = [];
-        const paths = createPaths(text, size, this.data);
-        for(let p = 0, pl = paths.length; p < pl; p++)shapes.push(...paths[p].toShapes());
-        return shapes;
-    }
-}
-function createPaths(text, size, data) {
-    const chars = Array.from(text);
-    const scale = size / data.resolution;
-    const line_height = (data.boundingBox.yMax - data.boundingBox.yMin + data.underlineThickness) * scale;
-    const paths = [];
-    let offsetX = 0, offsetY = 0;
-    for(let i = 0; i < chars.length; i++){
-        const char = chars[i];
-        if (char === "\n") {
-            offsetX = 0;
-            offsetY -= line_height;
-        } else {
-            const ret = createPath(char, scale, offsetX, offsetY, data);
-            offsetX += ret.offsetX;
-            paths.push(ret.path);
-        }
-    }
-    return paths;
-}
-function createPath(char, scale, offsetX, offsetY, data) {
-    const glyph = data.glyphs[char] || data.glyphs["?"];
-    if (!glyph) {
-        console.error('THREE.Font: character "' + char + '" does not exists in font family ' + data.familyName + ".");
-        return;
-    }
-    const path = new (0, _three.ShapePath)();
-    let x, y, cpx, cpy, cpx1, cpy1, cpx2, cpy2;
-    if (glyph.o) {
-        const outline = glyph._cachedOutline || (glyph._cachedOutline = glyph.o.split(" "));
-        for(let i = 0, l = outline.length; i < l;){
-            const action = outline[i++];
-            switch(action){
-                case "m":
-                    x = outline[i++] * scale + offsetX;
-                    y = outline[i++] * scale + offsetY;
-                    path.moveTo(x, y);
-                    break;
-                case "l":
-                    x = outline[i++] * scale + offsetX;
-                    y = outline[i++] * scale + offsetY;
-                    path.lineTo(x, y);
-                    break;
-                case "q":
-                    cpx = outline[i++] * scale + offsetX;
-                    cpy = outline[i++] * scale + offsetY;
-                    cpx1 = outline[i++] * scale + offsetX;
-                    cpy1 = outline[i++] * scale + offsetY;
-                    path.quadraticCurveTo(cpx1, cpy1, cpx, cpy);
-                    break;
-                case "b":
-                    cpx = outline[i++] * scale + offsetX;
-                    cpy = outline[i++] * scale + offsetY;
-                    cpx1 = outline[i++] * scale + offsetX;
-                    cpy1 = outline[i++] * scale + offsetY;
-                    cpx2 = outline[i++] * scale + offsetX;
-                    cpy2 = outline[i++] * scale + offsetY;
-                    path.bezierCurveTo(cpx1, cpy1, cpx2, cpy2, cpx, cpy);
-                    break;
-            }
-        }
-    }
-    return {
-        offsetX: glyph.ha * scale,
-        path: path
-    };
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"d5vi9":[function(require,module,exports) {
-/**
- * Text = 3D Text
- *
- * parameters = {
- *  font: <THREE.Font>, // font
- *
- *  size: <float>, // size of the text
- *  depth: <float>, // thickness to extrude text
- *  curveSegments: <int>, // number of points on the curves
- *
- *  bevelEnabled: <bool>, // turn on bevel
- *  bevelThickness: <float>, // how deep into text bevel goes
- *  bevelSize: <float>, // how far from text outline (including bevelOffset) is bevel
- *  bevelOffset: <float> // how far from text outline does bevel start
- * }
- */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "TextGeometry", ()=>TextGeometry);
-var _three = require("three");
-class TextGeometry extends (0, _three.ExtrudeGeometry) {
-    constructor(text, parameters = {}){
-        const font = parameters.font;
-        if (font === undefined) super(); // generate default extrude geometry
-        else {
-            const shapes = font.generateShapes(text, parameters.size);
-            // translate parameters to ExtrudeGeometry API
-            if (parameters.depth === undefined && parameters.height !== undefined) console.warn("THREE.TextGeometry: .height is now depreciated. Please use .depth instead"); // @deprecated, r163
-            parameters.depth = parameters.depth !== undefined ? parameters.depth : parameters.height !== undefined ? parameters.height : 50;
-            // defaults
-            if (parameters.bevelThickness === undefined) parameters.bevelThickness = 10;
-            if (parameters.bevelSize === undefined) parameters.bevelSize = 8;
-            if (parameters.bevelEnabled === undefined) parameters.bevelEnabled = false;
-            super(shapes, parameters);
-        }
-        this.type = "TextGeometry";
-    }
-}
-
-},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eDO5i":[function(require,module,exports) {
+},{"three":"ktPTu","troika-three-text":"7YS8r","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eDO5i":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -50315,24 +50168,26 @@ function addListeners(controller) {
         controller.downloadStageToUserPc(controller.getCurrentStage());
     };
     // Добавить куб на текущую сцену. Куб ограничен в пределах сцены.
-    document.querySelector("#addCube").onclick = function() {
-        const box = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial({
-            side: _three.DoubleSide
-        }));
-        controller.addObjectToCurrentStage(box, true, true, true);
-    };
+    // document.querySelector("#addCube").onclick = function(){
+    // 	const box = utils.createMesh(
+    // 		new THREE.BoxGeometry(0.5,0.5,0.5),
+    // 		new THREE.MeshStandardMaterial({side: THREE.DoubleSide})
+    // 	);
+    // 	controller.addObjectToCurrentStage(box,true,true,true);
+    // }
     // Добавить стену на текущую сцену. Стена имеет высоту и длину по размеру сцены и ограничена в её пределах.
     // эта функция будет выпилена позже
-    document.querySelector("#addWall").onclick = function() {
-        let cbox = controller.currentStage.constraintBox;
-        let len = cbox.max.x - cbox.min.x;
-        let hei = cbox.max.y - cbox.min.y;
-        let box = _utilsJs.createMesh(new _three.BoxGeometry(len, hei, 0.1), new _three.MeshStandardMaterial({
-            side: _three.DoubleSide
-        }));
-        box.castShadow = true;
-        controller.addObjectToCurrentStage(box, true, true, true);
-    };
+    // document.querySelector("#addWall").onclick = function(){
+    // 	let cbox = controller.currentStage.constraintBox;
+    // 	let len = cbox.max.x - cbox.min.x;
+    // 	let hei = cbox.max.y - cbox.min.y;
+    // 	let box = utils.createMesh(
+    // 		new THREE.BoxGeometry(len,hei,0.1),
+    // 		new THREE.MeshStandardMaterial({side: THREE.DoubleSide})
+    // 	);
+    // 	box.castShadow = true;
+    // 	controller.addObjectToCurrentStage(box,true,true,true);
+    // }
     // Удалить выбранный объект
     document.querySelector("#delobj").onclick = function() {
         controller.removeObjectFromCurrentStage(controller.getSelectedObject());
@@ -50388,6 +50243,34 @@ function addListeners(controller) {
         controller.drawEngine.setDrawing(e.target.checked);
         controller.dragEngine.setDragging(!e.target.checked);
     });
+    const addElementSelector = document.querySelector("#addElement");
+    addElementSelector.onchange = (e)=>{
+        addElementHandler(addElementSelector.value, controller);
+    };
+}
+function addElementHandler(element, controller) {
+    if (!element || element === "reset") return;
+    let geometry;
+    let material = new _three.MeshStandardMaterial();
+    switch(element){
+        case "cube":
+            geometry = new _three.BoxGeometry(0.5, 0.5, 0.5);
+            break;
+        case "sphere":
+            geometry = new _three.SphereGeometry(0.25);
+            break;
+        case "pyramid":
+            geometry = new _three.ConeGeometry(0.25, 0.5, 3);
+            break;
+        case "cone":
+            geometry = new _three.ConeGeometry(0.25, 0.5, 16);
+            break;
+        case "cylinder":
+            geometry = new _three.CylinderGeometry(0.25, 0.25, 0.5);
+            break;
+    }
+    const object = _utilsJs.createMesh(geometry, material);
+    controller.addObjectToCurrentStage(object, true, true, true);
 }
 
 },{"three":"ktPTu","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"c6KBJ":[function(require,module,exports) {
