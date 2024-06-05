@@ -18,8 +18,8 @@ import {LabelManager} from './LabelManager.js';
 import {addListeners} from './addListeners.js';
 import {addKeyboardControls} from './addKeyboardControls.js';
 import {DrawEngine} from './DrawEngine.js';
-import * as utils from './utils.js';
-
+import {generateRamdomId} from './utils.js';
+import {setCookie} from './cookieUtils.js';
 /**
 	Точка входа в приложение, создаются объекты, разрешаются зависимости
 */
@@ -63,50 +63,18 @@ addKeyboardControls(controller);
 // TODO: сделать методы для постройки стены и предоставить их через контроллер
 // TODO: заменить начальные стенки в floorPlaner на те из drawEngine
 
-function httpGet(theUrl)
-{
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
-    xmlHttp.send( null );
-    return xmlHttp.responseText;
-}
 
-function httpPost(theUrl)
-{
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.open( "POST", theUrl); // false for synchronous request
-    // xmlHttp.setRequestHeader('Content-type', 'application/json');
-    xmlHttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-    xmlHttp.onload = () =>{
-        console.log(xmlHttp.responseText);
-    }
-    xmlHttp.send('fname=Mary');
-    return xmlHttp.responseText;
-}
-function setCookie(cname, cvalue, exdays) {
-    const d = new Date();
-    d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
-    let expires = "expires=" + d.toUTCString();
-    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
-}
-function deleteCookie(cname){
-    document.cookie = `${cname}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-}
 
 const cook = 'userId';
-const id = utils.generateRamdomId();
+const id = generateRamdomId();
 if(!document.cookie){
     console.log('setting cookie');
     setCookie(cook, id, 1);
 } else {
     console.log('Cookie:');
     console.log(document.cookie);
-    // deleteCookie(cook);
 }
 
-// console.log(httpGet('/index.php'))
 
-
-
-exportManager.loadByLinkToStage('/index.php?mode=load', floorStage);
+// exportManager.loadByLinkToStage('/index.php?mode=load', floorStage);
 // exportManager.saveToDatabase(controller.currentStage.movableObjects, '/index.php?mode=load'); 

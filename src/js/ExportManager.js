@@ -294,16 +294,6 @@ export class ExportManager {
 	}
 	sendBlobWithHttpPost(theUrl, blob)
 	{
-		// var xmlHttp = new XMLHttpRequest();
-		// xmlHttp.open("POST", theUrl); 
-		// // xmlHttp.setRequestHeader('Content-type', 'application/octet-stream');
-		// xmlHttp.onload = () => {
-		// 	console.log(xmlHttp.responseText);
-		// }
-		// const form = new FormData();
-		// form.append('fname','biba.glb');
-		// xmlHttp.send(form);
-		// return xmlHttp.responseText;
 		fetch(theUrl, {method:"POST", body:blob})
 			.then(res=>console.log(res.text()))
 	}	

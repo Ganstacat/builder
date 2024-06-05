@@ -333,11 +333,11 @@ export class Stage {
 		addNewBox3Tree(box4);
 
 		const box = utils.createMesh(
-			new THREE.BoxGeometry(0.7,0.5,0.5),
+			new THREE.BoxGeometry(0.5,0.5,0.5),
 			new THREE.MeshStandardMaterial()
 		);
 		const box_cop = utils.createMesh(
-			new THREE.BoxGeometry(0.7,0.5,0.5),
+			new THREE.BoxGeometry(0.5,0.5,0.5),
 			new THREE.MeshStandardMaterial()
 		);
 		// box.position.y -= box.geometry.boundingBox.min.y;
@@ -360,20 +360,17 @@ export class Stage {
 		box2.position.x += 1;
 		box2_cop.position.x += 2;
 		
-		this.addObject(box,true,false,true,false);
-		this.addObject(box_cop,true,true,true,true);
-		this.addObject(box2,true,true,true,true);
-		this.addObject(box2_cop,true,true,true,true);
-		
-		box.userData.lockScale = 'x'
-		box_cop.userData.lockScale = 'x'
-		box2.userData.lockScale = 'y'
-		box2_cop.userData.lockScale = 'y'
 
-		// box.userData.onMove = ()=>{
-		// 	utils.moveBox3(box3, box.position);
-		// }
-		addListenersToContainerObject(box, this.controller.dragEngine, box3);
+			
+		// box.userData.lockScale = 'x'
+		// box_cop.userData.lockScale = 'x'
+		// box2.userData.lockScale = 'y'
+		// box2_cop.userData.lockScale = 'y'
+		this.addObject(box,true,false,true,false);
+		this.addObject(box_cop,true,true,true,false);
+		// this.addObject(box2,true,true,true,true);
+		// this.addObject(box2_cop,true,true,true,true);
+		// addListenersToContainerObject(box, this.controller.dragEngine, box3);
 		// this.setRestraint(box, box3);
 		// this.setRestraint(box2, this.constraintBox);
 		

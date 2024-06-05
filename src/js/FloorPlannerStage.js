@@ -12,12 +12,12 @@ export class FloorPlannerStage extends Stage {
 	addStartingObjects() {
 		const gridHelper = new THREE.GridHelper(16, 64);
 		this.addObject(gridHelper);
-		const plane = utils.createMesh(
-			new THREE.PlaneGeometry(4,4),
-			new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide})
-		);
-		plane.rotation.x = -0.5 * Math.PI;
-		plane.receiveShadow = true;
+		// const plane = utils.createMesh(
+			// new THREE.PlaneGeometry(4,4),
+			// new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide})
+		// );
+		// plane.rotation.x = -0.5 * Math.PI;
+		// plane.receiveShadow = true;
 
 		// const wallColor = 0xf8c471;
 		// const textureLoader = new THREE.TextureLoader();

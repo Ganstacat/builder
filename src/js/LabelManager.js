@@ -49,7 +49,8 @@ export class LabelManager {
 				size_halved.y+0.1,
 				0
 			),
-			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI)
+			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI),
+			0.2
 		);
 		obj.add(textX)
 
@@ -81,6 +82,10 @@ export class LabelManager {
 		let lineY = this.createLineFromPoints(pointsY);
 		
 		
+		let textSize = (size.x + size.y + size.z)/10;
+		if (textSize < 0.1) textSize = 0.1
+		else if (textSize > 0.2) textSize = 0.2
+		
 		let textX = this.createText(
 			Math.floor(size_copy.x*1000)+'мм',
 			new THREE.Vector3(
@@ -88,7 +93,8 @@ export class LabelManager {
 				// size_halved.y,
 				size_halved.y,
 				size_halved.z+0.1),
-			new THREE.Vector3(Math.PI/2, Math.PI,Math.PI)
+			new THREE.Vector3(Math.PI/2, Math.PI,Math.PI),
+			textSize
 		);
 		let textZ = this.createText(
 			Math.floor(size_copy.z*1000)+'мм',
@@ -97,7 +103,8 @@ export class LabelManager {
 				// size_halved.y,
 				size_halved.y,
 				0),
-			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI*1.5)
+			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI*1.5),
+			textSize
 		);
 		let textY = this.createText(
 			Math.floor(size_copy.y*1000)+'мм',
@@ -105,7 +112,8 @@ export class LabelManager {
 				size_halved.x+0.1,
 				0,
 				size_halved.z+0.1),
-			new THREE.Vector3(0,0,Math.PI/2)
+			new THREE.Vector3(0,0,Math.PI/2),
+			textSize
 		);
 		
 		obj.add(lineX);
@@ -133,11 +141,12 @@ export class LabelManager {
 			2,
 			(start.z+end.z)/2
 		);	
-		
+		const textSize = 0.2	
 		let textX = this.createText(
 			Math.floor(dist*1000)+'мм',
 			center,
-			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI)
+			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI),
+			textSize
 		);
 		obj.add(textX)
 
@@ -168,7 +177,7 @@ export class LabelManager {
 		rotation - Vector3 - как будет повёрнут
 		return: Text
 	*/
-	createText(txt, position, rotation) {
+	createText(txt, position, rotation, textSize) {
 		let myText = new Text()
 		
 		myText.text = txt
@@ -185,7 +194,7 @@ export class LabelManager {
 			position.x, position.y, position.z
 		);
 		
-		myText.fontSize = 0.2
+		myText.fontSize = textSize 
 		myText.color = 'white'
 		myText.outlineWidth = '10%'
 		myText.userData.isText = true;

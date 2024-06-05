@@ -29,7 +29,6 @@ export class DrawEngine {
 		this.nodes = [];
 		this.nodesList = [];
 		this.polys = [];
-		this.walls = [];
 		this.corners = [];
 		this.wallGraph = new WallGraph();
 
@@ -206,7 +205,6 @@ export class DrawEngine {
 		mesh.position.set(point.x, 1, point.z);
 		const self = this;
 		mesh.userData.onMove = (startPoint, endPoint)=>{
-			// self.moveCornerPoint(startPoint, endPoint);
 			const moved = new THREE.Vector3().subVectors(endPoint, startPoint);
 			
 			self.moveWallPoint(startPoint, moved);
@@ -234,7 +232,18 @@ export class DrawEngine {
 		this.height+= 0.0001;
 		return mesh;
 	}
-	
+	createRoomFromPoints(points) {
+		// points - array of Vectror3
+		let prevPoint;
+		let currentPoint;
+		for (let p of points){
+			if(!prevPoint){
+				prevPoint = p;
+
+			}
+		}
+	}
+
 	addEventListenersToStage(stage){
 		const self = this;
 		console.log(this.stage);
@@ -258,15 +267,8 @@ export class DrawEngine {
 
 		if (!this.start) return;
 
-
 		
-		for (let c of this.corners){
-			const p = c.position;
-			if(utils.arePointsNearXZ(this.end, p)){
-				this.end.x = p.x;
-				this.end.z = p.z;
-			}		
-		}
+		this.#snapPointToNearestCorner(this.end);
 		
 		var material = this.lineMaterialGood;
 		
@@ -277,7 +279,6 @@ export class DrawEngine {
 
 		const geometry = new THREE.BufferGeometry().setFromPoints([this.start, this.end]);
 		this.line = new THREE.Line(geometry, material);
-		const dist = this.start.distanceTo(this.end);
 		this.labelManager.addLineDimension(this.line, this.start, this.end);
 		this.stage.addObject(this.line);
 		
@@ -288,13 +289,7 @@ export class DrawEngine {
 		
 		if(!this.start) {
 			
-			for (let c of this.corners){
-				const p = c.position;
-				if(utils.arePointsNearXZ(this.end, p)){
-					this.end.x = p.x;
-					this.end.z = p.z;
-				}		
-			}
+			this.#snapPointToNearestCorner(this.end);
 			this.start = this.end;
 			
 			const cylinder = this.makeCylinderAtPoint(this.end, this.cylinderMaterial);
@@ -312,7 +307,6 @@ export class DrawEngine {
 			if(added)
 				this.stage.addObject(wall,true,true,true);
 
-			this.walls.push(wall);
 			
 			const cylinder = this.makeCylinderAtPoint(this.end, this.cylinderMaterial);
 			if (cylinder)
@@ -335,10 +329,18 @@ export class DrawEngine {
 				this.nodesList.push(this.nodes);
 				
 				this.start = null;
-				this.walls = [];
 				this.nodes = [];
 			} else {			
 				this.start = this.end;
+			}
+		}
+	}
+	#snapPointToNearestCorner(point){
+		for (let c of this.corners) {
+			const p = c.position;
+			if (utils.arePointsNearXZ(point, p)) {
+				point.x = p.x;
+				point.z = p.z;
 			}
 		}
 	}
