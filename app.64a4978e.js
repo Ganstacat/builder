@@ -46695,7 +46695,7 @@ class Stage {
         // box_cop.userData.lockScale = 'x'
         // box2.userData.lockScale = 'y'
         // box2_cop.userData.lockScale = 'y'
-        this.addObject(box, true, false, true, false);
+        this.addObject(box, true, true, true, false);
         this.addObject(box_cop, true, true, true, false);
     // this.addObject(box2,true,true,true,true);
     // this.addObject(box2_cop,true,true,true,true);
@@ -46978,8 +46978,9 @@ class Stage {
         this.movableObjects = this.movableObjects.filter((o)=>{
             return o !== obj;
         });
+        const mesh = _utilsJs.getObjectMesh(obj);
         this.objectsWithCollision = this.objectsWithCollision.filter((o)=>{
-            return o !== obj;
+            return o !== mesh;
         });
     }
     /**
@@ -48023,6 +48024,7 @@ class GuiManager {
             for (let o of self.stage.movableObjects)if (o.name === "container") {
                 for (let c of o.children)if (c.isLine || c.userData.isText) c.visible = e;
             }
+            this.stage.controller.labelManager.setDimensionsVisibility(e);
         });
         this.gui.addColor(options, "\u0446\u0432\u0435\u0442").onChange((e)=>{
             self.stage.setMeshColor(self.stage.selectedObject, e);
@@ -48114,6 +48116,8 @@ parcelHelpers.export(exports, "getModelsGroup", ()=>getModelsGroup);
 // 	return new THREE.Box3(min, max);
 // }
 parcelHelpers.export(exports, "box3sAreSame", ()=>box3sAreSame);
+parcelHelpers.export(exports, "getObjectMesh", ()=>getObjectMesh);
+parcelHelpers.export(exports, "addOBBToObject", ()=>addOBBToObject);
 /**
 	Создать модель, используя данные о её геометрии и материале. Созданные модели имеют структуру
 	group(container) -> group(model) -> mesh
@@ -48267,14 +48271,27 @@ function box3sAreSame(box1, box2) {
     const max2 = box2.max;
     return min1.x === min2.x && min1.y === min2.y && min1.z === min2.z && max1.x === max2.x && max1.y === max2.y && max1.z === max2.z;
 }
+function getObjectMesh(obj) {
+    let mesh;
+    this.applyToMeshes(obj, (o)=>{
+        mesh = o;
+    });
+    return mesh;
+}
+function addOBBToObject(obj) {
+    const mesh = this.getObjectMesh(obj);
+    const b3 = new _three.Box3().setFromObject(mesh);
+    const center = new _three.Vector3();
+    b3.getCenter(center);
+    const size = this.getBox3Size(b3);
+    mesh.geometry.userData.obb = new (0, _obbJs.OBB)(center, size.multiplyScalar(0.5));
+    mesh.userData.obb = new (0, _obbJs.OBB)();
+}
 function createMesh(geometry, material) {
-    const size = new _three.Vector3(geometry.parameters.width, geometry.parameters.height, geometry.parameters.depth);
-    geometry.userData.obb = new (0, _obbJs.OBB)();
-    geometry.userData.obb.halfSize.copy(size).multiplyScalar(0.5);
     let mesh = new _three.Mesh(geometry, material);
     mesh.geometry.computeBoundingBox();
     mesh.matrixAutoUpdate = false;
-    mesh.userData.obb = new (0, _obbJs.OBB)();
+    this.addOBBToObject(mesh);
     let modelGroup = new _three.Group();
     let containerGroup = new _three.Group();
     modelGroup.name = "models";
@@ -48999,7 +49016,7 @@ class DragEnginePlane {
         this.lockX = false;
         this.lockY = false;
         this.lockZ = false;
-        this.collision = false;
+        this.collision = true;
         this.dragging = true;
     }
     setDragging(bool) {
@@ -49153,7 +49170,31 @@ class DragEnginePlane {
     }
     /*
 		Применить коллизию: если перемещаемая модель столкнулась с другой моделью, у которой есть коллизия, то пересчитываем позицию перемещаемой модели так, чтобы коллизионные коробки двух моделей не пересекались.
-	**/ applyCollision(obj, oldpos, noLimit) {
+	**/ applyCollision(obj, oldpos) {
+        if (!this.collision || obj.userData.isNotAffectedByCollision) return;
+        for (let colobj of this.stage.objectsWithCollision){
+            if (obj === colobj) continue;
+            if (obj === this.getRootParentGroup(colobj)) continue;
+            const colobjObb = colobj.userData.obb;
+            const objObb = _utilsJs.getObjectMesh(obj).userData.obb;
+            const objBox3 = new _three.Box3().setFromObject(obj);
+            if (colobjObb.intersectsBox3(objBox3)) {
+                if (colobjObb.intersectsOBB(objObb)) obj.position.copy(oldpos); // easy variant
+            // let clampPoint = new THREE.Vector3();
+            // let halfSize = objObb.halfSize;
+            // colobjObb.clampPoint(obj.position, clampPoint);
+            // const clampDist = oldpos.distanceTo(clampPoint);
+            // obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
+            // const side = new THREE.Vector3().copy(obj.position).addScalar(0.25);
+            // const moved = new THREE.Vector3().subVectors(obj.position, side);
+            // console.log(moved);
+            // // moved.setLength(clampDist);
+            // // obj.position.copy(moved);
+            // obj.position.addVectors(obj.position, moved);
+            }
+        }
+    }
+    applyCollision_2(obj, oldpos, noLimit) {
         if (!this.collision || obj.userData.isNotAffectedByCollision) return;
         for (let colobj of this.stage.objectsWithCollision){
             if (obj === colobj) continue;
@@ -49163,51 +49204,10 @@ class DragEnginePlane {
             _utilsJs.applyToMeshes(objGroup, (o)=>{
                 objMesh = o;
             });
-            // utils.applyToMeshes(colobj, o=>{
-            // 	if(o.parent.name === 'models') colObjMesh = o;
-            // });
+            const objBox3 = new _three.Box3().setFromObject(objGroup);
             const obb = objMesh.userData.obb;
             const colObb = colobj.userData.obb;
-            if (this.hasIntersection(obb, colObb)) {
-                let prevpos = obj.position.clone();
-                let clampPoint = new _three.Vector3();
-                let halfSize = obb.halfSize;
-                colObb.clampPoint(obj.position, clampPoint);
-                const clampDist = prevpos.distanceTo(clampPoint);
-                if (clampDist > 0.01 && clampDist < halfSize.x + halfSize.z) {
-                    obj.position.set(clampPoint.x, clampPoint.y, clampPoint.z);
-                    let dragbbox = new _three.Box3().setFromObject(obj);
-                    let halfLength = (dragbbox.max.x - dragbbox.min.x) / 2;
-                    let halfHeight = (dragbbox.max.y - dragbbox.min.y) / 2;
-                    let halfWidth = (dragbbox.max.z - dragbbox.min.z) / 2;
-                    let dragpos = obj.position;
-                    if (prevpos.x < dragpos.x) dragpos.x -= halfLength;
-                    else if (prevpos.x > dragpos.x) dragpos.x += halfLength;
-                    if (prevpos.z < dragpos.z) dragpos.z -= halfWidth;
-                    else if (prevpos.z > dragpos.z) dragpos.z += halfWidth;
-                // if(prevpos.y < dragpos.y) {
-                // dragpos.y -= halfHeight;
-                // } else if (prevpos.y > dragpos.y) {
-                // dragpos.y += halfHeight;
-                // }
-                // let dragpos = obj.position;
-                // if(prevpos.x < dragpos.x) {
-                // dragpos.x -= halfSize.x;
-                // } else if (prevpos.x > dragpos.x) {
-                // dragpos.x += halfSize.x;
-                // }
-                // if(prevpos.z < dragpos.z) {
-                // dragpos.z -= halfSize.z;
-                // } else if (prevpos.z > dragpos.z) {
-                // dragpos.z += halfSize.z;
-                // }
-                // if(prevpos.y < dragpos.y) {
-                // dragpos.y -= halfSize.y;
-                // } else if (prevpos.y > dragpos.y) {
-                // dragpos.y += halfSize.y;
-                // }
-                }
-            }
+            if (this.hasIntersection(obb, colObb)) console.log("intersect!");
         }
     }
     applyCollision_old(obj, oldpos, noLimit) {
@@ -49656,8 +49656,8 @@ class MainController {
     // this.applyCollisionAndRestraint(obj, prevpos);
     }
     applyCollisionAndRestraint(obj, prevpos) {
-        this.dragEngine.applyRestraint(obj);
-    // this.dragEngine.applyCollision(obj, prevpos, true);
+        this.dragEngine.applyRestraint(obj, prevpos);
+        this.dragEngine.applyCollision(obj, prevpos);
     }
     unsetSelection() {
         this.currentStage.unsetSelectedObject();
@@ -49894,19 +49894,7 @@ class ExportManager {
                 if (!g) continue;
                 let group = new _three.Group();
                 for (let m of g){
-                    _utilsJs.applyToMeshes(m, (o)=>{
-                        const badObb = o.geometry.userData.obb;
-                        console.log(o.geometry);
-                        if (badObb) o.geometry.userData.obb = new (0, _obbJs.OBB)(badObb.center, badObb.halfSize, badObb.rotation);
-                        else {
-                            const b3 = new _three.Box3().setFromObject(o);
-                            const center = new _three.Vector3();
-                            b3.getCenter(center);
-                            const size = _utilsJs.getBox3Size(b3);
-                            o.geometry.userData.obb = new (0, _obbJs.OBB)(center, size.multiplyScalar(0.5));
-                        }
-                        o.userData.obb = new (0, _obbJs.OBB)();
-                    });
+                    _utilsJs.addOBBToObject(m);
                     group.add(m);
                 }
                 let pos = new _three.Vector3();
@@ -49974,11 +49962,13 @@ class LabelManager {
     /**
 		Добавляет размерные линии к объектам
 	*/ addLabelToObject(obj) {
+        const rotationTemp = obj.rotation.clone();
+        obj.rotation.set(0, 0, 0);
         if (obj.userData.isWall) this.addWallDimensions(obj);
         else this.addObjectDimensions(obj);
+        obj.rotation.copy(rotationTemp);
     }
     addWallDimensions(obj) {
-        // obj.material.wireframe = true;
         let box3 = new _three.Box3().setFromObject(obj);
         let size = new _three.Vector3();
         let size_copy = new _three.Vector3();
@@ -50079,6 +50069,7 @@ class LabelManager {
         myText.userData.isText = true;
         myText.textAlign = "center";
         myText.anchorX = "50%";
+        myText.visible = this.dimensionsVisible;
         return myText;
     }
     /**
@@ -50136,7 +50127,11 @@ class LabelManager {
         const geometry = new _three.BufferGeometry().setFromPoints(points);
         let line = new _three.Line(geometry, material);
         line.userData.isLine = true;
+        line.visible = this.dimensionsVisible;
         return line;
+    }
+    setDimensionsVisibility(bool) {
+        this.dimensionsVisible = bool;
     }
 }
 
