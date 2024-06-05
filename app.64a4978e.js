@@ -601,6 +601,7 @@ var _addListenersJs = require("./addListeners.js");
 var _addKeyboardControlsJs = require("./addKeyboardControls.js");
 var _drawEngineJs = require("./DrawEngine.js");
 var _utilsJs = require("./utils.js");
+var _cookieUtilsJs = require("./cookieUtils.js");
 /**
 	Точка входа в приложение, создаются объекты, разрешаются зависимости
 */ const textureLoader = new _three.TextureLoader();
@@ -609,8 +610,8 @@ const assetLoader = new (0, _gltfloaderJs.GLTFLoader)();
 const exporter = new (0, _gltfexporterJs.GLTFExporter)();
 const exportManager = new (0, _exportManagerJs.ExportManager)(exporter, assetLoader);
 const dragEngine = new (0, _dragEnginePlaneJs.DragEnginePlane)();
-const drawEngine = new (0, _drawEngineJs.DrawEngine)(dragEngine, materialManager);
 const labelManager = new (0, _labelManagerJs.LabelManager)();
+const drawEngine = new (0, _drawEngineJs.DrawEngine)(dragEngine, materialManager, labelManager);
 const controller = new (0, _mainControllerJs.MainController)(dragEngine, drawEngine, exportManager, materialManager, labelManager);
 const builderStage = new (0, _stageJs.Stage)(controller);
 const floorStage = new (0, _floorPlannerStageJs.FloorPlannerStage)(controller);
@@ -618,15 +619,25 @@ controller.registerStage("builder", builderStage);
 controller.registerStage("floorPlanner", floorStage);
 controller.setCurrentStage("builder");
 (0, _addListenersJs.addListeners)(controller);
-(0, _addKeyboardControlsJs.addKeyboardControls)(controller); // TODO: стакающиеся блоки работают кривовато, посмотреть что не так и отладидть
- // TOOD: Оформить фичу с таскаемыми блоками покрасивее
- // TODO: Посмотреть как можно накрутить графон
- // TODO: Посмотреть как динамически менять UV Развёрстку текстур при изменении размеров
- // TODO: сделать таскание за ноды, а не только за стены
- // TODO: сделать методы для постройки стены и предоставить их через контроллер
- // TODO: заменить начальные стенки в floorPlaner на те из drawEngine
+(0, _addKeyboardControlsJs.addKeyboardControls)(controller);
+// TODO: стакающиеся блоки работают кривовато, посмотреть что не так и отладидть
+// TOOD: Оформить фичу с таскаемыми блоками покрасивее
+// TODO: Посмотреть как можно накрутить графон
+// TODO: Посмотреть как динамически менять UV Развёрстку текстур при изменении размеров
+// TODO: сделать методы для постройки стены и предоставить их через контроллер
+// TODO: заменить начальные стенки в floorPlaner на те из drawEngine
+const cook = "userId";
+const id = (0, _utilsJs.generateRamdomId)();
+if (!document.cookie) {
+    console.log("setting cookie");
+    (0, _cookieUtilsJs.setCookie)(cook, id, 1);
+} else {
+    console.log("Cookie:");
+    console.log(document.cookie);
+} // exportManager.loadByLinkToStage('/index.php?mode=load', floorStage);
+ // exportManager.saveToDatabase(controller.currentStage.movableObjects, '/index.php?mode=load'); 
 
-},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","dat.gui":"k3xQk","three/examples/jsm/utils/BufferGeometryUtils.js":"5o7x9","troika-three-text":"7YS8r","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./ExportManager.js":"8hs9t","./LabelManager.js":"aEsVy","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ","./DrawEngine.js":"KIqcM","./utils.js":"72Dku"}],"ktPTu":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","dat.gui":"k3xQk","three/examples/jsm/utils/BufferGeometryUtils.js":"5o7x9","troika-three-text":"7YS8r","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./ExportManager.js":"8hs9t","./LabelManager.js":"aEsVy","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ","./DrawEngine.js":"KIqcM","./utils.js":"72Dku","./cookieUtils.js":"dNkkZ"}],"ktPTu":[function(require,module,exports) {
 /**
  * @license
  * Copyright 2010-2024 Three.js Authors
@@ -46670,8 +46681,8 @@ class Stage {
         const box4 = this.addBox3(new _three.Box3(new _three.Vector3(-4.5, 0, -2), new _three.Vector3(-3.5, 2, 1)), true);
         (0, _packableObjectListenersJs.addNewBox3Tree)(box3);
         (0, _packableObjectListenersJs.addNewBox3Tree)(box4);
-        const box = _utilsJs.createMesh(new _three.BoxGeometry(0.7, 0.5, 0.5), new _three.MeshStandardMaterial());
-        const box_cop = _utilsJs.createMesh(new _three.BoxGeometry(0.7, 0.5, 0.5), new _three.MeshStandardMaterial());
+        const box = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial());
+        const box_cop = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial());
         // box.position.y -= box.geometry.boundingBox.min.y;
         box.position.x -= 0;
         box_cop.position.x -= 1;
@@ -46680,18 +46691,15 @@ class Stage {
         // box2.position.y -= box.geometry.boundingBox.min.y;
         box2.position.x += 1;
         box2_cop.position.x += 2;
+        // box.userData.lockScale = 'x'
+        // box_cop.userData.lockScale = 'x'
+        // box2.userData.lockScale = 'y'
+        // box2_cop.userData.lockScale = 'y'
         this.addObject(box, true, false, true, false);
-        this.addObject(box_cop, true, true, true, true);
-        this.addObject(box2, true, true, true, true);
-        this.addObject(box2_cop, true, true, true, true);
-        box.userData.lockScale = "x";
-        box_cop.userData.lockScale = "x";
-        box2.userData.lockScale = "y";
-        box2_cop.userData.lockScale = "y";
-        // box.userData.onMove = ()=>{
-        // 	utils.moveBox3(box3, box.position);
-        // }
-        (0, _packableObjectListenersJs.addListenersToContainerObject)(box, this.controller.dragEngine, box3);
+        this.addObject(box_cop, true, true, true, false);
+    // this.addObject(box2,true,true,true,true);
+    // this.addObject(box2_cop,true,true,true,true);
+    // addListenersToContainerObject(box, this.controller.dragEngine, box3);
     // this.setRestraint(box, box3);
     // this.setRestraint(box2, this.constraintBox);
     // utils.moveBox3(box3, new THREE.Vector3(1,0,2));
@@ -48898,52 +48906,65 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
     addStartingObjects() {
         const gridHelper = new _three.GridHelper(16, 64);
         this.addObject(gridHelper);
-        const plane = _utilsJs.createMesh(new _three.PlaneGeometry(4, 4), new _three.MeshStandardMaterial({
-            color: 0x999999,
-            side: _three.DoubleSide
-        }));
-        plane.rotation.x = -0.5 * Math.PI;
-        plane.receiveShadow = true;
-        const wallColor = 0xf8c471;
-        const textureLoader = new _three.TextureLoader();
-        const wallGeometry = new _three.PlaneGeometry(4, 4);
-        const walltexture = textureLoader.load("./assets/textures/wallpaper2.jpg");
-        walltexture.wrapS = _three.RepeatWrapping;
-        walltexture.wrapT = _three.RepeatWrapping;
-        walltexture.repeat.set(4, 4);
-        const wallMaterial = ()=>{
-            return new _three.MeshStandardMaterial({
-                map: walltexture
-            });
-        };
-        const wall1 = _utilsJs.createMesh(wallGeometry, wallMaterial());
-        const wall2 = _utilsJs.createMesh(wallGeometry, wallMaterial());
-        const wall3 = _utilsJs.createMesh(wallGeometry, wallMaterial());
-        const wall4 = _utilsJs.createMesh(wallGeometry, wallMaterial());
-        wall1.rotation.y = 0.5 * Math.PI;
-        wall1.rotation.z = -0.5 * Math.PI;
-        wall1.position.set(-2, 0.75, 0);
-        wall2.position.set(0, 0.75, -2);
-        wall2.rotation.z = 0.5 * Math.PI;
-        wall3.position.set(2, 0.75, 0);
-        wall3.rotation.x = 0.5 * Math.PI;
-        wall3.rotation.y = -0.5 * Math.PI;
-        wall4.position.set(0, 0.75, 2);
-        wall4.rotation.y = -1 * Math.PI;
-        wall4.rotation.z = 0.5 * Math.PI;
-        wall1.castShadow = true;
-        wall1.receiveShadow = true;
-        wall1.userData.isSelectable = true;
-        wall2.userData.isSelectable = true;
-        wall3.userData.isSelectable = true;
-        wall4.userData.isSelectable = true;
-        plane.userData.isSelectable = true;
-        this.addObject(wall1, false, true);
-        this.addObject(wall2, false, true);
-        this.addObject(wall3, false, true);
-        this.addObject(wall4, false, true);
-        this.addObject(plane, false, false);
-        this.constraintBox = new _three.Box3(new _three.Vector3(-2, 0, -2), new _three.Vector3(2, 1.5, 2));
+    // const plane = utils.createMesh(
+    // new THREE.PlaneGeometry(4,4),
+    // new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide})
+    // );
+    // plane.rotation.x = -0.5 * Math.PI;
+    // plane.receiveShadow = true;
+    // const wallColor = 0xf8c471;
+    // const textureLoader = new THREE.TextureLoader();
+    // const wallGeometry = new THREE.PlaneGeometry(4,4);
+    // const walltexture = textureLoader.load('./assets/textures/wallpaper2.jpg');
+    // walltexture.wrapS = THREE.RepeatWrapping;
+    // walltexture.wrapT = THREE.RepeatWrapping;
+    // walltexture.repeat.set(4,4);
+    // const wallMaterial = ()=>{return new THREE.MeshStandardMaterial( {
+    // 	map: walltexture
+    // });}
+    // const wall1 = utils.createMesh(
+    // 	wallGeometry,
+    // 	wallMaterial()
+    // )
+    // const wall2 = utils.createMesh(
+    // 	wallGeometry,
+    // 	wallMaterial()
+    // )	
+    // const wall3 = utils.createMesh(
+    // 	wallGeometry,
+    // 	wallMaterial()
+    // )
+    // const wall4 = utils.createMesh(
+    // 	wallGeometry,
+    // 	wallMaterial()
+    // )
+    // wall1.rotation.y = 0.5 * Math.PI;
+    // wall1.rotation.z = -0.5 * Math.PI;
+    // wall1.position.set(-2, 0.75, 0);
+    // wall2.position.set(0,0.75,-2);
+    // wall2.rotation.z = 0.5 * Math.PI;
+    // wall3.position.set(2,0.75,0);
+    // wall3.rotation.x = 0.5 * Math.PI;
+    // wall3.rotation.y = -0.5 * Math.PI;
+    // wall4.position.set(0,0.75,2);
+    // wall4.rotation.y = -1 * Math.PI;
+    // wall4.rotation.z = 0.5 * Math.PI;
+    // wall1.castShadow = true;
+    // wall1.receiveShadow = true;
+    // wall1.userData.isSelectable = true;
+    // wall2.userData.isSelectable = true;
+    // wall3.userData.isSelectable = true;
+    // wall4.userData.isSelectable = true;
+    // plane.userData.isSelectable = true;
+    // this.addObject(wall1,false,true);
+    // this.addObject(wall2,false,true);
+    // this.addObject(wall3,false,true);
+    // this.addObject(wall4,false,true);
+    // this.addObject(plane,false,false);
+    // this.constraintBox = new THREE.Box3(
+    // 	new THREE.Vector3(-2, 0,-2),
+    // 	new THREE.Vector3( 2, 1.5, 2)
+    // );
     }
 }
 
@@ -48978,7 +48999,7 @@ class DragEnginePlane {
         this.lockX = false;
         this.lockY = false;
         this.lockZ = false;
-        this.collision = true;
+        this.collision = false;
         this.dragging = true;
     }
     setDragging(bool) {
@@ -49101,6 +49122,7 @@ class DragEnginePlane {
             this.applyAxisLock(o, oldpos);
             this.applyRestraint(o);
         });
+        if (!this.dragging || this.dragObject.userData.isWall || this.dragObject.userData.isCorner) _utilsJs.snapPoint(this.dragObject.position);
         if (this.dragObject && this.dragObject.userData.onMove) this.dragObject.userData.onMove(oldpos, this.dragObject.position);
     }
     snapObjectToBox3(obj, box3) {
@@ -49652,6 +49674,11 @@ class MainController {
         cb(args);
         for (let o of objects)this.addLabelToObject(o);
     }
+    saveToDatabase(objects, apiUrl) {
+        this.#doExporting(objects, ()=>{
+            this.exportManager.saveToDatabase(objects, apiUrl);
+        });
+    }
     exportObjectsToStage(objects, stageTo) {
         this.#doExporting(objects, ()=>{
             this.exportManager.exportToStage(objects, stageTo);
@@ -49786,7 +49813,6 @@ class ExportManager {
                 }
             }
             // добавить модельки в сцену. Сделать поправку на их положение в текущей сцене.
-            console.log("Adding groups");
             for (let g of groups){
                 if (!g) continue;
                 let group = new _three.Group();
@@ -49816,6 +49842,89 @@ class ExportManager {
             }
         });
     }
+    loadByLinkToStage(link, stage) {
+        console.log(link);
+        this.assetLoader.load(link, (gltf)=>{
+            const model = gltf.scene;
+            _utilsJs.applyToMeshes(model, (o)=>{
+                o.castShadow = true;
+                o.receiveShadow = true;
+            });
+            // Определить, какие модельки находятся рядом и сгруппировать их вместе
+            let groups = [];
+            for (let o of model.children){
+                groups.push([
+                    o
+                ]);
+                let index = groups.length - 1;
+                for (let c of model.children){
+                    if (o === c) continue;
+                    let oB = new _three.Box3().setFromObject(o);
+                    let cB = new _three.Box3().setFromObject(c);
+                    let distances = [];
+                    let p1 = _utilsJs.getBox3Points(oB);
+                    let p2 = _utilsJs.getBox3Points(cB);
+                    for (let p of p1)distances.push(cB.distanceToPoint(p));
+                    for (let p of p2)distances.push(oB.distanceToPoint(p));
+                    let shortest = 99;
+                    for (let d of distances)if (d < shortest) shortest = d;
+                    if (shortest < 0.1) groups[index].push(c);
+                }
+            }
+            // объединить разные группы, если они содержат общих потомков (union) - типа [1,2,3] и [3,4,5] объединится в [1,2,3,4,5]
+            for(let i = 0; i < groups.length; i++){
+                if (!groups[i]) continue;
+                for(let j = 0; j < groups.length; j++){
+                    if (!groups[j] || groups[i] === groups[j]) continue;
+                    let intersection = groups[i].filter((x)=>groups[j].includes(x));
+                    if (intersection.length > 0) {
+                        let union = [
+                            ...new Set([
+                                ...groups[i],
+                                ...groups[j]
+                            ])
+                        ];
+                        groups[i] = union;
+                        groups[j] = null;
+                    }
+                }
+            }
+            // добавить модельки в сцену. Сделать поправку на их положение в текущей сцене.
+            for (let g of groups){
+                if (!g) continue;
+                let group = new _three.Group();
+                for (let m of g){
+                    _utilsJs.applyToMeshes(m, (o)=>{
+                        const badObb = o.geometry.userData.obb;
+                        console.log(o.geometry);
+                        if (badObb) o.geometry.userData.obb = new (0, _obbJs.OBB)(badObb.center, badObb.halfSize, badObb.rotation);
+                        else {
+                            const b3 = new _three.Box3().setFromObject(o);
+                            const center = new _three.Vector3();
+                            b3.getCenter(center);
+                            const size = _utilsJs.getBox3Size(b3);
+                            o.geometry.userData.obb = new (0, _obbJs.OBB)(center, size.multiplyScalar(0.5));
+                        }
+                        o.userData.obb = new (0, _obbJs.OBB)();
+                    });
+                    group.add(m);
+                }
+                let pos = new _three.Vector3();
+                new _three.Box3().setFromObject(group).getCenter(pos);
+                for (let m of group.children){
+                    m.position.x -= pos.x;
+                    m.position.y -= pos.y;
+                    m.position.z -= pos.z;
+                }
+                let container = new _three.Group();
+                container.name = "container";
+                group.name = "models";
+                container.add(group);
+                stage.addObject(container, true, true, true);
+                container.position.copy(pos);
+            }
+        });
+    }
     /**
 		Загружает модели на сцену
 	*/ exportToStage(objects, stage) {
@@ -49828,6 +49937,23 @@ class ExportManager {
         }, {
             binary: true
         });
+    }
+    saveToDatabase(objects, apiUrl) {
+        let self = this;
+        this.exporter.parse(objects, (result)=>{
+            const blob = self.createBlobFromBuffer(result);
+            self.sendBlobWithHttpPost(apiUrl, blob);
+        }, (error)=>{
+            console.error(error);
+        }, {
+            binary: true
+        });
+    }
+    sendBlobWithHttpPost(theUrl, blob) {
+        fetch(theUrl, {
+            method: "POST",
+            body: blob
+        }).then((res)=>console.log(res.text()));
     }
 }
 
@@ -49869,7 +49995,7 @@ class LabelManager {
             mesh = o;
         });
         const depth = this.getObjDepth(mesh);
-        let textX = this.createText(Math.floor(depth * 1000) + "\u043C\u043C", new _three.Vector3(0, size_halved.y + 0.1, 0), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI));
+        let textX = this.createText(Math.floor(depth * 1000) + "\u043C\u043C", new _three.Vector3(0, size_halved.y + 0.1, 0), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI), 0.2);
         obj.add(textX);
         textX.sync();
     }
@@ -49890,17 +50016,20 @@ class LabelManager {
         let lineX = this.createLineFromPoints(pointsX);
         let lineZ = this.createLineFromPoints(pointsZ);
         let lineY = this.createLineFromPoints(pointsY);
+        let textSize = (size.x + size.y + size.z) / 10;
+        if (textSize < 0.1) textSize = 0.1;
+        else if (textSize > 0.2) textSize = 0.2;
         let textX = this.createText(Math.floor(size_copy.x * 1000) + "\u043C\u043C", new _three.Vector3(0, // size_halved.y,
-        size_halved.y / 2, size_halved.z + 0.1), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI));
+        size_halved.y, size_halved.z + 0.1), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI), textSize);
         let textZ = this.createText(Math.floor(size_copy.z * 1000) + "\u043C\u043C", new _three.Vector3(size_halved.x + 0.1, // size_halved.y,
-        size_halved.y / 2, 0), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI * 1.5));
-        let textY = this.createText(Math.floor(size_copy.y * 1000) + "\u043C\u043C", new _three.Vector3(size_halved.x + 0.1, 0, -size_halved.z - 0.1), new _three.Vector3(0, Math.PI / 4, Math.PI / 2));
-        // obj.add(lineX);
-        // obj.add(lineZ);
-        // obj.add(lineY);
-        // obj.add(textX)
+        size_halved.y, 0), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI * 1.5), textSize);
+        let textY = this.createText(Math.floor(size_copy.y * 1000) + "\u043C\u043C", new _three.Vector3(size_halved.x + 0.1, 0, size_halved.z + 0.1), new _three.Vector3(0, 0, Math.PI / 2), textSize);
+        obj.add(lineX);
+        obj.add(lineZ);
+        obj.add(lineY);
+        obj.add(textX);
         obj.add(textZ);
-        // obj.add(textY)
+        obj.add(textY);
         // let bx = new THREE.Box3().setFromObject(myText);
         // let s2 = new THREE.Vector3();
         // console.log(bx);
@@ -49908,6 +50037,15 @@ class LabelManager {
         textX.sync();
         textZ.sync();
         textY.sync();
+    }
+    addLineDimension(obj, start, end) {
+        // obj.material.wireframe = true;
+        const dist = start.distanceTo(end);
+        const center = new _three.Vector3((start.x + end.x) / 2, 2, (start.z + end.z) / 2);
+        const textSize = 0.2;
+        let textX = this.createText(Math.floor(dist * 1000) + "\u043C\u043C", center, new _three.Vector3(Math.PI / 2, Math.PI, Math.PI), textSize);
+        obj.add(textX);
+        textX.sync();
     }
     /**
 		Убирает отображение размерных линии и размеры с объекта
@@ -49926,7 +50064,7 @@ class LabelManager {
 		position - Vector3 - где будет расположен
 		rotation - Vector3 - как будет повёрнут
 		return: Text
-	*/ createText(txt, position, rotation) {
+	*/ createText(txt, position, rotation, textSize) {
         let myText = new (0, _troikaThreeText.Text)();
         myText.text = txt;
         // myText.position.set(
@@ -49937,7 +50075,7 @@ class LabelManager {
         // );
         myText.rotation.set(rotation.x, rotation.y, rotation.z);
         myText.position.set(position.x, position.y, position.z);
-        myText.fontSize = 0.3;
+        myText.fontSize = textSize;
         myText.color = "white";
         myText.outlineWidth = "10%";
         myText.userData.isText = true;
@@ -49962,10 +50100,10 @@ class LabelManager {
         ];
     }
     getPointsForYLine(size) {
-        let p0 = new _three.Vector3(size.x, size.y, -size.z);
-        let p1 = new _three.Vector3(size.x + 0.1, size.y, -size.z - 0.1);
-        let p2 = new _three.Vector3(size.x + 0.1, -size.y, -size.z - 0.1);
-        let p3 = new _three.Vector3(size.x, -size.y, -size.z);
+        let p0 = new _three.Vector3(size.x, size.y, size.z);
+        let p1 = new _three.Vector3(size.x + 0.1, size.y, size.z + 0.1);
+        let p2 = new _three.Vector3(size.x + 0.1, -size.y, size.z + 0.1);
+        let p3 = new _three.Vector3(size.x, -size.y, size.z);
         return [
             p0,
             p1,
@@ -50229,6 +50367,11 @@ function addListeners(controller) {
         controller.setObjectTexture(selected, texture);
         materialSelector.value = "reset";
     };
+    document.querySelector("#saveScene").onclick = ()=>{
+        console.log("saving");
+        controller.saveToDatabase(controller.getStage(floorPlanner).movableObjects, "/index.php?mode=save");
+    // controller.exportManager.saveToDatabase(controller.getStage(floorPlanner).movableObjects, '/index.php?mode=save'); 
+    };
     // загрузка пользовательского файла на сцену
     document.querySelector("#upload").onclick = function() {
         document.querySelector("#file").click();
@@ -50327,9 +50470,10 @@ class DrawEngine {
     #notAllowedMaterialKey = "redLine";
     #allowedMaterialKey = "greenLine";
     #roundCornerMaterialKey = "wallRoundCorner";
-    constructor(dragEngine, materialManager){
+    constructor(dragEngine, materialManager, labelManager){
         this.dragEngine = dragEngine;
         this.materialManager = materialManager;
+        this.labelManager = labelManager;
         this.#initialize();
         this.drawing = false;
         this.wallMaterial = this.materialManager.getMaterial(this.#wallpaperMaterialKey);
@@ -50341,7 +50485,6 @@ class DrawEngine {
         this.nodes = [];
         this.nodesList = [];
         this.polys = [];
-        this.walls = [];
         this.corners = [];
         this.wallGraph = new (0, _wallGraphJs.WallGraph)();
         this.inter = new _three.Vector3();
@@ -50468,10 +50611,10 @@ class DrawEngine {
         mesh.position.set(point.x, 1, point.z);
         const self = this;
         mesh.userData.onMove = (startPoint, endPoint)=>{
-            // self.moveCornerPoint(startPoint, endPoint);
             const moved = new _three.Vector3().subVectors(endPoint, startPoint);
             self.moveWallPoint(startPoint, moved);
         };
+        mesh.userData.isCorner = true;
         return mesh;
     }
     createPolygon(points) {
@@ -50490,6 +50633,12 @@ class DrawEngine {
         this.height += 0.0001;
         return mesh;
     }
+    createRoomFromPoints(points) {
+        // points - array of Vectror3
+        let prevPoint;
+        let currentPoint;
+        for (let p of points)if (!prevPoint) prevPoint = p;
+    }
     addEventListenersToStage(stage) {
         const self = this;
         console.log(this.stage);
@@ -50507,14 +50656,7 @@ class DrawEngine {
         this.end = new _three.Vector3(this.inter.x, 1, this.inter.z);
         _utilsJs.snapPoint(this.end);
         if (!this.start) return;
-        for (let c of this.corners){
-            const p = c.position;
-            if (_utilsJs.arePointsNearXZ(this.end, p)) {
-                this.end.x = p.x;
-                this.end.z = p.z;
-            }
-        }
-        //adhoc
+        this.#snapPointToNearestCorner(this.end);
         var material = this.lineMaterialGood;
         if (this.angleStart) {
             this.angle = _utilsJs.angleBetweenSegmentsXZ(this.angleStart, this.start, this.end);
@@ -50525,18 +50667,13 @@ class DrawEngine {
             this.end
         ]);
         this.line = new _three.Line(geometry, material);
+        this.labelManager.addLineDimension(this.line, this.start, this.end);
         this.stage.addObject(this.line);
     }
     #onClick() {
         if (!this.drawing) return;
         if (!this.start) {
-            for (let c of this.corners){
-                const p = c.position;
-                if (_utilsJs.arePointsNearXZ(this.end, p)) {
-                    this.end.x = p.x;
-                    this.end.z = p.z;
-                }
-            }
+            this.#snapPointToNearestCorner(this.end);
             this.start = this.end;
             const cylinder = this.makeCylinderAtPoint(this.end, this.cylinderMaterial);
             if (cylinder) this.stage.addObject(cylinder, true);
@@ -50545,7 +50682,6 @@ class DrawEngine {
             const wall = this.makeWallBetweenTwoPoints(this.start, this.end, this.wallMaterial);
             const added = this.wallGraph.add(wall);
             if (added) this.stage.addObject(wall, true, true, true);
-            this.walls.push(wall);
             const cylinder = this.makeCylinderAtPoint(this.end, this.cylinderMaterial);
             if (cylinder) this.stage.addObject(cylinder, true);
             this.nodes.push(this.start);
@@ -50558,9 +50694,17 @@ class DrawEngine {
                 this.polys.push(poly);
                 this.nodesList.push(this.nodes);
                 this.start = null;
-                this.walls = [];
                 this.nodes = [];
             } else this.start = this.end;
+        }
+    }
+    #snapPointToNearestCorner(point) {
+        for (let c of this.corners){
+            const p = c.position;
+            if (_utilsJs.arePointsNearXZ(point, p)) {
+                point.x = p.x;
+                point.z = p.z;
+            }
         }
     }
     /**
@@ -50616,6 +50760,40 @@ class WallGraph {
     }
 }
 
-},{"./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
+},{"./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"dNkkZ":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "httpGet", ()=>httpGet);
+parcelHelpers.export(exports, "httpPost", ()=>httpPost);
+parcelHelpers.export(exports, "setCookie", ()=>setCookie);
+parcelHelpers.export(exports, "deleteCookie", ()=>deleteCookie);
+function httpGet(theUrl) {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("GET", theUrl, false); // false for synchronous request
+    xmlHttp.send(null);
+    return xmlHttp.responseText;
+}
+function httpPost(theUrl) {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open("POST", theUrl); // false for synchronous request
+    // xmlHttp.setRequestHeader('Content-type', 'application/json');
+    xmlHttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xmlHttp.onload = ()=>{
+        console.log(xmlHttp.responseText);
+    };
+    xmlHttp.send("fname=Mary");
+    return xmlHttp.responseText;
+}
+function setCookie(cname, cvalue, exdays) {
+    const d = new Date();
+    d.setTime(d.getTime() + exdays * 86400000);
+    let expires = "expires=" + d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+}
+function deleteCookie(cname) {
+    document.cookie = `${cname}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["46PTB","goJYj"], "goJYj", "parcelRequiref22f")
 
 //# sourceMappingURL=app.64a4978e.js.map

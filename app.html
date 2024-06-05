@@ -95,7 +95,12 @@ form {
 		<button id="clone">Клонировать</button><br>
 		<button id="delobj">Удалить</button>
 		<button id="clear">Очистить</button>
-		<button id="downloadScene">Скачать</button>
+		<div class="checkButton">
+			<label>
+				<input id="drawing" type="checkbox" value="1">
+				<span>Рисование</span>
+			</label>
+		</div>
 		<select name="materials" id="materials">
 			<option value="reset">Материал:</option>
 			<option value="none">Без материала</option>
@@ -104,16 +109,12 @@ form {
 			<option value="tile2">Плитка2</option>
 			<option value="marbletiles">Мрамор</option>
 		</select>
+		<button id="downloadScene">Скачать</button>
+		<button id="saveScene">Сохранить</button>
 		<form action="/api" method="post" enctype="multipart/form-data">
 			<input id="file" name="file" type="file" class="hidden">
 			<button id="upload">Загрузить</button>
 		</form>
-		<div class="checkButton">
-			<label>
-				<input id="drawing" type="checkbox" value="1">
-				<span>Рисование</span>
-			</label>
-		</div>
 	</div>
 	<script src="app.64a4978e.js" defer=""></script>
 </body>
