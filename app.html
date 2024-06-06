@@ -7,6 +7,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Builder</title>
 	<style>body {
+  box-sizing: content-box;
   background: #333;
   margin: 0;
   font-family: monospace;
@@ -16,11 +17,12 @@
 
 html, body {
   height: 100%;
+  font-family: arial, sans-serif;
 }
 
 :root {
-  --container_width: 250px;
-  --button_width: calc(var(--container_width) / 2 - 5px);
+  --container_width: 300px;
+  --button_width: calc(var(--container_width) / 2 - 10px);
   --button_height: 25px;
 }
 
@@ -29,6 +31,10 @@ button, .checkButton, select {
   border: none;
   border-radius: 4px;
   margin-top: 4px;
+}
+
+button, .checkButton, select, .price_container {
+  box-shadow: 0 0 0 1px #000, 0 0 0 2px #247299;
 }
 
 .renderer {
@@ -51,6 +57,7 @@ button, .checkButton, select {
 
 button, select, .checkButton {
   width: var(--button_width);
+  text-align: center;
   background-color: #fff;
 }
 
@@ -63,11 +70,10 @@ form {
 }
 
 .checkButton {
-  float: left;
   -webkit-user-select: none;
   user-select: none;
   background-color: #fff;
-  margin-right: 7.5px;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -135,19 +141,25 @@ form {
 		<button id="clone">Клонировать</button><br>
 		<button id="delobj">Удалить</button>
 		<button id="clear">Очистить</button>
-		<div class="checkButton">
+		<button class="checkButton">
 			<label>
 				<input id="drawing" type="checkbox" value="1">
-				<span>Рисование</span>
+				<span>Построение Стен</span>
 			</label>
-		</div>
+		</button>
 		<button id="downloadScene">Скачать</button>
 		<button id="saveScene">Сохранить</button>
 		<form action="/api" method="post" enctype="multipart/form-data">
 			<input id="file" name="file" type="file" class="hidden">
 			<button id="upload">Загрузить</button>
 		</form>
+		<button id="firstPerson">От 1 лица</button>
+		<button id="thirdPerson">От 3 лица</button>
+		<button id="orthoPerson">Чертёж</button>
+		<button id="deselect">Убрать выделение</button>
 	</div>
+
+
 	<div class="price_container">
 		<p>Общая стоимость: <span id="price">155₽</span></p>
 	</div>

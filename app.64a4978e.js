@@ -46623,7 +46623,9 @@ class Stage {
         }
         renderer.setClearColor(0x333333);
         renderer.shadowMap.enabled = true;
-        renderer.sortObjects = false;
+        renderer.sortObjects = true;
+        renderer.toneMapping = _three.NeutralToneMapping;
+        renderer.toneMappingExposure = 1;
         return renderer;
     }
     /**
@@ -46649,8 +46651,13 @@ class Stage {
         scene.add(directionalLight);
         directionalLight.position.set(0, 3, 0);
         directionalLight.castShadow = true;
+        directionalLight.shadow.bias = -0.0001;
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        const hemiLight = new _three.HemisphereLight(0xFFFFFF, 0x0, 2);
+        scene.add(hemiLight);
         return [
-            directionalLight
+            hemiLight
         ];
     }
     /**
@@ -46683,10 +46690,16 @@ class Stage {
         // new THREE.Vector3(-1.5, 0,-2),
         // new THREE.Vector3( 1.5, 1.5, 2)
         // );
-        const box3 = this.addBox3(new _three.Box3(new _three.Vector3(-1.5, 0, -2), new _three.Vector3(1.5, 1.5, 2)), true);
-        const box4 = this.addBox3(new _three.Box3(new _three.Vector3(-4.5, 0, -2), new _three.Vector3(-3.5, 2, 1)), true);
-        (0, _packableObjectListenersJs.addNewBox3Tree)(box3);
-        (0, _packableObjectListenersJs.addNewBox3Tree)(box4);
+        // const box3 = this.addBox3(new THREE.Box3(
+        // 	new THREE.Vector3(-1.5, 0, -2),
+        // 	new THREE.Vector3(1.5, 1.5, 2)
+        // ), true);
+        // const box4 = this.addBox3(new THREE.Box3(
+        // 	new THREE.Vector3(-4.5, 0, -2),
+        // 	new THREE.Vector3(-3.5, 2, 1)
+        // ), true);
+        // addNewBox3Tree(box3);
+        // addNewBox3Tree(box4);
         const box = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial());
         const box_cop = _utilsJs.createMesh(new _three.BoxGeometry(0.5, 0.5, 0.5), new _three.MeshStandardMaterial());
         // box.position.y -= box.geometry.boundingBox.min.y;
@@ -46697,6 +46710,7 @@ class Stage {
         // box2.position.y -= box.geometry.boundingBox.min.y;
         box2.position.x += 1;
         box2_cop.position.x += 2;
+        console.log(box);
         // box.userData.lockScale = 'x'
         // box_cop.userData.lockScale = 'x'
         // box2.userData.lockScale = 'y'
@@ -46818,16 +46832,17 @@ class Stage {
         }
         if (isPackable) (0, _packableObjectListenersJs.addListenersToPackableObject)(obj, this.controller.dragEngine);
         this.scene.add(obj);
+        this.placeObjectOnPlane(obj);
         _priceCalculatorJs.calculatePrice(this.movableObjects);
     }
     /**
 		Не используется. 
 		Назначение - установить позицию модели по высоте на значение "0 + высота", чтобы модель встала "на пол".
-	*/ // placeObjectOnPlane(obj) {
-    // 	const box3 = new THREE.Box3().setFromObject(obj);
-    // 	let halfHeight = (box3.max.y - box3.min.y)/2;
-    // 	obj.position.y = halfHeight;
-    // }
+	*/ placeObjectOnPlane(obj) {
+        const box3 = new _three.Box3().setFromObject(obj);
+        let halfHeight = (box3.max.y - box3.min.y) / 2;
+        obj.position.y = halfHeight;
+    }
     /**
 		Изменить размер модели
 	*/ setScale(obj, x, y, z) {
@@ -46837,6 +46852,11 @@ class Stage {
         model.scale.set(x, y, z);
         if (obj.userData.isRestrained) this.adjustRestraintForScale(obj);
         if (obj.userData.hasDimensions) this.controller.addLabelToObject(obj);
+        // const mesh = utils.getObjectMesh(obj);
+        // const texture = mesh.material.map;
+        // texture.matrixAutoUpdate = false;
+        // texture.matrix.setUvTransform(0, 0 , 10 , 1 ,0, 0.5, 0.5,)
+        // mesh.material.needsUpdate = true;
         this.onObjectUpdate();
     }
     scaleObjToBox3(obj, box3) {
@@ -48008,6 +48028,7 @@ class GuiManager {
             "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y": 0,
             "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z": 0,
             "\u0446\u0432\u0435\u0442": 0xFFFFFF,
+            "\u0432\u0441\u0435 \u0440\u0430\u0437\u043C\u0435\u0440\u044B": true,
             "\u0440\u0430\u0437\u043C\u0435\u0440\u044B": true
         };
         this.options = options;
@@ -48030,11 +48051,13 @@ class GuiManager {
         this.gui.add(options, "\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z", 0, Math.PI * 2, Math.PI / 16).onChange((e)=>{
             self.stage.setRotation(self.stage.selectedObject, options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"], options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"]);
         });
-        this.gui.add(options, "\u0440\u0430\u0437\u043C\u0435\u0440\u044B").onChange((e)=>{
-            for (let o of self.stage.movableObjects)if (o.name === "container") {
-                for (let c of o.children)if (c.isLine || c.userData.isText) c.visible = e;
-            }
+        this.gui.add(options, "\u0432\u0441\u0435 \u0440\u0430\u0437\u043C\u0435\u0440\u044B").onChange((e)=>{
+            for (let o of self.stage.movableObjects)self.#switchLabelsVisibility(o, e);
             this.stage.controller.labelManager.setDimensionsVisibility(e);
+        });
+        this.gui.add(options, "\u0440\u0430\u0437\u043C\u0435\u0440\u044B").onChange((e)=>{
+            const obj = self.stage.selectedObject;
+            self.#removeObjDimensions(obj, e);
         });
         this.gui.addColor(options, "\u0446\u0432\u0435\u0442").onChange((e)=>{
             self.stage.setMeshColor(self.stage.selectedObject, e);
@@ -48050,6 +48073,7 @@ class GuiManager {
             self.options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442X"] = self.stage.selectedObject.rotation.x;
             self.options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Y"] = self.stage.selectedObject.rotation.y;
             self.options["\u043F\u043E\u0432\u043E\u0440\u043E\u0442Z"] = self.stage.selectedObject.rotation.z;
+            self.options["\u0440\u0430\u0437\u043C\u0435\u0440\u044B"] = self.stage.selectedObject.userData.hasDimensions;
             if (self.stage.selectedObject.isMesh) self.options["\u0446\u0432\u0435\u0442"] = self.stage.selectedObject.material.color.getHex();
             else _utilsJs.applyToMeshes(self.stage.selectedObject, (o)=>{
                 _utilsJs.applyToArrayOrValue(o.material, (m)=>{
@@ -48057,6 +48081,16 @@ class GuiManager {
                 });
             });
         });
+    }
+    #removeObjDimensions(obj, bool) {
+        obj.userData.hasDimensions = bool;
+        if (bool) this.stage.controller.labelManager.addLabelToObject(obj);
+        else this.stage.controller.labelManager.removeLabel(obj);
+    }
+    #switchLabelsVisibility(o, bool) {
+        if (o.name === "container") {
+            for (let c of o.children)if (c.isLine || c.userData.isText) c.visible = bool;
+        }
     }
     /**
 		Скрыть dat.GUI Элемент
@@ -48132,6 +48166,7 @@ parcelHelpers.export(exports, "addOBBToObject", ()=>addOBBToObject);
 	Создать модель, используя данные о её геометрии и материале. Созданные модели имеют структуру
 	group(container) -> group(model) -> mesh
 */ parcelHelpers.export(exports, "createMesh", ()=>createMesh);
+parcelHelpers.export(exports, "updateObjUV", ()=>updateObjUV);
 // export function getObjectSize(obj){
 // 	const clone = obj.clone();
 // 	clone.rotation.set(0,0,0);
@@ -48299,6 +48334,8 @@ function addOBBToObject(obj) {
 }
 function createMesh(geometry, material) {
     let mesh = new _three.Mesh(geometry, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     mesh.geometry.computeBoundingBox();
     mesh.matrixAutoUpdate = false;
     this.addOBBToObject(mesh);
@@ -48309,6 +48346,9 @@ function createMesh(geometry, material) {
     containerGroup.name = "container";
     containerGroup.add(modelGroup);
     return containerGroup;
+}
+function updateObjUV(obj) {
+    const size = this.getBox3Size(new _three.Box3().setFromObject(obj));
 }
 function moveBox3(box3, moved) {
     box3.min.addVectors(box3.min, moved);
@@ -48931,7 +48971,7 @@ function calculatePrice(objects) {
         _utils.applyToMeshes(obj, (m)=>{
             const priceCoeff = getMaterialCoefficient(m.material);
             const size = _utils.getBox3Size(new _three.Box3().setFromObject(m));
-            price += (size.x + size.y + size.z) * 1000 * priceCoeff;
+            price += (size.x + size.y + size.z) * 500 * priceCoeff;
         });
     }
     updatePriceLabel(price);
@@ -48956,13 +48996,32 @@ var _three = require("three");
 var _stageJs = require("./Stage.js");
 var _utilsJs = require("./utils.js");
 var _priceCalculatorJs = require("./priceCalculator.js");
+var _rgbeloaderJs = require("three/examples/jsm/loaders/RGBELoader.js");
 class FloorPlannerStage extends (0, _stageJs.Stage) {
     setCanvas() {
     // this.canvas = document.querySelector('#floorPlanner');
     }
+    setupScene() {
+        const scene = new _three.Scene();
+        scene.background = 0xAAA;
+        // const hdriPath = './assets/textures/House Interior Free HDRI.hdr'; 
+        // new RGBELoader().load(hdriPath, (texture)=>{
+        // 	texture.mapping = THREE.EquirectangularRefractionMapping;
+        // 	scene.background = 0xEEEEEE;
+        // 	scene.environment = texture;
+        // 	console.log('loaded');
+        // });
+        return scene;
+    }
+    animateAll() {
+        super.animateAll();
+        if (this.camera === this.cameraOrtho) this.gridHelper.visible = true;
+        else this.gridHelper.visible = false;
+    }
     addStartingObjects() {
         const gridHelper = new _three.GridHelper(16, 64);
         this.addObject(gridHelper);
+        this.gridHelper = gridHelper;
     // const plane = utils.createMesh(
     // new THREE.PlaneGeometry(4,4),
     // new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide})
@@ -49025,7 +49084,233 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
     }
 }
 
-},{"three":"ktPTu","./Stage.js":"5MQQY","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./priceCalculator.js":"kookz"}],"kmFdU":[function(require,module,exports) {
+},{"three":"ktPTu","./Stage.js":"5MQQY","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./priceCalculator.js":"kookz","three/examples/jsm/loaders/RGBELoader.js":"cfP3d"}],"cfP3d":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "RGBELoader", ()=>RGBELoader);
+var _three = require("three");
+// https://github.com/mrdoob/three.js/issues/5552
+// http://en.wikipedia.org/wiki/RGBE_image_format
+class RGBELoader extends (0, _three.DataTextureLoader) {
+    constructor(manager){
+        super(manager);
+        this.type = (0, _three.HalfFloatType);
+    }
+    // adapted from http://www.graphics.cornell.edu/~bjw/rgbe.html
+    parse(buffer) {
+        const /* default error routine.  change this to change error handling */ rgbe_read_error = 1, rgbe_write_error = 2, rgbe_format_error = 3, rgbe_memory_error = 4, rgbe_error = function(rgbe_error_code, msg) {
+            switch(rgbe_error_code){
+                case rgbe_read_error:
+                    throw new Error("THREE.RGBELoader: Read Error: " + (msg || ""));
+                case rgbe_write_error:
+                    throw new Error("THREE.RGBELoader: Write Error: " + (msg || ""));
+                case rgbe_format_error:
+                    throw new Error("THREE.RGBELoader: Bad File Format: " + (msg || ""));
+                default:
+                case rgbe_memory_error:
+                    throw new Error("THREE.RGBELoader: Memory Error: " + (msg || ""));
+            }
+        }, /* offsets to red, green, and blue components in a data (float) pixel */ //RGBE_DATA_RED = 0,
+        //RGBE_DATA_GREEN = 1,
+        //RGBE_DATA_BLUE = 2,
+        /* number of floats per pixel, use 4 since stored in rgba image format */ //RGBE_DATA_SIZE = 4,
+        /* flags indicating which fields in an rgbe_header_info are valid */ RGBE_VALID_PROGRAMTYPE = 1, RGBE_VALID_FORMAT = 2, RGBE_VALID_DIMENSIONS = 4, NEWLINE = "\n", fgets = function(buffer, lineLimit, consume) {
+            const chunkSize = 128;
+            lineLimit = !lineLimit ? 1024 : lineLimit;
+            let p = buffer.pos, i = -1, len = 0, s = "", chunk = String.fromCharCode.apply(null, new Uint16Array(buffer.subarray(p, p + chunkSize)));
+            while(0 > (i = chunk.indexOf(NEWLINE)) && len < lineLimit && p < buffer.byteLength){
+                s += chunk;
+                len += chunk.length;
+                p += chunkSize;
+                chunk += String.fromCharCode.apply(null, new Uint16Array(buffer.subarray(p, p + chunkSize)));
+            }
+            if (-1 < i) {
+                /*for (i=l-1; i>=0; i--) {
+						byteCode = m.charCodeAt(i);
+						if (byteCode > 0x7f && byteCode <= 0x7ff) byteLen++;
+						else if (byteCode > 0x7ff && byteCode <= 0xffff) byteLen += 2;
+						if (byteCode >= 0xDC00 && byteCode <= 0xDFFF) i--; //trail surrogate
+					}*/ if (false !== consume) buffer.pos += len + i + 1;
+                return s + chunk.slice(0, i);
+            }
+            return false;
+        }, /* minimal header reading.  modify if you want to parse more information */ RGBE_ReadHeader = function(buffer) {
+            // regexes to parse header info fields
+            const magic_token_re = /^#\?(\S+)/, gamma_re = /^\s*GAMMA\s*=\s*(\d+(\.\d+)?)\s*$/, exposure_re = /^\s*EXPOSURE\s*=\s*(\d+(\.\d+)?)\s*$/, format_re = /^\s*FORMAT=(\S+)\s*$/, dimensions_re = /^\s*\-Y\s+(\d+)\s+\+X\s+(\d+)\s*$/, // RGBE format header struct
+            header = {
+                valid: 0,
+                /* indicate which fields are valid */ string: "",
+                /* the actual header string */ comments: "",
+                /* comments found in header */ programtype: "RGBE",
+                /* listed at beginning of file to identify it after "#?". defaults to "RGBE" */ format: "",
+                /* RGBE format, default 32-bit_rle_rgbe */ gamma: 1.0,
+                /* image has already been gamma corrected with given gamma. defaults to 1.0 (no correction) */ exposure: 1.0,
+                /* a value of 1.0 in an image corresponds to <exposure> watts/steradian/m^2. defaults to 1.0 */ width: 0,
+                height: 0 /* image dimensions, width/height */ 
+            };
+            let line, match;
+            if (buffer.pos >= buffer.byteLength || !(line = fgets(buffer))) rgbe_error(rgbe_read_error, "no header found");
+            /* if you want to require the magic token then uncomment the next line */ if (!(match = line.match(magic_token_re))) rgbe_error(rgbe_format_error, "bad initial token");
+            header.valid |= RGBE_VALID_PROGRAMTYPE;
+            header.programtype = match[1];
+            header.string += line + "\n";
+            while(true){
+                line = fgets(buffer);
+                if (false === line) break;
+                header.string += line + "\n";
+                if ("#" === line.charAt(0)) {
+                    header.comments += line + "\n";
+                    continue; // comment line
+                }
+                if (match = line.match(gamma_re)) header.gamma = parseFloat(match[1]);
+                if (match = line.match(exposure_re)) header.exposure = parseFloat(match[1]);
+                if (match = line.match(format_re)) {
+                    header.valid |= RGBE_VALID_FORMAT;
+                    header.format = match[1]; //'32-bit_rle_rgbe';
+                }
+                if (match = line.match(dimensions_re)) {
+                    header.valid |= RGBE_VALID_DIMENSIONS;
+                    header.height = parseInt(match[1], 10);
+                    header.width = parseInt(match[2], 10);
+                }
+                if (header.valid & RGBE_VALID_FORMAT && header.valid & RGBE_VALID_DIMENSIONS) break;
+            }
+            if (!(header.valid & RGBE_VALID_FORMAT)) rgbe_error(rgbe_format_error, "missing format specifier");
+            if (!(header.valid & RGBE_VALID_DIMENSIONS)) rgbe_error(rgbe_format_error, "missing image size specifier");
+            return header;
+        }, RGBE_ReadPixels_RLE = function(buffer, w, h) {
+            const scanline_width = w;
+            if (scanline_width < 8 || scanline_width > 0x7fff || // this file is not run length encoded
+            2 !== buffer[0] || 2 !== buffer[1] || buffer[2] & 0x80) // return the flat buffer
+            return new Uint8Array(buffer);
+            if (scanline_width !== (buffer[2] << 8 | buffer[3])) rgbe_error(rgbe_format_error, "wrong scanline width");
+            const data_rgba = new Uint8Array(4 * w * h);
+            if (!data_rgba.length) rgbe_error(rgbe_memory_error, "unable to allocate buffer space");
+            let offset = 0, pos = 0;
+            const ptr_end = 4 * scanline_width;
+            const rgbeStart = new Uint8Array(4);
+            const scanline_buffer = new Uint8Array(ptr_end);
+            let num_scanlines = h;
+            // read in each successive scanline
+            while(num_scanlines > 0 && pos < buffer.byteLength){
+                if (pos + 4 > buffer.byteLength) rgbe_error(rgbe_read_error);
+                rgbeStart[0] = buffer[pos++];
+                rgbeStart[1] = buffer[pos++];
+                rgbeStart[2] = buffer[pos++];
+                rgbeStart[3] = buffer[pos++];
+                if (2 != rgbeStart[0] || 2 != rgbeStart[1] || (rgbeStart[2] << 8 | rgbeStart[3]) != scanline_width) rgbe_error(rgbe_format_error, "bad rgbe scanline format");
+                // read each of the four channels for the scanline into the buffer
+                // first red, then green, then blue, then exponent
+                let ptr = 0, count;
+                while(ptr < ptr_end && pos < buffer.byteLength){
+                    count = buffer[pos++];
+                    const isEncodedRun = count > 128;
+                    if (isEncodedRun) count -= 128;
+                    if (0 === count || ptr + count > ptr_end) rgbe_error(rgbe_format_error, "bad scanline data");
+                    if (isEncodedRun) {
+                        // a (encoded) run of the same value
+                        const byteValue = buffer[pos++];
+                        for(let i = 0; i < count; i++)scanline_buffer[ptr++] = byteValue;
+                    //ptr += count;
+                    } else {
+                        // a literal-run
+                        scanline_buffer.set(buffer.subarray(pos, pos + count), ptr);
+                        ptr += count;
+                        pos += count;
+                    }
+                }
+                // now convert data from buffer into rgba
+                // first red, then green, then blue, then exponent (alpha)
+                const l = scanline_width; //scanline_buffer.byteLength;
+                for(let i = 0; i < l; i++){
+                    let off = 0;
+                    data_rgba[offset] = scanline_buffer[i + off];
+                    off += scanline_width; //1;
+                    data_rgba[offset + 1] = scanline_buffer[i + off];
+                    off += scanline_width; //1;
+                    data_rgba[offset + 2] = scanline_buffer[i + off];
+                    off += scanline_width; //1;
+                    data_rgba[offset + 3] = scanline_buffer[i + off];
+                    offset += 4;
+                }
+                num_scanlines--;
+            }
+            return data_rgba;
+        };
+        const RGBEByteToRGBFloat = function(sourceArray, sourceOffset, destArray, destOffset) {
+            const e = sourceArray[sourceOffset + 3];
+            const scale = Math.pow(2.0, e - 128.0) / 255.0;
+            destArray[destOffset + 0] = sourceArray[sourceOffset + 0] * scale;
+            destArray[destOffset + 1] = sourceArray[sourceOffset + 1] * scale;
+            destArray[destOffset + 2] = sourceArray[sourceOffset + 2] * scale;
+            destArray[destOffset + 3] = 1;
+        };
+        const RGBEByteToRGBHalf = function(sourceArray, sourceOffset, destArray, destOffset) {
+            const e = sourceArray[sourceOffset + 3];
+            const scale = Math.pow(2.0, e - 128.0) / 255.0;
+            // clamping to 65504, the maximum representable value in float16
+            destArray[destOffset + 0] = (0, _three.DataUtils).toHalfFloat(Math.min(sourceArray[sourceOffset + 0] * scale, 65504));
+            destArray[destOffset + 1] = (0, _three.DataUtils).toHalfFloat(Math.min(sourceArray[sourceOffset + 1] * scale, 65504));
+            destArray[destOffset + 2] = (0, _three.DataUtils).toHalfFloat(Math.min(sourceArray[sourceOffset + 2] * scale, 65504));
+            destArray[destOffset + 3] = (0, _three.DataUtils).toHalfFloat(1);
+        };
+        const byteArray = new Uint8Array(buffer);
+        byteArray.pos = 0;
+        const rgbe_header_info = RGBE_ReadHeader(byteArray);
+        const w = rgbe_header_info.width, h = rgbe_header_info.height, image_rgba_data = RGBE_ReadPixels_RLE(byteArray.subarray(byteArray.pos), w, h);
+        let data, type;
+        let numElements;
+        switch(this.type){
+            case 0, _three.FloatType:
+                numElements = image_rgba_data.length / 4;
+                const floatArray = new Float32Array(numElements * 4);
+                for(let j = 0; j < numElements; j++)RGBEByteToRGBFloat(image_rgba_data, j * 4, floatArray, j * 4);
+                data = floatArray;
+                type = (0, _three.FloatType);
+                break;
+            case 0, _three.HalfFloatType:
+                numElements = image_rgba_data.length / 4;
+                const halfArray = new Uint16Array(numElements * 4);
+                for(let j = 0; j < numElements; j++)RGBEByteToRGBHalf(image_rgba_data, j * 4, halfArray, j * 4);
+                data = halfArray;
+                type = (0, _three.HalfFloatType);
+                break;
+            default:
+                throw new Error("THREE.RGBELoader: Unsupported type: " + this.type);
+        }
+        return {
+            width: w,
+            height: h,
+            data: data,
+            header: rgbe_header_info.string,
+            gamma: rgbe_header_info.gamma,
+            exposure: rgbe_header_info.exposure,
+            type: type
+        };
+    }
+    setDataType(value) {
+        this.type = value;
+        return this;
+    }
+    load(url, onLoad, onProgress, onError) {
+        function onLoadCallback(texture, texData) {
+            switch(texture.type){
+                case 0, _three.FloatType:
+                case 0, _three.HalfFloatType:
+                    texture.colorSpace = (0, _three.LinearSRGBColorSpace);
+                    texture.minFilter = (0, _three.LinearFilter);
+                    texture.magFilter = (0, _three.LinearFilter);
+                    texture.generateMipmaps = false;
+                    texture.flipY = true;
+                    break;
+            }
+            if (onLoad) onLoad(texture, texData);
+        }
+        return super.load(url, onLoadCallback, onProgress, onError);
+    }
+}
+
+},{"three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kmFdU":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -49154,6 +49439,7 @@ class DragEnginePlane {
 	*/ pickup(intersectionPoint, obj) {
         this.stage.controls.enabled = false;
         this.dragObject = obj;
+        console.log(this.dragObject);
         if (this.dragObject.userData.onPickup) this.dragObject.userData.onPickup();
         this.pIntersect.copy(intersectionPoint);
         this.planeDrag.setFromNormalAndCoplanarPoint(this.pNormal, this.pIntersect);
@@ -49547,6 +49833,12 @@ class MaterialManager {
             texture = this.textureLoader.load(this.textureFolderPath + filename);
             this.loadedTextures.set(filename, texture);
         }
+        texture.anisotropy = 16;
+        // texture.wrapS = THREE.RepeatWrapping;
+        // texture.wrapT = THREE.RepeatWrapping;
+        // texture.repeat.set(4, 4);
+        // texture.repeat.set(0.5,0.5);
+        // texture.onUpdate = ()=>{console.log('huy')};
         return texture;
     }
     /**
@@ -49558,6 +49850,16 @@ class MaterialManager {
         });
         material.userData.priceCoeff = priceCoeff;
         return material;
+    }
+    makeCubeMaterialFromOne(material) {
+        return [
+            material,
+            material,
+            material,
+            material,
+            material,
+            material
+        ];
     }
     #createWallTexturedMaterial(filename) {
         const texturedMaterial = this.#createStandardTexturedMaterial(filename);
@@ -49607,7 +49909,6 @@ class MaterialManager {
         try {
             const map = this.materials[materialKey]().map;
             const priceCoeff = this.materials[materialKey]().userData.priceCoeff;
-            console.log(priceCoeff);
             _utilsJs.applyToMeshes(mesh, (o)=>{
                 _utilsJs.applyToArrayOrValue(o.material, (m)=>{
                     m.map = map;
@@ -49649,7 +49950,7 @@ class MainController {
         this.exportManager = exportManager;
         this.materialManager = materialManager;
         this.labelManager = labelManager;
-        this.defaultMaterialKey = "pine";
+        this.defaultMaterialKey = "hardwood";
     }
     /**
 		Зарегестрировать сцену и добавить к ней слушатели событий от DragEngine
@@ -50015,6 +50316,7 @@ var _three = require("three");
 var _troikaThreeText = require("troika-three-text");
 var _utilsJs = require("./utils.js");
 class LabelManager {
+    #offset = 0.01;
     getObjDepth(obj) {
         const geomDepth = obj.geometry.parameters.depth;
         return geomDepth * obj.scale.z;
@@ -50048,6 +50350,8 @@ class LabelManager {
         textX.sync();
     }
     addObjectDimensions(obj) {
+        console.log(obj);
+        if (obj.userData.labelIsHidden) return;
         // obj.material.wireframe = true;
         let box3 = new _three.Box3().setFromObject(obj);
         let size = new _three.Vector3();
@@ -50064,14 +50368,20 @@ class LabelManager {
         let lineX = this.createLineFromPoints(pointsX);
         let lineZ = this.createLineFromPoints(pointsZ);
         let lineY = this.createLineFromPoints(pointsY);
-        let textSize = (size.x + size.y + size.z) / 10;
-        if (textSize < 0.1) textSize = 0.1;
-        else if (textSize > 0.2) textSize = 0.2;
+        const textSizes = [
+            size.x / 10,
+            size.y / 10,
+            size.z / 10
+        ];
+        for(let i = 0; i < textSizes.length; i++){
+            if (textSizes[i] < 0.01) textSizes[i] = 0.01;
+            else if (textSizes[i] > 0.1) textSizes[i] = 0.1;
+        }
         let textX = this.createText(Math.floor(size_copy.x * 1000) + "\u043C\u043C", new _three.Vector3(0, // size_halved.y,
-        size_halved.y, size_halved.z + 0.1), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI), textSize);
-        let textZ = this.createText(Math.floor(size_copy.z * 1000) + "\u043C\u043C", new _three.Vector3(size_halved.x + 0.1, // size_halved.y,
-        size_halved.y, 0), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI * 1.5), textSize);
-        let textY = this.createText(Math.floor(size_copy.y * 1000) + "\u043C\u043C", new _three.Vector3(size_halved.x + 0.1, 0, size_halved.z + 0.1), new _three.Vector3(0, 0, Math.PI / 2), textSize);
+        size_halved.y + 0.001, size_halved.z + this.#offset), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI), textSizes[0]);
+        let textZ = this.createText(Math.floor(size_copy.z * 1000) + "\u043C\u043C", new _three.Vector3(size_halved.x + this.#offset, // size_halved.y,
+        size_halved.y + 0.0001, 0), new _three.Vector3(Math.PI / 2, Math.PI, Math.PI * 1.5), textSizes[2]);
+        let textY = this.createText(Math.floor(size_copy.y * 1000) + "\u043C\u043C", new _three.Vector3(size_halved.x + this.#offset, 0, size_halved.z + this.#offset), new _three.Vector3(0, 0, Math.PI / 2), textSizes[1]);
         obj.add(lineX);
         obj.add(lineZ);
         obj.add(lineY);
@@ -50138,8 +50448,8 @@ class LabelManager {
 		return : Array:Vector3 - массив с точками
 	*/ getPointsForXLine(size) {
         let p0 = new _three.Vector3(-size.x, size.y, size.z);
-        let p1 = new _three.Vector3(-size.x, size.y, size.z + 0.1);
-        let p2 = new _three.Vector3(size.x, size.y, size.z + 0.1);
+        let p1 = new _three.Vector3(-size.x, size.y, size.z + this.#offset);
+        let p2 = new _three.Vector3(size.x, size.y, size.z + this.#offset);
         let p3 = new _three.Vector3(size.x, size.y, size.z);
         return [
             p0,
@@ -50150,8 +50460,8 @@ class LabelManager {
     }
     getPointsForYLine(size) {
         let p0 = new _three.Vector3(size.x, size.y, size.z);
-        let p1 = new _three.Vector3(size.x + 0.1, size.y, size.z + 0.1);
-        let p2 = new _three.Vector3(size.x + 0.1, -size.y, size.z + 0.1);
+        let p1 = new _three.Vector3(size.x + this.#offset, size.y, size.z + this.#offset);
+        let p2 = new _three.Vector3(size.x + this.#offset, -size.y, size.z + this.#offset);
         let p3 = new _three.Vector3(size.x, -size.y, size.z);
         return [
             p0,
@@ -50166,8 +50476,8 @@ class LabelManager {
 		return : Array:Vector3 - массив с точками
 	*/ getPointsForZLine(size) {
         let p0 = new _three.Vector3(size.x, size.y, size.z);
-        let p1 = new _three.Vector3(size.x + 0.1, size.y, size.z);
-        let p2 = new _three.Vector3(size.x + 0.1, size.y, -size.z);
+        let p1 = new _three.Vector3(size.x + this.#offset, size.y, size.z);
+        let p2 = new _three.Vector3(size.x + this.#offset, size.y, -size.z);
         let p3 = new _three.Vector3(size.x, size.y, -size.z);
         return [
             p0,
@@ -50306,6 +50616,21 @@ function addListeners(controller) {
         elementAdderHandler(addElementSelector.value, controller);
         addElementSelector.value = "reset";
     };
+    document.querySelector("#firstPerson").onclick = ()=>{
+        if (!controller.dragEngine.dragging) return; // не тащим = рисуем, рисовать можно только в floorPlanner
+        controller.currentStage.switchTo1PCamera();
+    };
+    document.querySelector("#thirdPerson").onclick = ()=>{
+        if (!controller.dragEngine.dragging) return; // не тащим = рисуем, рисовать можно только в floorPlanner
+        controller.currentStage.switchTo3PCamera();
+    };
+    document.querySelector("#orthoPerson").onclick = ()=>{
+        if (!controller.dragEngine.dragging) return; // не тащим = рисуем, рисовать можно только в floorPlanner
+        controller.currentStage.switchToOrthoCamera();
+    };
+    document.querySelector("#deselect").onclick = ()=>{
+        controller.currentStage.unsetSelectedObject();
+    };
 }
 function elementAdderHandler(element, controller) {
     if (!element || element === "reset") return;
@@ -50395,6 +50720,9 @@ function addKeyboardControls(controller) {
                 break;
             case "KeyQ":
                 controller.unsetSelection();
+                controller.drawEngine.setDrawing(false);
+                controller.dragEngine.setDragging(true);
+                document.getElementById("drawing").checked = false;
                 break;
         }
     });
@@ -50412,6 +50740,8 @@ class DrawEngine {
     #notAllowedMaterialKey = "redLine";
     #allowedMaterialKey = "greenLine";
     #roundCornerMaterialKey = "wallRoundCorner";
+    #floorMaterialKey = "hardwood";
+    #wallHeight = 3;
     constructor(dragEngine, materialManager, labelManager){
         this.dragEngine = dragEngine;
         this.materialManager = materialManager;
@@ -50420,6 +50750,7 @@ class DrawEngine {
         this.drawing = false;
         this.wallMaterial = this.materialManager.getMaterial(this.#wallpaperMaterialKey);
         this.cylinderMaterial = this.materialManager.getMaterial(this.#roundCornerMaterialKey);
+        this.floorMaterial = this.materialManager.getMaterial(this.#floorMaterialKey);
         this.lineMaterialBad = this.materialManager.getMaterial(this.#notAllowedMaterialKey);
         this.lineMaterialGood = this.materialManager.getMaterial(this.#allowedMaterialKey);
     }
@@ -50439,6 +50770,14 @@ class DrawEngine {
     }
     setDrawing(bool) {
         this.drawing = bool;
+        if (!bool) {
+            if (this.line) this.stage.removeObject(this.line);
+            this.inter = new _three.Vector3();
+            this.end = undefined;
+            this.start = undefined;
+            this.line = undefined;
+            this.angleStart = undefined;
+        }
     }
     #removeFloor() {
         for (let p of this.polys)p.removeFromParent();
@@ -50509,13 +50848,13 @@ class DrawEngine {
     }
     makeWallBetweenTwoPoints(start, end, material) {
         const dist = start.distanceTo(end);
-        const boxgeo = new _three.BoxGeometry(0.2, 2, dist);
+        const boxgeo = new _three.BoxGeometry(0.2, this.#wallHeight, dist);
         const mat = [];
         _utilsJs.applyToArrayOrValue(material, (m)=>{
             mat.push(m.clone());
         });
         const mesh = _utilsJs.createMesh(boxgeo, mat);
-        mesh.position.set((start.x + end.x) / 2, 1, (start.z + end.z) / 2);
+        mesh.position.set((start.x + end.x) / 2, this.#wallHeight / 2, (start.z + end.z) / 2);
         mesh.userData.startPoint = start;
         mesh.userData.endPoint = end;
         mesh.userData.isWall = true;
@@ -50547,10 +50886,10 @@ class DrawEngine {
         _utilsJs.applyToArrayOrValue(material, (m)=>{
             mat.push(m.clone());
         });
-        const mesh = _utilsJs.createMesh(new _three.CylinderGeometry(0.1, 0.1, 2.01), mat);
+        const mesh = _utilsJs.createMesh(new _three.CylinderGeometry(0.1, 0.1, this.#wallHeight + 0.01), mat);
         this.corners.push(mesh);
         mesh.userData.isNotAffectedByCollision = true;
-        mesh.position.set(point.x, 1, point.z);
+        mesh.position.set(point.x, this.#wallHeight / 2, point.z);
         const self = this;
         mesh.userData.onMove = (startPoint, endPoint)=>{
             const moved = new _three.Vector3().subVectors(endPoint, startPoint);
@@ -50565,14 +50904,18 @@ class DrawEngine {
         shape.moveTo(points[0].x, points[0].z);
         for(let i = 1; i < points.length; i++)shape.lineTo(points[i].x, points[i].z);
         const geometry = new _three.ShapeGeometry(shape);
-        const material = new _three.MeshBasicMaterial({
-            color: "Beige",
-            side: _three.DoubleSide
-        });
+        // const material = new THREE.MeshStandardMaterial({
+        // 	color: "Beige", 
+        // 	side: THREE.DoubleSide
+        // });
+        const material = this.floorMaterial;
+        material.side = _three.DoubleSide;
         const mesh = new _three.Mesh(geometry, material);
         mesh.rotation.x = 0.5 * Math.PI;
         mesh.position.y += this.height;
         this.height += 0.0001;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
         return mesh;
     }
     createRoomFromPoints(points) {
@@ -50594,7 +50937,7 @@ class DrawEngine {
         if (this.line) this.stage.removeObject(this.line);
         if (!this.drawing) return;
         this.stage.getRaycaster().ray.intersectPlane(this.dragEngine.getDraggingPlane(), this.inter);
-        this.end = new _three.Vector3(this.inter.x, 1, this.inter.z);
+        this.end = new _three.Vector3(this.inter.x, this.#wallHeight / 2, this.inter.z);
         _utilsJs.snapPoint(this.end);
         if (!this.start) return;
         this.#snapPointToNearestCorner(this.end);
