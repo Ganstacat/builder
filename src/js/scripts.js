@@ -76,5 +76,5 @@ if(!document.cookie){
 }
 
 
-// exportManager.loadByLinkToStage('/index.php?mode=load', floorStage);
+controller.loadByLinkToStage('/index.php?mode=load', floorStage);
 // exportManager.saveToDatabase(controller.currentStage.movableObjects, '/index.php?mode=load'); 

@@ -20,26 +20,38 @@
 		html, body {
 			height: 100%;
 		}
+		:root {
+			--container_width: 250px;
+			--button_width: calc(var(--container_width)/2 - 5px);
+			--button_height: 25px;
+		}
 
 		button, .checkButton, select {
 			margin-top: 4px;
 			border: none;
 			border-radius: 4px;
-			height: 25px;
+			height: var(--button_height);
 		}
 		.renderer {
-			background-color: #888888;
 			width: 100%;
 			height: 100%;
 		}
-		.controls {
+		.controls , .price_container{
 			float:left;
-			width:250px;
+			width: var(--container_width);
 			position: fixed;
+		}
+		.price_container{
+			top: 90%;
+			left: calc(50% - (var(--container_width)/ 2));
+			background-color: white;
+			/* background-image: linear-gradient(to right, rgba(255,0,0,0), rgba(255,255,255,1)); */
+			/* background-image: radial-gradient(circle,rgba(255,255,255,1) 90%, rgba(255,0,0,0) ); */
+			text-align: center;
 		}
 
 		button, select, .checkButton {
-			width: 120px;
+			width: var(--button_width);
 			background-color: #FFFFFF
 		}
 		.hidden {
@@ -58,7 +70,7 @@
 		}
 		.checkButton label {
 			text-align: center;
-			width: 120px;
+			width: var(--button_width);
 		}
 		.checkButton input {
 			position: absolute;
@@ -97,7 +109,7 @@
 		</select>
 		<select name="materials" id="materials">
 			<option value="reset">Материал:</option>
-			<option value="none">Без материала</option>
+			<!-- <option value="none">Без материала</option> -->
 			<option value="light_brick">Кирпич</option>
 			<option value="tile1">Плитка1</option>
 			<option value="tile2">Плитка2</option>
@@ -118,6 +130,9 @@
 			<input id="file" name="file" type="file" class="hidden" />
 			<button id="upload">Загрузить</button>
 		</form>
+	</div>
+	<div class="price_container">
+		<p>Общая стоимость: <span id="price">155₽</span></p>
 	</div>
 	<script src="./js/scripts.js" type="module"></script>
 </body>

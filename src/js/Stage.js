@@ -5,6 +5,7 @@ import {GuiManager} from './GuiManager.js';
 import * as utils from './utils.js';
 import {addListenersToPackableObject, addNewBox3Tree, addListenersToContainerObject} from './packableObjectListeners.js';
 import {BoxesTree} from './BoxesTree.js';
+import * as priceCalculator from './priceCalculator.js';
 
 /**
 	Класс, производящий инициализацию сцены, хранящий её состояние и имеющий методы для манипуляции над сценой.
@@ -230,8 +231,13 @@ export class Stage {
 			utils.applyToMeshes(obj, (o)=>{
 				o.updateMatrix();
 				o.updateMatrixWorld();
-				o.userData.obb.copy(o.geometry.userData.obb);
-				o.userData.obb.applyMatrix4(o.matrixWorld);
+				try{
+					o.userData.obb.copy(o.geometry.userData.obb);
+					o.userData.obb.applyMatrix4(o.matrixWorld);
+				} catch (e){
+					// utils.addOBBToObject(o);
+					console.error(e);
+				}
 			})
 		}
 	}
@@ -366,8 +372,13 @@ export class Stage {
 		// box_cop.userData.lockScale = 'x'
 		// box2.userData.lockScale = 'y'
 		// box2_cop.userData.lockScale = 'y'
+		
+		this.controller.setObjectTexture(box, this.controller.defaultMaterialKey);
+		this.controller.setObjectTexture(box_cop, this.controller.defaultMaterialKey);
 		this.addObject(box,true,true,true,false);
 		this.addObject(box_cop,true,true,true,false);
+
+
 		// this.addObject(box2,true,true,true,true);
 		// this.addObject(box2_cop,true,true,true,true);
 		// addListenersToContainerObject(box, this.controller.dragEngine, box3);
@@ -463,6 +474,7 @@ export class Stage {
 		Добавляет модель или группу моделей на сцену.
 	*/
 	addObject(obj, isMovable, hasCollision, hasDimensions, isPackable) {
+
 		if(isMovable) {this.movableObjects.push(obj);}
 		if(hasCollision) {
 			utils.applyToMeshes(obj, (o)=>{
@@ -483,6 +495,7 @@ export class Stage {
 
 		this.scene.add(obj);
 		
+		priceCalculator.calculatePrice(this.movableObjects);
 	}
 
 	/**
@@ -745,6 +758,7 @@ export class Stage {
 	
 	onObjectUpdate(obj){
 		this.guiManager.updateGui();
+		priceCalculator.calculatePrice(this.movableObjects);
 	}
 	
 	getRaycaster(){

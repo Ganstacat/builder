@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as utils from './utils.js';
+import { calculatePrice } from './priceCalculator.js';
 
 /**
 	Функция, устанавливающая поведение кнопок управления, определённых в html файле.
@@ -9,11 +10,12 @@ export function addListeners(controller) {
 	const builder = "builder";
 	
 	// Смена текущей сцены на Планировщик
-	document.querySelector("#floorPlanner").onclick = function(){	
+	document.querySelector("#floorPlanner").onclick = function(){
 		controller.setCurrentStage(floorPlanner);
 	};
 	// Смена текущей сцены на Сборщик
 	document.querySelector("#builder").onclick = function(){
+		if(!controller.dragEngine.dragging) return; // не тащим = рисуем, рисовать можно только в floorPlanner
 		controller.setCurrentStage(builder);
 	};
 	// Перенос объектов из сцены Сборщика в сцену Планировщика
@@ -77,7 +79,7 @@ export function addListeners(controller) {
 			newObject.userData.baserestraint = null;
 			
 			// controller.currentStage.scene.add(newObject);
-			controller.addObjectToCurrentStage(
+			controller.currentStage.addObject(
 				newObject, 
 				newObject.userData.isMovable,
 				newObject.userData.hasCollision,
@@ -120,6 +122,7 @@ export function addListeners(controller) {
 	}, false);
 	
 	document.querySelector('#drawing').addEventListener('change', (e)=>{
+		controller.setCurrentStage(floorPlanner);
 		if(e.target.checked) controller.currentStage.switchToOrthoCamera();
 		controller.drawEngine.setDrawing(e.target.checked);
 		controller.dragEngine.setDragging(!e.target.checked);

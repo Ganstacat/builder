@@ -1,6 +1,6 @@
 import {DragEnginePlane} from './DragEnginePlane.js' 
 import * as utils from './utils.js';
-
+import * as priceCalculator from './priceCalculator.js';
 /**
 	Класс - контроллер для управления сценами.
 	Хранит в своих полях: все зарегестрированные сцены, DragEngine, ExportManager, MaterialManager.
@@ -19,6 +19,8 @@ export class MainController {
 		this.exportManager = exportManager;
 		this.materialManager = materialManager;
 		this.labelManager = labelManager;
+
+		this.defaultMaterialKey = 'light_brick';
 	}
 
 	/**
@@ -77,6 +79,7 @@ export class MainController {
 		this.dragEngine.setStage(this.currentStage);
 		this.drawEngine.setStage(this.currentStage);
 		this.showCurrentStage();
+		priceCalculator.calculatePrice(this.currentStage.movableObjects);
 	}
 	
 	/**
@@ -89,10 +92,12 @@ export class MainController {
 	
 	
 	addObjectToCurrentStage(obj, isMovable, hasCollision, hasDimensions, isPackable){
+		this.setObjectTexture(obj, this.defaultMaterialKey);
 		this.currentStage.addObject(obj, isMovable, hasCollision, hasDimensions, isPackable);
 	}
 	removeObjectFromCurrentStage(obj){
 		this.currentStage.removeObject(obj);
+		priceCalculator.calculatePrice(this.currentStage.movableObjects);
 	}
 	
 	addLabelToObject(obj){
@@ -106,6 +111,7 @@ export class MainController {
 	clearCurrentStage(){
 		this.currentStage.clearScene();
 		this.drawEngine.clearWalls();
+		priceCalculator.calculatePrice(this.currentStage.movableObjects);
 	}
 
 	disableDraggingLocks(){
@@ -131,6 +137,7 @@ export class MainController {
 		const prevpos = obj.position.clone();
 		this.currentStage.scaleObjectAxisScalar(obj, axis, amount);
 		// this.applyCollisionAndRestraint(obj, prevpos);
+		priceCalculator.calculatePrice(this.currentStage.movableObjects);
 	}
 	applyCollisionAndRestraint(obj, prevpos){
 		this.dragEngine.applyRestraint(obj, prevpos);
@@ -183,9 +190,18 @@ export class MainController {
 			this.exportManager.downloadScene(exportable);
 		},this, stage)
 	}
+	loadByLinkToStage(link, stage){
+		this.exportManager.loadByLinkToStage(link, stage).then(
+			(fullfilled)=>{
+				console.log('good');
+				priceCalculator.calculatePrice(this.currentStage.movableObjects);},
+			(error)=>{console.error(error);}
+		);
+	}
 	
 	setObjectTexture(obj, textureKey){
 		this.materialManager.setMeshTexture(obj,textureKey);
+		if(this.currentStage) priceCalculator.calculatePrice(this.currentStage.movableObjects);
 	}
 	
 	uploadUserFileToStage(file, stage){

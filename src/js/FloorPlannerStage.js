@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import  {Stage} from './Stage.js';
 import * as utils from './utils.js';
+import * as priceCalculator from './priceCalculator.js';
 
 /**
 	Потомок класса Stage, отличается набором моделей, присутствующих на сцене после инициализации.

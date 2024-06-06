@@ -18,13 +18,13 @@ export class MaterialManager {
 		let self = this;
 		this.materials = {
 			none: ()=>{return new THREE.MeshStandardMaterial()},
-			light_brick: ()=>{return self.createStandardTexturedMaterial("light_brick.jpg")},
-			hardwood: ()=>{return self.createStandardTexturedMaterial("hardwood.png")},
-			tile1: ()=>{return self.createStandardTexturedMaterial("tile-01.jpg")},
-			tile2: ()=>{return self.createStandardTexturedMaterial("tile-02.jpg")},
-			marbletiles: ()=>{return self.createStandardTexturedMaterial("marbletiles.jpg")},
-			wallpaperTwo: ()=>{return self.createWallTexturedMaterial("wallpaper2.jpg")},
-			wallRoundCorner: ()=>{return self.createCylinderTexturedMaterial('wallpaper2.jpg')},
+			light_brick: ()=>{return self.#createStandardTexturedMaterial("light_brick.jpg", 1.1)},
+			hardwood: ()=>{return self.#createStandardTexturedMaterial("hardwood.png",1.3)},
+			tile1: ()=>{return self.#createStandardTexturedMaterial("tile-01.jpg",1.5)},
+			tile2: ()=>{return self.#createStandardTexturedMaterial("tile-02.jpg",1.5)},
+			marbletiles: ()=>{return self.#createStandardTexturedMaterial("marbletiles.jpg",2)},
+			wallpaperTwo: ()=>{return self.#createWallTexturedMaterial("wallpaper2.jpg")},
+			wallRoundCorner: ()=>{return self.#createCylinderTexturedMaterial('wallpaper2.jpg')},
 			redLine: ()=>{return new THREE.LineBasicMaterial({color: 0xEC7063})},
 			greenLine: ()=>{return new THREE.LineBasicMaterial({color: 0x52BE80})}
 		}
@@ -43,12 +43,14 @@ export class MaterialManager {
 	/**
 		Возвращает объект THREE.MeshStandardMaterial с текстурой filename
 	*/
-	createStandardTexturedMaterial(filename){
+	#createStandardTexturedMaterial(filename, priceCoeff){
 		const texture = this.#loadTexture(filename);
-		return new THREE.MeshStandardMaterial({ map: texture });
+		const material = new THREE.MeshStandardMaterial({ map: texture });
+		material.userData.priceCoeff = priceCoeff;
+		return material;
 	}
-	createWallTexturedMaterial(filename){
-		const texturedMaterial = this.createStandardTexturedMaterial(filename);
+	#createWallTexturedMaterial(filename){
+		const texturedMaterial = this.#createStandardTexturedMaterial(filename);
 		const nonTexturedMaterial = new THREE.MeshStandardMaterial({color: 'gray', side: THREE.DoubleSide});
 
 		const multiMaterial = [
@@ -62,8 +64,8 @@ export class MaterialManager {
 		
 		return multiMaterial;
 	}
-	createCylinderTexturedMaterial(filename){
-		const texturedMaterial = this.createStandardTexturedMaterial(filename);
+	#createCylinderTexturedMaterial(filename){
+		const texturedMaterial = this.#createStandardTexturedMaterial(filename);
 		const nonTexturedMaterial = new THREE.MeshStandardMaterial({color: 'gray', side: THREE.DoubleSide});
 		
 		const multiMaterial = [
@@ -83,6 +85,7 @@ export class MaterialManager {
 	setMeshMaterial(mesh, materialKey){
 		try {
 			mesh.material = this.materials[materialKey]();
+			mesh.material.userData.priceCoeff = this.materials[materialKey]().userData.priceCoeff;
 		} catch (e) {
 			console.error(e);
 		}
@@ -92,11 +95,14 @@ export class MaterialManager {
 	*/
 	setMeshTexture(mesh, materialKey){
 		try {
-			let map = this.materials[materialKey]().map;
+			const map = this.materials[materialKey]().map;
+			const priceCoeff = this.materials[materialKey]().userData.priceCoeff;
+			console.log(priceCoeff);
 			
 			utils.applyToMeshes(mesh, (o)=>{
 				utils.applyToArrayOrValue(o.material, (m)=>{
 					m.map = map;
+					m.userData.priceCoeff = priceCoeff;		
 					m.needsUpdate = true;
 				});
 			});

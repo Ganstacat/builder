@@ -247,7 +247,6 @@ export class DrawEngine {
 
 	addEventListenersToStage(stage){
 		const self = this;
-		console.log(this.stage);
 		this.stage.renderer.domElement.addEventListener("click", ()=>{
 			self.#onClick();
 		});
