@@ -13,13 +13,14 @@ export class FloorPlannerStage extends Stage {
 	}
 	setupScene() {
 		const scene = new THREE.Scene();
-		const hdriPath = './assets/textures/House Interior Free HDRI.hdr'; 
-		new RGBELoader().load(hdriPath, (texture)=>{
-			texture.mapping = THREE.EquirectangularRefractionMapping;
-			scene.background = 0xEEEEEE;
-			scene.environment = texture;
-			console.log('loaded');
-		});
+		scene.background = 0xAAA;
+		// const hdriPath = './assets/textures/House Interior Free HDRI.hdr'; 
+		// new RGBELoader().load(hdriPath, (texture)=>{
+		// 	texture.mapping = THREE.EquirectangularRefractionMapping;
+		// 	scene.background = 0xEEEEEE;
+		// 	scene.environment = texture;
+		// 	console.log('loaded');
+		// });
 		return scene;
 	}
 	addStartingObjects() {
