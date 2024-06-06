@@ -8,6 +8,7 @@ export class DrawEngine {
 	#allowedMaterialKey = 'greenLine';
 	#roundCornerMaterialKey = 'wallRoundCorner';
 	#floorMaterialKey = 'hardwood';
+	#wallHeight = 3;
 	
 	constructor(dragEngine, materialManager, labelManager){
 		this.dragEngine = dragEngine;
@@ -144,7 +145,7 @@ export class DrawEngine {
 	
 	makeWallBetweenTwoPoints(start, end, material) {
 		const dist = start.distanceTo(end);
-		const boxgeo = new THREE.BoxGeometry(0.2,2,dist);
+		const boxgeo = new THREE.BoxGeometry(0.2,this.#wallHeight,dist);
 		
 		const mat = [];
 		utils.applyToArrayOrValue(material, (m)=>{
@@ -154,7 +155,7 @@ export class DrawEngine {
 		
 		mesh.position.set(
 			(start.x + end.x)/2,
-			1,
+			this.#wallHeight/2,
 			(start.z + end.z)/2
 		);
 		
@@ -200,13 +201,13 @@ export class DrawEngine {
 		});
 		
 		const mesh = utils.createMesh(
-			new THREE.CylinderGeometry(0.1,0.1,2.01), 
+			new THREE.CylinderGeometry(0.1,0.1,this.#wallHeight + 0.001), 
 			mat
 		);
 		this.corners.push(mesh);
 		mesh.userData.isNotAffectedByCollision = true;
 		
-		mesh.position.set(point.x, 1, point.z);
+		mesh.position.set(point.x, this.#wallHeight/2, point.z);
 		const self = this;
 		mesh.userData.onMove = (startPoint, endPoint)=>{
 			const moved = new THREE.Vector3().subVectors(endPoint, startPoint);
@@ -269,7 +270,7 @@ export class DrawEngine {
 			this.inter
 		);
 
-		this.end = new THREE.Vector3(this.inter.x,1,this.inter.z);
+		this.end = new THREE.Vector3(this.inter.x,this.#wallHeight/2,this.inter.z);
 		utils.snapPoint(this.end);
 
 		if (!this.start) return;

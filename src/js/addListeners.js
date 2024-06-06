@@ -133,6 +133,15 @@ export function addListeners(controller) {
 		elementAdderHandler(addElementSelector.value, controller);
 		addElementSelector.value = 'reset';
 	}
+	document.querySelector('#firstPerson').onclick = ()=>{
+		controller.currentStage.switchTo1PCamera();
+	}
+	document.querySelector('#thirdPerson').onclick = ()=>{
+		controller.currentStage.switchTo3PCamera();
+	}
+	document.querySelector('#orthoPerson').onclick = ()=>{
+		controller.currentStage.switchToOrthoCamera();
+	}
 }
 function elementAdderHandler(element, controller){
 	if(!element || element === 'reset') return;

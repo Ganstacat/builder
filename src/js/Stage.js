@@ -531,6 +531,14 @@ export class Stage {
 		if(obj.userData.isRestrained) this.adjustRestraintForScale(obj);
 
 		if(obj.userData.hasDimensions) this.controller.addLabelToObject(obj);
+
+		// const mesh = utils.getObjectMesh(obj);
+		// const texture = mesh.material.map;
+		// texture.matrixAutoUpdate = false;
+
+		// texture.matrix.setUvTransform(0, 0 , 10 , 1 ,0, 0.5, 0.5,)
+		// mesh.material.needsUpdate = true;
+
 		this.onObjectUpdate();
 	}
 	scaleObjToBox3(obj,box3){
