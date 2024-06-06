@@ -49478,14 +49478,49 @@ class MaterialManager {
             hardwood: ()=>{
                 return self.#createStandardTexturedMaterial("hardwood.png", 1.3);
             },
-            tile1: ()=>{
-                return self.#createStandardTexturedMaterial("tile-01.jpg", 1.5);
+            // tile1: ()=>{return self.#createStandardTexturedMaterial("tile-01.jpg",1.5)},
+            // tile2: ()=>{return self.#createStandardTexturedMaterial("tile-02.jpg",1.5)},
+            alder: ()=>{
+                return self.#createStandardTexturedMaterial("alder.jpg", 1.7);
             },
-            tile2: ()=>{
-                return self.#createStandardTexturedMaterial("tile-02.jpg", 1.5);
+            indian: ()=>{
+                return self.#createStandardTexturedMaterial("indian.jpg", 2.1);
+            },
+            oak: ()=>{
+                return self.#createStandardTexturedMaterial("oak.jpg", 2.4);
+            },
+            pine: ()=>{
+                return self.#createStandardTexturedMaterial("pine.jpg", 1.3);
+            },
+            nut: ()=>{
+                return self.#createStandardTexturedMaterial("nut.jpg", 1.6);
+            },
+            koelga: ()=>{
+                return self.#createStandardTexturedMaterial("koelga.jpg", 5);
+            },
+            graygranite: ()=>{
+                return self.#createStandardTexturedMaterial("graygranite.jpeg", 3.7);
+            },
+            leznik: ()=>{
+                return self.#createStandardTexturedMaterial("leznik.jpg", 3);
+            },
+            labradorit: ()=>{
+                return self.#createStandardTexturedMaterial("labradorit.jpg", 3.5);
+            },
+            maslavka: ()=>{
+                return self.#createStandardTexturedMaterial("maslavka.jpg", 4);
+            },
+            diabaz: ()=>{
+                return self.#createStandardTexturedMaterial("diabaz.jpg", 3.6);
+            },
+            steel: ()=>{
+                return self.#createStandardTexturedMaterial("steel.jpg", 1.5);
+            },
+            castIron: ()=>{
+                return self.#createStandardTexturedMaterial("castIron.jpg", 1);
             },
             marbletiles: ()=>{
-                return self.#createStandardTexturedMaterial("marbletiles.jpg", 2);
+                return self.#createStandardTexturedMaterial("marbletiles.jpg", 5.5);
             },
             wallpaperTwo: ()=>{
                 return self.#createWallTexturedMaterial("wallpaper2.jpg");
@@ -49614,7 +49649,7 @@ class MainController {
         this.exportManager = exportManager;
         this.materialManager = materialManager;
         this.labelManager = labelManager;
-        this.defaultMaterialKey = "light_brick";
+        this.defaultMaterialKey = "pine";
     }
     /**
 		Зарегестрировать сцену и добавить к ней слушатели событий от DragEngine
