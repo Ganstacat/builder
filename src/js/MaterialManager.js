@@ -52,11 +52,11 @@ export class MaterialManager {
 			this.loadedTextures.set(filename, texture);
 		}
 		texture.anisotropy = 16;
-		texture.wrapS = THREE.RepeatWrapping;
-		texture.wrapT = THREE.RepeatWrapping;
-		texture.repeat.set(1,1);
+		// texture.wrapS = THREE.RepeatWrapping;
+		// texture.wrapT = THREE.RepeatWrapping;
+		// texture.repeat.set(4, 4);
 		// texture.repeat.set(0.5,0.5);
-		texture.onUpdate = ()=>{console.log('huy')};
+		// texture.onUpdate = ()=>{console.log('huy')};
 		return texture;
 	}
 	/**

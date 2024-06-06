@@ -10,6 +10,7 @@
 		body {
 			margin: 0;
 			background: #333333;
+			box-sizing: content-box;
 		}
 
 		body {
@@ -19,18 +20,24 @@
 		}
 		html, body {
 			height: 100%;
+			font-family: arial, sans-serif;
 		}
 		:root {
-			--container_width: 250px;
-			--button_width: calc(var(--container_width)/2 - 5px);
+			--container_width: 300px;
+			--button_width: calc(var(--container_width)/2 - 10px);
 			--button_height: 25px;
 		}
 
-		button, .checkButton, select {
+		button, .checkButton, select  {
 			margin-top: 4px;
 			border: none;
 			border-radius: 4px;
 			height: var(--button_height);
+		}
+		button, .checkButton, select, .price_container{
+			box-shadow:
+			0 0 0 1px #000,
+			0 0 0 2px #247299;
 		}
 		.renderer {
 			width: 100%;
@@ -63,10 +70,9 @@
 		}
 		.checkButton {
 		  background-color: #FFFFFF;
-		  margin-right: 7.5px;
 		  overflow: hidden;
-		  float: left;
 		  user-select: none; 
+		  padding: 0;
 		}
 		.checkButton label {
 			text-align: center;
@@ -132,12 +138,12 @@
 		<button id="clone">Клонировать</button><br>
 		<button id="delobj">Удалить</button>
 		<button id="clear">Очистить</button>
-		<div class='checkButton' >
+		<button class='checkButton' >
 			<label>
 				<input id='drawing' type='checkbox' value='1'></input>
-				<span>Рисование</span>
+				<span>Построение Стен</span>
 			</label>
-		</div>
+		</button>
 		<button id="downloadScene">Скачать</button>
 		<button id="saveScene">Сохранить</button>
 		<form action="/api" method="post" enctype="multipart/form-data">

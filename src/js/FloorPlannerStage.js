@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import  {Stage} from './Stage.js';
 import * as utils from './utils.js';
 import * as priceCalculator from './priceCalculator.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 
 /**
 	Потомок класса Stage, отличается набором моделей, присутствующих на сцене после инициализации.
@@ -10,9 +11,22 @@ export class FloorPlannerStage extends Stage {
 	setCanvas() {
 		// this.canvas = document.querySelector('#floorPlanner');
 	}
+	setupScene() {
+		const scene = new THREE.Scene();
+		const hdriPath = './assets/textures/House Interior Free HDRI.hdr'; 
+		new RGBELoader().load(hdriPath, (texture)=>{
+			texture.mapping = THREE.EquirectangularRefractionMapping;
+			scene.background = 0xEEEEEE;
+			scene.environment = texture;
+			console.log('loaded');
+		});
+		return scene;
+	}
 	addStartingObjects() {
 		const gridHelper = new THREE.GridHelper(16, 64);
 		this.addObject(gridHelper);
+
+
 		// const plane = utils.createMesh(
 			// new THREE.PlaneGeometry(4,4),
 			// new THREE.MeshStandardMaterial({color: 0x999999, side: THREE.DoubleSide})
