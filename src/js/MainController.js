@@ -20,7 +20,7 @@ export class MainController {
 		this.materialManager = materialManager;
 		this.labelManager = labelManager;
 
-		this.defaultMaterialKey = 'light_brick';
+		this.defaultMaterialKey = 'pine';
 	}
 
 	/**
