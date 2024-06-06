@@ -144,6 +144,7 @@ export class DragEnginePlane {
 	pickup(intersectionPoint, obj) {
 		this.stage.controls.enabled = false;
 		this.dragObject = obj;
+		console.log(this.dragObject);
 
 		if(this.dragObject.userData.onPickup) this.dragObject.userData.onPickup(); 
 

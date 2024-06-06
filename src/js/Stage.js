@@ -503,6 +503,7 @@ export class Stage {
 		}
 
 		this.scene.add(obj);
+		this.placeObjectOnPlane(obj);
 		
 		priceCalculator.calculatePrice(this.movableObjects);
 	}
@@ -511,11 +512,11 @@ export class Stage {
 		Не используется. 
 		Назначение - установить позицию модели по высоте на значение "0 + высота", чтобы модель встала "на пол".
 	*/
-	// placeObjectOnPlane(obj) {
-	// 	const box3 = new THREE.Box3().setFromObject(obj);
-	// 	let halfHeight = (box3.max.y - box3.min.y)/2;
-	// 	obj.position.y = halfHeight;
-	// }
+	placeObjectOnPlane(obj) {
+		const box3 = new THREE.Box3().setFromObject(obj);
+		let halfHeight = (box3.max.y - box3.min.y)/2;
+		obj.position.y = halfHeight;
+	}
 
 	/**
 		Изменить размер модели
