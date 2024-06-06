@@ -134,12 +134,15 @@ export function addListeners(controller) {
 		addElementSelector.value = 'reset';
 	}
 	document.querySelector('#firstPerson').onclick = ()=>{
+		if(!controller.dragEngine.dragging) return; // не тащим = рисуем, рисовать можно только в floorPlanner
 		controller.currentStage.switchTo1PCamera();
 	}
 	document.querySelector('#thirdPerson').onclick = ()=>{
+		if(!controller.dragEngine.dragging) return; // не тащим = рисуем, рисовать можно только в floorPlanner
 		controller.currentStage.switchTo3PCamera();
 	}
 	document.querySelector('#orthoPerson').onclick = ()=>{
+		if(!controller.dragEngine.dragging) return; // не тащим = рисуем, рисовать можно только в floorPlanner
 		controller.currentStage.switchToOrthoCamera();
 	}
 	document.querySelector('#deselect').onclick = ()=>{

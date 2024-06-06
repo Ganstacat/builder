@@ -57,6 +57,9 @@ export function addKeyboardControls(controller){
 				break;
 			case "KeyQ":
 				controller.unsetSelection();
+				controller.drawEngine.setDrawing(false);
+				controller.dragEngine.setDragging(true);
+				document.getElementById("drawing").checked = false;
 				break;
 		}
 	});

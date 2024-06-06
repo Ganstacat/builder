@@ -23,9 +23,16 @@ export class FloorPlannerStage extends Stage {
 		// });
 		return scene;
 	}
+	
+	animateAll(){
+		super.animateAll();
+		if(this.camera === this.cameraOrtho) this.gridHelper.visible = true;
+		else this.gridHelper.visible = false;
+	}
 	addStartingObjects() {
 		const gridHelper = new THREE.GridHelper(16, 64);
 		this.addObject(gridHelper);
+		this.gridHelper = gridHelper;
 
 
 		// const plane = utils.createMesh(
