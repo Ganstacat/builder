@@ -634,8 +634,8 @@ if (!document.cookie) {
 } else {
     console.log("Cookie:");
     console.log(document.cookie);
-} // exportManager.loadByLinkToStage('/index.php?mode=load', floorStage);
- // exportManager.saveToDatabase(controller.currentStage.movableObjects, '/index.php?mode=load'); 
+}
+controller.loadByLinkToStage("/index.php?mode=load", floorStage); // exportManager.saveToDatabase(controller.currentStage.movableObjects, '/index.php?mode=load'); 
 
 },{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","dat.gui":"k3xQk","three/examples/jsm/utils/BufferGeometryUtils.js":"5o7x9","troika-three-text":"7YS8r","./Stage.js":"5MQQY","./FloorPlannerStage.js":"ivRbE","./DragEnginePlane.js":"kmFdU","./MaterialManager.js":"4SNlt","./MainController.js":"cHEjt","./ExportManager.js":"8hs9t","./LabelManager.js":"aEsVy","./addListeners.js":"eDO5i","./addKeyboardControls.js":"c6KBJ","./DrawEngine.js":"KIqcM","./utils.js":"72Dku","./cookieUtils.js":"dNkkZ"}],"ktPTu":[function(require,module,exports) {
 /**
@@ -46434,6 +46434,7 @@ var _guiManagerJs = require("./GuiManager.js");
 var _utilsJs = require("./utils.js");
 var _packableObjectListenersJs = require("./packableObjectListeners.js");
 var _boxesTreeJs = require("./BoxesTree.js");
+var _priceCalculatorJs = require("./priceCalculator.js");
 class Stage {
     /**
 		Инициализация объекта сцены в конструкторе с помощью методов этого класса.
@@ -46596,8 +46597,13 @@ class Stage {
         for (let obj of this.movableObjects)_utilsJs.applyToMeshes(obj, (o)=>{
             o.updateMatrix();
             o.updateMatrixWorld();
-            o.userData.obb.copy(o.geometry.userData.obb);
-            o.userData.obb.applyMatrix4(o.matrixWorld);
+            try {
+                o.userData.obb.copy(o.geometry.userData.obb);
+                o.userData.obb.applyMatrix4(o.matrixWorld);
+            } catch (e) {
+                // utils.addOBBToObject(o);
+                console.error(e);
+            }
         });
     }
     /**
@@ -46695,6 +46701,8 @@ class Stage {
         // box_cop.userData.lockScale = 'x'
         // box2.userData.lockScale = 'y'
         // box2_cop.userData.lockScale = 'y'
+        this.controller.setObjectTexture(box, this.controller.defaultMaterialKey);
+        this.controller.setObjectTexture(box_cop, this.controller.defaultMaterialKey);
         this.addObject(box, true, true, true, false);
         this.addObject(box_cop, true, true, true, false);
     // this.addObject(box2,true,true,true,true);
@@ -46810,6 +46818,7 @@ class Stage {
         }
         if (isPackable) (0, _packableObjectListenersJs.addListenersToPackableObject)(obj, this.controller.dragEngine);
         this.scene.add(obj);
+        _priceCalculatorJs.calculatePrice(this.movableObjects);
     }
     /**
 		Не используется. 
@@ -47014,13 +47023,14 @@ class Stage {
     }
     onObjectUpdate(obj) {
         this.guiManager.updateGui();
+        _priceCalculatorJs.calculatePrice(this.movableObjects);
     }
     getRaycaster() {
         return this.raycaster;
     }
 }
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","three/examples/jsm/controls/PointerLockControls.js":"fjBcw","./GuiManager.js":"eEqGm","./utils.js":"72Dku","./packableObjectListeners.js":"5N5lS","./BoxesTree.js":"e5frl","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7mqRv":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","three/examples/jsm/controls/PointerLockControls.js":"fjBcw","./GuiManager.js":"eEqGm","./utils.js":"72Dku","./packableObjectListeners.js":"5N5lS","./BoxesTree.js":"e5frl","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./priceCalculator.js":"kookz"}],"7mqRv":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "OrbitControls", ()=>OrbitControls);
@@ -48907,7 +48917,36 @@ class BoxesNode {
     }
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"ivRbE":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kookz":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "calculatePrice", ()=>calculatePrice);
+var _utils = require("./utils");
+var _three = require("three");
+const currencySymbol = "\u20BD";
+function calculatePrice(objects) {
+    let price = 0;
+    for (let obj of objects){
+        if (obj.userData.isWall || obj.userData.isCorner) continue;
+        _utils.applyToMeshes(obj, (m)=>{
+            const priceCoeff = getMaterialCoefficient(m.material);
+            const size = _utils.getBox3Size(new _three.Box3().setFromObject(m));
+            price += (size.x + size.y + size.z) * 1000 * priceCoeff;
+        });
+    }
+    updatePriceLabel(price);
+    return price;
+}
+function updatePriceLabel(price) {
+    const priceLabel = document.querySelector("#price");
+    priceLabel.textContent = parseFloat(price).toFixed(2) + currencySymbol;
+}
+function getMaterialCoefficient(material) {
+    if (!material.userData || !material.userData.priceCoeff) return 0;
+    return material.userData.priceCoeff;
+}
+
+},{"./utils":"72Dku","three":"ktPTu","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"ivRbE":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -48916,6 +48955,7 @@ parcelHelpers.defineInteropFlag(exports);
 var _three = require("three");
 var _stageJs = require("./Stage.js");
 var _utilsJs = require("./utils.js");
+var _priceCalculatorJs = require("./priceCalculator.js");
 class FloorPlannerStage extends (0, _stageJs.Stage) {
     setCanvas() {
     // this.canvas = document.querySelector('#floorPlanner');
@@ -48985,7 +49025,7 @@ class FloorPlannerStage extends (0, _stageJs.Stage) {
     }
 }
 
-},{"three":"ktPTu","./Stage.js":"5MQQY","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kmFdU":[function(require,module,exports) {
+},{"three":"ktPTu","./Stage.js":"5MQQY","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./priceCalculator.js":"kookz"}],"kmFdU":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -49433,25 +49473,25 @@ class MaterialManager {
                 return new _three.MeshStandardMaterial();
             },
             light_brick: ()=>{
-                return self.createStandardTexturedMaterial("light_brick.jpg");
+                return self.#createStandardTexturedMaterial("light_brick.jpg", 1.1);
             },
             hardwood: ()=>{
-                return self.createStandardTexturedMaterial("hardwood.png");
+                return self.#createStandardTexturedMaterial("hardwood.png", 1.3);
             },
             tile1: ()=>{
-                return self.createStandardTexturedMaterial("tile-01.jpg");
+                return self.#createStandardTexturedMaterial("tile-01.jpg", 1.5);
             },
             tile2: ()=>{
-                return self.createStandardTexturedMaterial("tile-02.jpg");
+                return self.#createStandardTexturedMaterial("tile-02.jpg", 1.5);
             },
             marbletiles: ()=>{
-                return self.createStandardTexturedMaterial("marbletiles.jpg");
+                return self.#createStandardTexturedMaterial("marbletiles.jpg", 2);
             },
             wallpaperTwo: ()=>{
-                return self.createWallTexturedMaterial("wallpaper2.jpg");
+                return self.#createWallTexturedMaterial("wallpaper2.jpg");
             },
             wallRoundCorner: ()=>{
-                return self.createCylinderTexturedMaterial("wallpaper2.jpg");
+                return self.#createCylinderTexturedMaterial("wallpaper2.jpg");
             },
             redLine: ()=>{
                 return new _three.LineBasicMaterial({
@@ -49476,14 +49516,16 @@ class MaterialManager {
     }
     /**
 		Возвращает объект THREE.MeshStandardMaterial с текстурой filename
-	*/ createStandardTexturedMaterial(filename) {
+	*/ #createStandardTexturedMaterial(filename, priceCoeff) {
         const texture = this.#loadTexture(filename);
-        return new _three.MeshStandardMaterial({
+        const material = new _three.MeshStandardMaterial({
             map: texture
         });
+        material.userData.priceCoeff = priceCoeff;
+        return material;
     }
-    createWallTexturedMaterial(filename) {
-        const texturedMaterial = this.createStandardTexturedMaterial(filename);
+    #createWallTexturedMaterial(filename) {
+        const texturedMaterial = this.#createStandardTexturedMaterial(filename);
         const nonTexturedMaterial = new _three.MeshStandardMaterial({
             color: "gray",
             side: _three.DoubleSide
@@ -49498,8 +49540,8 @@ class MaterialManager {
         ];
         return multiMaterial;
     }
-    createCylinderTexturedMaterial(filename) {
-        const texturedMaterial = this.createStandardTexturedMaterial(filename);
+    #createCylinderTexturedMaterial(filename) {
+        const texturedMaterial = this.#createStandardTexturedMaterial(filename);
         const nonTexturedMaterial = new _three.MeshStandardMaterial({
             color: "gray",
             side: _three.DoubleSide
@@ -49519,6 +49561,7 @@ class MaterialManager {
 	*/ setMeshMaterial(mesh, materialKey) {
         try {
             mesh.material = this.materials[materialKey]();
+            mesh.material.userData.priceCoeff = this.materials[materialKey]().userData.priceCoeff;
         } catch (e) {
             console.error(e);
         }
@@ -49527,10 +49570,13 @@ class MaterialManager {
 		Устанавливает текстуру для модели.
 	*/ setMeshTexture(mesh, materialKey) {
         try {
-            let map = this.materials[materialKey]().map;
+            const map = this.materials[materialKey]().map;
+            const priceCoeff = this.materials[materialKey]().userData.priceCoeff;
+            console.log(priceCoeff);
             _utilsJs.applyToMeshes(mesh, (o)=>{
                 _utilsJs.applyToArrayOrValue(o.material, (m)=>{
                     m.map = map;
+                    m.userData.priceCoeff = priceCoeff;
                     m.needsUpdate = true;
                 });
             });
@@ -49556,6 +49602,7 @@ parcelHelpers.defineInteropFlag(exports);
 */ parcelHelpers.export(exports, "MainController", ()=>MainController);
 var _dragEnginePlaneJs = require("./DragEnginePlane.js");
 var _utilsJs = require("./utils.js");
+var _priceCalculatorJs = require("./priceCalculator.js");
 class MainController {
     /**
 		Инициализация класса.
@@ -49567,6 +49614,7 @@ class MainController {
         this.exportManager = exportManager;
         this.materialManager = materialManager;
         this.labelManager = labelManager;
+        this.defaultMaterialKey = "light_brick";
     }
     /**
 		Зарегестрировать сцену и добавить к ней слушатели событий от DragEngine
@@ -49610,6 +49658,7 @@ class MainController {
         this.dragEngine.setStage(this.currentStage);
         this.drawEngine.setStage(this.currentStage);
         this.showCurrentStage();
+        _priceCalculatorJs.calculatePrice(this.currentStage.movableObjects);
     }
     /**
 		Пока не используется.
@@ -49617,10 +49666,12 @@ class MainController {
         let self = this;
     }
     addObjectToCurrentStage(obj, isMovable, hasCollision, hasDimensions, isPackable) {
+        this.setObjectTexture(obj, this.defaultMaterialKey);
         this.currentStage.addObject(obj, isMovable, hasCollision, hasDimensions, isPackable);
     }
     removeObjectFromCurrentStage(obj) {
         this.currentStage.removeObject(obj);
+        _priceCalculatorJs.calculatePrice(this.currentStage.movableObjects);
     }
     addLabelToObject(obj) {
         this.labelManager.addLabelToObject(obj);
@@ -49631,6 +49682,7 @@ class MainController {
     clearCurrentStage() {
         this.currentStage.clearScene();
         this.drawEngine.clearWalls();
+        _priceCalculatorJs.calculatePrice(this.currentStage.movableObjects);
     }
     disableDraggingLocks() {
         this.dragEngine.resetLocks();
@@ -49653,7 +49705,8 @@ class MainController {
     scaleObject(obj, axis, amount) {
         const prevpos = obj.position.clone();
         this.currentStage.scaleObjectAxisScalar(obj, axis, amount);
-    // this.applyCollisionAndRestraint(obj, prevpos);
+        // this.applyCollisionAndRestraint(obj, prevpos);
+        _priceCalculatorJs.calculatePrice(this.currentStage.movableObjects);
     }
     applyCollisionAndRestraint(obj, prevpos) {
         this.dragEngine.applyRestraint(obj, prevpos);
@@ -49696,8 +49749,17 @@ class MainController {
             this.exportManager.downloadScene(exportable);
         }, this, stage);
     }
+    loadByLinkToStage(link, stage) {
+        this.exportManager.loadByLinkToStage(link, stage).then((fullfilled)=>{
+            console.log("good");
+            _priceCalculatorJs.calculatePrice(this.currentStage.movableObjects);
+        }, (error)=>{
+            console.error(error);
+        });
+    }
     setObjectTexture(obj, textureKey) {
         this.materialManager.setMeshTexture(obj, textureKey);
+        if (this.currentStage) _priceCalculatorJs.calculatePrice(this.currentStage.movableObjects);
     }
     uploadUserFileToStage(file, stage) {
         this.exportManager.loadBlobToStage(file, stage);
@@ -49710,7 +49772,7 @@ class MainController {
     }
 }
 
-},{"./DragEnginePlane.js":"kmFdU","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8hs9t":[function(require,module,exports) {
+},{"./DragEnginePlane.js":"kmFdU","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./priceCalculator.js":"kookz"}],"8hs9t":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -49721,6 +49783,7 @@ var _gltfloaderJs = require("three/examples/jsm/loaders/GLTFLoader.js");
 var _gltfexporterJs = require("three/examples/jsm/exporters/GLTFExporter.js");
 var _utilsJs = require("./utils.js");
 var _obbJs = require("three/examples/jsm/math/OBB.js");
+var _priceCalculatorJs = require("./priceCalculator.js");
 class ExportManager {
     /**
 		Конструктор класса
@@ -49767,151 +49830,111 @@ class ExportManager {
 		Загружает модели из blob объекта на сцену
 	*/ loadBlobToStage(blob, stage) {
         this.link.href = URL.createObjectURL(blob);
-        this.assetLoader.load(this.link.href, (gltf)=>{
-            const model = gltf.scene;
-            _utilsJs.applyToMeshes(model, (o)=>{
-                o.castShadow = true;
-                o.receiveShadow = true;
-            });
-            // Определить, какие модельки находятся рядом и сгруппировать их вместе
-            let groups = [];
-            for (let o of model.children){
-                groups.push([
-                    o
-                ]);
-                let index = groups.length - 1;
-                for (let c of model.children){
-                    if (o === c) continue;
-                    let oB = new _three.Box3().setFromObject(o);
-                    let cB = new _three.Box3().setFromObject(c);
-                    let distances = [];
-                    let p1 = _utilsJs.getBox3Points(oB);
-                    let p2 = _utilsJs.getBox3Points(cB);
-                    for (let p of p1)distances.push(cB.distanceToPoint(p));
-                    for (let p of p2)distances.push(oB.distanceToPoint(p));
-                    let shortest = 99;
-                    for (let d of distances)if (d < shortest) shortest = d;
-                    if (shortest < 0.1) groups[index].push(c);
-                }
-            }
-            // объединить разные группы, если они содержат общих потомков (union) - типа [1,2,3] и [3,4,5] объединится в [1,2,3,4,5]
-            for(let i = 0; i < groups.length; i++){
-                if (!groups[i]) continue;
-                for(let j = 0; j < groups.length; j++){
-                    if (!groups[j] || groups[i] === groups[j]) continue;
-                    let intersection = groups[i].filter((x)=>groups[j].includes(x));
-                    if (intersection.length > 0) {
-                        let union = [
-                            ...new Set([
-                                ...groups[i],
-                                ...groups[j]
-                            ])
-                        ];
-                        groups[i] = union;
-                        groups[j] = null;
-                    }
-                }
-            }
-            // добавить модельки в сцену. Сделать поправку на их положение в текущей сцене.
-            for (let g of groups){
-                if (!g) continue;
-                let group = new _three.Group();
-                for (let m of g){
-                    _utilsJs.applyToMeshes(m, (o)=>{
-                        const badObb = o.geometry.userData.obb;
-                        o.geometry.userData.obb = new (0, _obbJs.OBB)(badObb.center, badObb.halfSize, badObb.rotation);
-                        o.userData.obb = new (0, _obbJs.OBB)();
-                    });
-                    group.add(m);
-                }
-                let pos = new _three.Vector3();
-                new _three.Box3().setFromObject(group).getCenter(pos);
-                for (let m of group.children){
-                    m.position.x -= pos.x;
-                    m.position.y -= pos.y;
-                    m.position.z -= pos.z;
-                }
-                let container = new _three.Group();
-                container.name = "container";
-                group.name = "models";
-                container.add(group);
-                stage.addObject(container, true, true, true);
-                container.position.copy(pos);
-                console.log(g);
-                console.log(container);
-            }
-        });
+        return this.loadByAssetLoader(this.link.href, stage);
     }
     loadByLinkToStage(link, stage) {
-        console.log(link);
-        this.assetLoader.load(link, (gltf)=>{
-            const model = gltf.scene;
-            _utilsJs.applyToMeshes(model, (o)=>{
-                o.castShadow = true;
-                o.receiveShadow = true;
+        return this.loadByAssetLoader(link, stage);
+    }
+    loadByAssetLoader(obj, stage) {
+        return new Promise((resolve, reject)=>{
+            this.assetLoader.load(obj, (gltf)=>{
+                try {
+                    const model = gltf.scene;
+                    this.#addShadows(model);
+                    // Определить, какие модельки находятся рядом и сгруппировать их вместе
+                    let groups = this.#groupNearestModels(model);
+                    // объединить разные группы, если они содержат общих потомков (union) - типа [1,2,3] и [3,4,5] объединится в [1,2,3,4,5]
+                    groups = this.#unionGroups(groups);
+                    // добавить модельки в сцену. Сделать поправку на их положение в текущей сцене.
+                    this.#addGroupsToStage(groups, stage);
+                    resolve("done");
+                } catch (error) {
+                    reject(error);
+                }
             });
-            // Определить, какие модельки находятся рядом и сгруппировать их вместе
-            let groups = [];
-            for (let o of model.children){
-                groups.push([
-                    o
-                ]);
-                let index = groups.length - 1;
-                for (let c of model.children){
-                    if (o === c) continue;
-                    let oB = new _three.Box3().setFromObject(o);
-                    let cB = new _three.Box3().setFromObject(c);
-                    let distances = [];
-                    let p1 = _utilsJs.getBox3Points(oB);
-                    let p2 = _utilsJs.getBox3Points(cB);
-                    for (let p of p1)distances.push(cB.distanceToPoint(p));
-                    for (let p of p2)distances.push(oB.distanceToPoint(p));
-                    let shortest = 99;
-                    for (let d of distances)if (d < shortest) shortest = d;
-                    if (shortest < 0.1) groups[index].push(c);
-                }
-            }
-            // объединить разные группы, если они содержат общих потомков (union) - типа [1,2,3] и [3,4,5] объединится в [1,2,3,4,5]
-            for(let i = 0; i < groups.length; i++){
-                if (!groups[i]) continue;
-                for(let j = 0; j < groups.length; j++){
-                    if (!groups[j] || groups[i] === groups[j]) continue;
-                    let intersection = groups[i].filter((x)=>groups[j].includes(x));
-                    if (intersection.length > 0) {
-                        let union = [
-                            ...new Set([
-                                ...groups[i],
-                                ...groups[j]
-                            ])
-                        ];
-                        groups[i] = union;
-                        groups[j] = null;
-                    }
-                }
-            }
-            // добавить модельки в сцену. Сделать поправку на их положение в текущей сцене.
-            for (let g of groups){
-                if (!g) continue;
-                let group = new _three.Group();
-                for (let m of g){
-                    _utilsJs.addOBBToObject(m);
-                    group.add(m);
-                }
-                let pos = new _three.Vector3();
-                new _three.Box3().setFromObject(group).getCenter(pos);
-                for (let m of group.children){
-                    m.position.x -= pos.x;
-                    m.position.y -= pos.y;
-                    m.position.z -= pos.z;
-                }
-                let container = new _three.Group();
-                container.name = "container";
-                group.name = "models";
-                container.add(group);
-                stage.addObject(container, true, true, true);
-                container.position.copy(pos);
-            }
         });
+    }
+    #addShadows(models) {
+        _utilsJs.applyToMeshes(models, (o)=>{
+            o.castShadow = true;
+            o.receiveShadow = true;
+        });
+    }
+    #groupNearestModels(models) {
+        let groups = [];
+        for (let o of models.children){
+            groups.push([
+                o
+            ]);
+            let index = groups.length - 1;
+            for (let c of models.children){
+                if (o === c) continue;
+                let oB = new _three.Box3().setFromObject(o);
+                let cB = new _three.Box3().setFromObject(c);
+                let distances = [];
+                let p1 = _utilsJs.getBox3Points(oB);
+                let p2 = _utilsJs.getBox3Points(cB);
+                for (let p of p1)distances.push(cB.distanceToPoint(p));
+                for (let p of p2)distances.push(oB.distanceToPoint(p));
+                let shortest = 99;
+                for (let d of distances)if (d < shortest) shortest = d;
+                if (shortest < 0.1) groups[index].push(c);
+            }
+        }
+        return groups;
+    }
+    #unionGroups(groups) {
+        for(let i = 0; i < groups.length; i++){
+            if (!groups[i]) continue;
+            for(let j = 0; j < groups.length; j++){
+                if (!groups[j] || groups[i] === groups[j]) continue;
+                let intersection = groups[i].filter((x)=>groups[j].includes(x));
+                if (intersection.length > 0) {
+                    let union = [
+                        ...new Set([
+                            ...groups[i],
+                            ...groups[j]
+                        ])
+                    ];
+                    groups[i] = union;
+                    groups[j] = null;
+                }
+            }
+        }
+        return groups;
+    }
+    #addGroupsToStage(groups, stage) {
+        for (let g of groups){
+            if (!g) continue;
+            let group = new _three.Group();
+            for (let m of g){
+                this.#fixBadOBB(m);
+                group.add(m);
+            }
+            const groupCenter = this.#adjustChildrenPositionByGroupCenter(group);
+            let container = new _three.Group();
+            container.name = "container";
+            group.name = "models";
+            container.add(group);
+            stage.addObject(container, true, true, true, false);
+            container.position.copy(groupCenter);
+        }
+    }
+    #fixBadOBB(obj) {
+        _utilsJs.applyToMeshes(obj, (o)=>{
+            const badObb = o.geometry.userData.obb;
+            o.geometry.userData.obb = new (0, _obbJs.OBB)(badObb.center, badObb.halfSize, badObb.rotation);
+            o.userData.obb = new (0, _obbJs.OBB)();
+        });
+    }
+    #adjustChildrenPositionByGroupCenter(group) {
+        const pos = new _three.Box3().setFromObject(group).getCenter(new _three.Vector3());
+        for (let m of group.children){
+            m.position.x -= pos.x;
+            m.position.y -= pos.y;
+            m.position.z -= pos.z;
+        }
+        return pos;
     }
     /**
 		Загружает модели на сцену
@@ -49928,6 +49951,8 @@ class ExportManager {
     }
     saveToDatabase(objects, apiUrl) {
         let self = this;
+        const price = (0, _priceCalculatorJs.calculatePrice)(objects);
+        apiUrl += `&price=${price}`;
         this.exporter.parse(objects, (result)=>{
             const blob = self.createBlobFromBuffer(result);
             self.sendBlobWithHttpPost(apiUrl, blob);
@@ -49945,7 +49970,7 @@ class ExportManager {
     }
 }
 
-},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./utils.js":"72Dku","three/examples/jsm/math/OBB.js":"hBt0X","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"aEsVy":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/loaders/GLTFLoader.js":"dVRsF","three/examples/jsm/exporters/GLTFExporter.js":"knVsP","./utils.js":"72Dku","three/examples/jsm/math/OBB.js":"hBt0X","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./priceCalculator.js":"kookz"}],"aEsVy":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 /**
@@ -50143,6 +50168,7 @@ parcelHelpers.defineInteropFlag(exports);
 */ parcelHelpers.export(exports, "addListeners", ()=>addListeners);
 var _three = require("three");
 var _utilsJs = require("./utils.js");
+var _priceCalculatorJs = require("./priceCalculator.js");
 function addListeners(controller) {
     const floorPlanner = "floorPlanner";
     const builder = "builder";
@@ -50152,6 +50178,7 @@ function addListeners(controller) {
     };
     // Смена текущей сцены на Сборщик
     document.querySelector("#builder").onclick = function() {
+        if (!controller.dragEngine.dragging) return; // не тащим = рисуем, рисовать можно только в floorPlanner
         controller.setCurrentStage(builder);
     };
     // Перенос объектов из сцены Сборщика в сцену Планировщика
@@ -50204,7 +50231,7 @@ function addListeners(controller) {
             obj.userData.parentNode = parentNode;
             newObject.userData.baserestraint = null;
             // controller.currentStage.scene.add(newObject);
-            controller.addObjectToCurrentStage(newObject, newObject.userData.isMovable, newObject.userData.hasCollision, newObject.userData.hasDimensions, newObject.userData.isPackable);
+            controller.currentStage.addObject(newObject, newObject.userData.isMovable, newObject.userData.hasCollision, newObject.userData.hasDimensions, newObject.userData.isPackable);
         });
     // controller.applySelectionColor(selected);
     };
@@ -50234,6 +50261,7 @@ function addListeners(controller) {
         controller.uploadUserFileToStage(fileList[0], controller.getCurrentStage());
     }, false);
     document.querySelector("#drawing").addEventListener("change", (e)=>{
+        controller.setCurrentStage(floorPlanner);
         if (e.target.checked) controller.currentStage.switchToOrthoCamera();
         controller.drawEngine.setDrawing(e.target.checked);
         controller.dragEngine.setDragging(!e.target.checked);
@@ -50269,7 +50297,7 @@ function elementAdderHandler(element, controller) {
     controller.addObjectToCurrentStage(object, true, true, true);
 }
 
-},{"three":"ktPTu","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"c6KBJ":[function(require,module,exports) {
+},{"three":"ktPTu","./utils.js":"72Dku","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./priceCalculator.js":"kookz"}],"c6KBJ":[function(require,module,exports) {
 /**
 	Функция, которая добавляет управление приложением с помощью клавиатуры.
 	Управление:
@@ -50520,7 +50548,6 @@ class DrawEngine {
     }
     addEventListenersToStage(stage) {
         const self = this;
-        console.log(this.stage);
         this.stage.renderer.domElement.addEventListener("click", ()=>{
             self.#onClick();
         });
