@@ -7,6 +7,7 @@ export class DrawEngine {
 	#notAllowedMaterialKey = 'redLine';
 	#allowedMaterialKey = 'greenLine';
 	#roundCornerMaterialKey = 'wallRoundCorner';
+	#floorMaterialKey = 'hardwood';
 	
 	constructor(dragEngine, materialManager, labelManager){
 		this.dragEngine = dragEngine;
@@ -19,10 +20,12 @@ export class DrawEngine {
 		
 		this.wallMaterial = this.materialManager.getMaterial(this.#wallpaperMaterialKey);
 		this.cylinderMaterial = this.materialManager.getMaterial(this.#roundCornerMaterialKey);
-		
+		this.floorMaterial = this.materialManager.getMaterial(this.#floorMaterialKey);
+
 		this.lineMaterialBad = this.materialManager.getMaterial(this.#notAllowedMaterialKey);
 		
-		this.lineMaterialGood =this.materialManager.getMaterial(this.#allowedMaterialKey);	
+		this.lineMaterialGood =this.materialManager.getMaterial(this.#allowedMaterialKey);
+		
 		
 	}
 	#initialize(){
@@ -222,15 +225,19 @@ export class DrawEngine {
 			shape.lineTo(points[i].x, points[i].z);
 		}
 		const geometry = new THREE.ShapeGeometry(shape);
-		const material = new THREE.MeshBasicMaterial({
-			color: "Beige", 
-			side: THREE.DoubleSide
-		});
+		// const material = new THREE.MeshStandardMaterial({
+		// 	color: "Beige", 
+		// 	side: THREE.DoubleSide
+		// });
+		const material = this.floorMaterial;
+		material.side = THREE.DoubleSide;
 		const mesh = new THREE.Mesh(geometry, material);
 		mesh.rotation.x = 0.5*Math.PI;
 		
 		mesh.position.y += this.height;
 		this.height+= 0.0001;
+		mesh.castShadow = true;
+		mesh.receiveShadow = true;
 		return mesh;
 	}
 	createRoomFromPoints(points) {

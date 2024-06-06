@@ -255,7 +255,9 @@ export class Stage {
 		}
 		renderer.setClearColor(0x333333);
 		renderer.shadowMap.enabled = true;
-		renderer.sortObjects = false
+		renderer.sortObjects = false;
+		renderer.toneMapping = THREE.NeutralToneMapping;
+		renderer.toneMappingExposure = 1;
 		return renderer;
 	}
 	/**
@@ -280,14 +282,20 @@ export class Stage {
 		Устанавливает освещение для сцены.
 	*/
 	setupLights(scene) {
-		const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1);
+		const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1);	
 		scene.add(ambientLight);
 		const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 4);
 		scene.add(directionalLight);
 		directionalLight.position.set(0,3,0);
 		directionalLight.castShadow = true;
+		directionalLight.shadow.bias = -0.0001;
+		directionalLight.shadow.mapSize.width = 1024;
+		directionalLight.shadow.mapSize.height = 1024;
 		
-		return [directionalLight];
+		const hemiLight = new THREE.HemisphereLight(0xFFFFFF, 0x0,2);
+		scene.add(hemiLight);
+
+		return [hemiLight];
 	}
 	/**
 		Инициализирует объект класса THREE.Raycaster, который предназначен для помощи в рейкастинге. Raycasting используется, среди прочего, для выбора мышью (определения того, над какими объектами в трехмерном пространстве находится мышь).
@@ -325,18 +333,18 @@ export class Stage {
 			// new THREE.Vector3(-1.5, 0,-2),
 			// new THREE.Vector3( 1.5, 1.5, 2)
 		// );
-		const box3 = this.addBox3(new THREE.Box3(
-			new THREE.Vector3(-1.5, 0, -2),
-			new THREE.Vector3(1.5, 1.5, 2)
-		), true);
+		// const box3 = this.addBox3(new THREE.Box3(
+		// 	new THREE.Vector3(-1.5, 0, -2),
+		// 	new THREE.Vector3(1.5, 1.5, 2)
+		// ), true);
 		
-		const box4 = this.addBox3(new THREE.Box3(
-			new THREE.Vector3(-4.5, 0, -2),
-			new THREE.Vector3(-3.5, 2, 1)
-		), true);
+		// const box4 = this.addBox3(new THREE.Box3(
+		// 	new THREE.Vector3(-4.5, 0, -2),
+		// 	new THREE.Vector3(-3.5, 2, 1)
+		// ), true);
 		
-		addNewBox3Tree(box3);
-		addNewBox3Tree(box4);
+		// addNewBox3Tree(box3);
+		// addNewBox3Tree(box4);
 
 		const box = utils.createMesh(
 			new THREE.BoxGeometry(0.5,0.5,0.5),
@@ -366,6 +374,7 @@ export class Stage {
 		box2.position.x += 1;
 		box2_cop.position.x += 2;
 		
+		console.log(box);
 
 			
 		// box.userData.lockScale = 'x'

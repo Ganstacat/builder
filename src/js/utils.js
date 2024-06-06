@@ -200,6 +200,9 @@ export function addOBBToObject(obj){
 */
 export function createMesh(geometry, material) {
 	let mesh = new THREE.Mesh(geometry, material);
+	mesh.castShadow = true;
+	mesh.receiveShadow = true;
+	
 	mesh.geometry.computeBoundingBox();
 	mesh.matrixAutoUpdate = false;
 	this.addOBBToObject(mesh);
@@ -212,6 +215,10 @@ export function createMesh(geometry, material) {
 	containerGroup.add(modelGroup);
 	
 	return containerGroup;
+}
+export function updateObjUV(obj){
+	const size = this.getBox3Size(new THREE.Box3().setFromObject(obj));
+	
 }
 // export function getObjectSize(obj){
 // 	const clone = obj.clone();
