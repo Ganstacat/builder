@@ -142,6 +142,9 @@ export function addListeners(controller) {
 	document.querySelector('#orthoPerson').onclick = ()=>{
 		controller.currentStage.switchToOrthoCamera();
 	}
+	document.querySelector('#deselect').onclick = ()=>{
+		controller.currentStage.unsetSelectedObject();
+	}
 }
 function elementAdderHandler(element, controller){
 	if(!element || element === 'reset') return;

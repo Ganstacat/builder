@@ -68,12 +68,12 @@ export class MaterialManager {
 		material.userData.priceCoeff = priceCoeff;
 		return material;
 	}
-	// makeCubeMaterialFromOne(material){
-	// 	return [
-	// 		material, material, material,
-	// 		material, material, material
-	// 	]
-	// }
+	makeCubeMaterialFromOne(material){
+		return [
+			material, material, material,
+			material, material, material
+		]
+	}
 	#createWallTexturedMaterial(filename){
 		const texturedMaterial = this.#createStandardTexturedMaterial(filename);
 		const nonTexturedMaterial = new THREE.MeshStandardMaterial({color: 'gray', side: THREE.DoubleSide});

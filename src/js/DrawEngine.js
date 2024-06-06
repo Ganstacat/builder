@@ -50,6 +50,14 @@ export class DrawEngine {
 	}
 	setDrawing(bool){
 		this.drawing = bool;
+		if(!bool){
+			if (this.line) this.stage.removeObject(this.line);
+			this.inter = new THREE.Vector3();
+			this.end = undefined;
+			this.start = undefined;
+			this.line = undefined;
+			this.angleStart = undefined;
+		}	
 	}
 	#removeFloor(){
 		for (let p of this.polys) {
@@ -201,7 +209,7 @@ export class DrawEngine {
 		});
 		
 		const mesh = utils.createMesh(
-			new THREE.CylinderGeometry(0.1,0.1,this.#wallHeight + 0.001), 
+			new THREE.CylinderGeometry(0.1,0.1,this.#wallHeight + 0.01), 
 			mat
 		);
 		this.corners.push(mesh);
