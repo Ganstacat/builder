@@ -44,7 +44,8 @@ export class GuiManager {
 			"поворотZ":0,
 			
 			"цвет": 0xFFFFFF,
-			"размеры": true,
+			"все размеры": true,
+			"размеры": true
 
 		};
 		this.options = options;
@@ -70,22 +71,20 @@ export class GuiManager {
 		this.gui.add(options, 'поворотZ',0, Math.PI*2, Math.PI/16).onChange((e)=>{
 			self.stage.setRotation(self.stage.selectedObject, options["поворотX"], options["поворотY"], options["поворотZ"]);
 		});
-		this.gui.add(options, 'размеры').onChange( (e)=>{
+		this.gui.add(options, 'все размеры').onChange( (e)=>{
 			for(let o of self.stage.movableObjects) {
-				if (o.name === 'container') {
-					for(let c of o.children){
-						if (c.isLine || c.userData.isText) {
-							c.visible = e;
-						}
-					}
-				}
+				self.#switchLabelsVisibility(o,e);
 			}
 			this.stage.controller.labelManager.setDimensionsVisibility(e);
 		});
+		this.gui.add(options, 'размеры').onChange( (e)=>{
+			const obj = self.stage.selectedObject;
+			self.#switchLabelsVisibility(obj,e);
+		})
+	
 		this.gui.addColor(options, 'цвет').onChange((e)=>{
 			self.stage.setMeshColor(self.stage.selectedObject, e);
 		});
-	
 		
 		this.listeners.push(()=>{
 			if(!self.stage.selectedObject || self.stage.selectedObject.name !== "container") return;
@@ -99,6 +98,8 @@ export class GuiManager {
 			self.options["поворотX"] = self.stage.selectedObject.rotation.x;
 			self.options["поворотY"] = self.stage.selectedObject.rotation.y;
 			self.options["поворотZ"] = self.stage.selectedObject.rotation.z;
+
+			self.options["размеры"] = self.stage.selectedObject.userData.hasDimensions;
 			
 			if(self.stage.selectedObject.isMesh) self.options["цвет"] = self.stage.selectedObject.material.color.getHex();
 			else {
@@ -116,7 +117,14 @@ export class GuiManager {
 			}
 		})
 	}
-	
+	#switchLabelsVisibility(obj, bool){
+		obj.userData.hasDimensions = bool;
+		if(bool){
+			this.stage.controller.labelManager.addLabelToObject(obj);
+		} else {
+			this.stage.controller.labelManager.removeLabel(obj);
+		}
+	}	
 	/**
 		Скрыть dat.GUI Элемент
 	*/

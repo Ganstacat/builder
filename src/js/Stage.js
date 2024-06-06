@@ -255,7 +255,7 @@ export class Stage {
 		}
 		renderer.setClearColor(0x333333);
 		renderer.shadowMap.enabled = true;
-		renderer.sortObjects = false;
+		renderer.sortObjects = true;
 		renderer.toneMapping = THREE.NeutralToneMapping;
 		renderer.toneMappingExposure = 1;
 		return renderer;

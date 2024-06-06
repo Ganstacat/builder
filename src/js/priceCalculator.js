@@ -11,7 +11,7 @@ export function calculatePrice(objects){
         utils.applyToMeshes(obj, (m)=>{
             const priceCoeff = getMaterialCoefficient(m.material);
             const size = utils.getBox3Size(new THREE.Box3().setFromObject(m));
-            price += (size.x + size.y + size.z) * 1000 * priceCoeff;
+            price += (size.x + size.y + size.z) * 500 * priceCoeff;
         });
     }
     updatePriceLabel(price);

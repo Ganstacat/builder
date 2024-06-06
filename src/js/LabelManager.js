@@ -6,7 +6,7 @@ import * as utils from './utils.js';
 	Класс, который управляет размерными линиями.
 */
 export class LabelManager {
-	
+	#offset = 0.01;	
 	getObjDepth(obj){
 		const geomDepth = obj.geometry.parameters.depth;
 		return geomDepth * obj.scale.z;
@@ -61,6 +61,8 @@ export class LabelManager {
 
 	}
 	addObjectDimensions(obj) {
+		console.log(obj);
+		if(obj.userData.labelIsHidden) return;
 		// obj.material.wireframe = true;
 		let box3 = new THREE.Box3().setFromObject(obj);
 		let size = new THREE.Vector3();
@@ -84,39 +86,41 @@ export class LabelManager {
 		let lineZ = this.createLineFromPoints(pointsZ);
 		let lineY = this.createLineFromPoints(pointsY);
 		
-		
-		let textSize = (size.x + size.y + size.z)/10;
-		if (textSize < 0.1) textSize = 0.1
-		else if (textSize > 0.2) textSize = 0.2
-		
+
+		const textSizes = [size.x/10, size.y/10, size.z/10];
+		for(let i = 0; i < textSizes.length; i++){
+			if (textSizes[i] < 0.01) textSizes[i] = 0.01
+			else if (textSizes[i] > 0.1) textSizes[i] = 0.1
+		}
+
 		let textX = this.createText(
 			Math.floor(size_copy.x*1000)+'мм',
 			new THREE.Vector3(
 				0,
 				// size_halved.y,
-				size_halved.y,
-				size_halved.z+0.1),
+				size_halved.y+0.001,
+				size_halved.z+this.#offset),
 			new THREE.Vector3(Math.PI/2, Math.PI,Math.PI),
-			textSize
+			textSizes[0]
 		);
 		let textZ = this.createText(
 			Math.floor(size_copy.z*1000)+'мм',
 			new THREE.Vector3(
-				size_halved.x+0.1,
+				size_halved.x+this.#offset,
 				// size_halved.y,
-				size_halved.y,
+				size_halved.y+0.0001,
 				0),
 			new THREE.Vector3(Math.PI/2, Math.PI, Math.PI*1.5),
-			textSize
+			textSizes[2]
 		);
 		let textY = this.createText(
 			Math.floor(size_copy.y*1000)+'мм',
 			new THREE.Vector3(
-				size_halved.x+0.1,
+				size_halved.x+this.#offset,
 				0,
-				size_halved.z+0.1),
+				size_halved.z+this.#offset),
 			new THREE.Vector3(0,0,Math.PI/2),
-			textSize
+			textSizes[1]
 		);
 		
 		obj.add(lineX);
@@ -218,15 +222,15 @@ export class LabelManager {
 	*/
 	getPointsForXLine(size){
 		let p0 = new THREE.Vector3(-size.x,size.y,size.z);
-		let p1 = new THREE.Vector3(-size.x,size.y,size.z+0.1);
-		let p2 = new THREE.Vector3(size.x,size.y,size.z+0.1);
+		let p1 = new THREE.Vector3(-size.x,size.y,size.z+this.#offset);
+		let p2 = new THREE.Vector3(size.x,size.y,size.z+this.#offset);
 		let p3 = new THREE.Vector3(size.x,size.y,size.z);
 		return [p0,p1,p2,p3];
 	}
 	getPointsForYLine(size){
 		let p0 = new THREE.Vector3(size.x,size.y,size.z);
-		let p1 = new THREE.Vector3(size.x+0.1,size.y,size.z+0.1);
-		let p2 = new THREE.Vector3(size.x+0.1,-size.y,size.z+0.1);
+		let p1 = new THREE.Vector3(size.x+this.#offset,size.y,size.z+this.#offset);
+		let p2 = new THREE.Vector3(size.x+this.#offset,-size.y,size.z+this.#offset);
 		let p3 = new THREE.Vector3(size.x,-size.y,size.z);
 		return [p0,p1,p2,p3];
 	}
@@ -237,8 +241,8 @@ export class LabelManager {
 	*/
 	getPointsForZLine(size){
 		let p0 = new THREE.Vector3(size.x,size.y,size.z);
-		let p1 = new THREE.Vector3(size.x+0.1,size.y,size.z);
-		let p2 = new THREE.Vector3(size.x+0.1,size.y,-size.z);
+		let p1 = new THREE.Vector3(size.x+this.#offset,size.y,size.z);
+		let p2 = new THREE.Vector3(size.x+this.#offset,size.y,-size.z);
 		let p3 = new THREE.Vector3(size.x,size.y,-size.z);
 		return [p0,p1,p2,p3];
 	}
