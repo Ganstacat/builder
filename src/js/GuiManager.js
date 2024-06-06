@@ -79,7 +79,7 @@ export class GuiManager {
 		});
 		this.gui.add(options, 'размеры').onChange( (e)=>{
 			const obj = self.stage.selectedObject;
-			self.#switchLabelsVisibility(obj,e);
+			self.#removeObjDimensions(obj,e);
 		})
 	
 		this.gui.addColor(options, 'цвет').onChange((e)=>{
@@ -117,14 +117,23 @@ export class GuiManager {
 			}
 		})
 	}
-	#switchLabelsVisibility(obj, bool){
+	#removeObjDimensions(obj, bool){
 		obj.userData.hasDimensions = bool;
 		if(bool){
 			this.stage.controller.labelManager.addLabelToObject(obj);
 		} else {
 			this.stage.controller.labelManager.removeLabel(obj);
 		}
-	}	
+	}
+	#switchLabelsVisibility(o, bool){
+		if (o.name === 'container') {
+			for (let c of o.children) {
+				if (c.isLine || c.userData.isText) {
+					c.visible = bool;
+				}
+			}
+		}
+	}
 	/**
 		Скрыть dat.GUI Элемент
 	*/
